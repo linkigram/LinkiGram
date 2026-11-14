@@ -479,8 +479,8 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                     Math.abs(selectorTargetX - x) / Math.max(1f, sWidth) * 0.16f);
             final boolean liquidGlass = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
             if (liquidGlass) {
-                canvas.scale((selectorStretchX + travel) * (1f + selectorPress * 0.08f),
-                        (selectorStretchY - travel * 0.3f) * (1f + selectorPress * 0.20f),
+                canvas.scale((selectorStretchX + travel) * (1f + selectorPress * 0.16f),
+                        (selectorStretchY - travel * 0.3f) * (1f + selectorPress * 0.34f),
                         x, getHeight() / 2f);
             }
             canvas.drawRoundRect(selectorRect, radius, radius, selectorPaint);
@@ -512,6 +512,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     private float selectorStretchX = 1f;
     private float selectorStretchY = 1f;
     private float selectorPress;
+    private View pressedTab;
     private final SpringAnimation selectorPressAnimation = new SpringAnimation(this,
             new FloatPropertyCompat<MainTabsLayout>("selectorPress") {
                 @Override
@@ -522,6 +523,9 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                 @Override
                 public void setValue(MainTabsLayout object, float value) {
                     object.selectorPress = value;
+                    if (object.pressedTab instanceof GlassTabView) {
+                        ((GlassTabView) object.pressedTab).setPressScale(value);
+                    }
                     object.invalidate();
                 }
             }).setSpring(new SpringForce(0f).setStiffness(500f).setDampingRatio(0.8f));
@@ -594,6 +598,20 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     private float animatedLongSelectedViewCenterX;
     private float animatedLongSelectedViewOffsetX;
 
+    private void setPressedTab(@Nullable View tab) {
+        if (pressedTab == tab) {
+            return;
+        }
+        final View previous = pressedTab;
+        pressedTab = tab;
+        if (previous instanceof GlassTabView) {
+            ((GlassTabView) previous).setPressScale(0f);
+        }
+        if (tab instanceof GlassTabView) {
+            ((GlassTabView) tab).setPressScale(selectorPress);
+        }
+    }
+
     private final int touchSlop;
     private int selectorPointerId = -1;
     private float touchDownX;
@@ -611,6 +629,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         selectorStretchY = 0.98f - movement * 0.3f;
         selectorInitialized = true;
         final View nearest = findNearestVisibleChildByX(nextX, this);
+        setPressedTab(nearest);
         for (int i = 0; i < getChildCount(); i++) {
             final View child = getChildAt(i);
             if (child instanceof GlassTabView) {
@@ -659,13 +678,16 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         final int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL
                 || action == MotionEvent.ACTION_POINTER_UP) {
+            // The spring keeps driving the pressed tab back to 1x, so the reference stays
+            // until the next press replaces it.
             selectorPressAnimation.animateToFinalPosition(0f);
         }
         if (action == MotionEvent.ACTION_DOWN) {
-            selectorPointerId = findTabUnder(event.getX(), event.getY()) != null
-                    ? event.getPointerId(0) : -1;
+            final View under = findTabUnder(event.getX(), event.getY());
+            selectorPointerId = under != null ? event.getPointerId(0) : -1;
             touchDownX = event.getX();
             touchDownY = event.getY();
+            setPressedTab(under);
             if (selectorPointerId != -1) {
                 selectorPressAnimation.animateToFinalPosition(1f);
             }
@@ -747,6 +769,10 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         selectorStretchYAnimation.cancel();
         selectorPressAnimation.cancel();
         selectorPress = 0f;
+        if (pressedTab instanceof GlassTabView) {
+            ((GlassTabView) pressedTab).setPressScale(0f);
+        }
+        pressedTab = null;
         selectorStretchX = selectorStretchY = 1f;
         selectorInitialized = false;
         selectorFollowsPager = false;

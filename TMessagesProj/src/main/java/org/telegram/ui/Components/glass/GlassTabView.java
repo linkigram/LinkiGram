@@ -214,6 +214,15 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
             } else {
                 tmpRectF.set(0, 0, viewWidth, getHeight());
             }
+            if (stackedMainTab && pressScale > 0f) {
+                // LinkiGram: the selected-tab pill inflates under the finger (iOS liquid-glass
+                // tab bar). It grows sideways and downward only, so it stays inside the tab,
+                // whose children are clipped by the parent.
+                final float growX = dp(4f) * pressScale;
+                tmpRectF.left -= growX;
+                tmpRectF.right += growX;
+                tmpRectF.bottom += dp(7f) * pressScale;
+            }
             final float r = Math.min(tmpRectF.width(), tmpRectF.height()) / 2f;
             final float s = lerp(0.6f, 1, selectedFactor) * MathUtils.clamp(attachScale, 0, 1);
             canvas.save();
@@ -606,6 +615,26 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
 
     public float attachScale = 1;
     public void setAttachScale(float scale) {
+        attachScale = scale;
+        applyContentScale();
+    }
+
+    /**
+     * LinkiGram: 0..1 press factor driven by the parent bar while a tab is held, so the
+     * icon and (for the docked icon-over-label pill) the selected-tab capsule grow under
+     * the finger, the way the iOS tab bar pops on press.
+     */
+    private float pressScale;
+    public void setPressScale(float scale) {
+        if (pressScale != scale) {
+            pressScale = scale;
+            applyContentScale();
+            invalidate();
+        }
+    }
+
+    private void applyContentScale() {
+        final float scale = attachScale * (1f + pressScale * 0.10f);
         textView.setScaleX(scale);
         textView.setScaleY(scale);
         imageView.setScaleX(scale);
@@ -614,7 +643,6 @@ public class GlassTabView extends FrameLayout implements MainTabsLayout.Tab, Fac
             backupImageView.setScaleX(scale);
             backupImageView.setScaleY(scale);
         }
-        attachScale = scale;
         invalidate();
     }
 
