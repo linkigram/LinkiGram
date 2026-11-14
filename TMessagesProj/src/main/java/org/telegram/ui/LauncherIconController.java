@@ -43,6 +43,15 @@ public class LauncherIconController {
         NOX("NoxIcon", R.mipmap.icon_2_background_sa, R.mipmap.icon_foreground_sa, R.string.AppIconNox),
 
 
+        // --- LinkiGram: gradient icon styles (see res/drawable/icon_lg_*_bg.xml)
+        LG_AURORA("LinkiAuroraIcon", R.drawable.icon_lg_aurora_bg, R.mipmap.icon_foreground_sa, R.string.NM_AppIcon_Aurora),
+        LG_SUNSET("LinkiSunsetIcon", R.drawable.icon_lg_sunset_bg, R.mipmap.icon_foreground_sa, R.string.NM_AppIcon_Sunset),
+        LG_MINT("LinkiMintIcon", R.drawable.icon_lg_mint_bg, R.mipmap.icon_foreground_sa, R.string.NM_AppIcon_Mint),
+        LG_NEON("LinkiNeonIcon", R.drawable.icon_lg_neon_bg, R.mipmap.icon_foreground_sa, R.string.NM_AppIcon_Neon),
+        LG_GOLD("LinkiGoldIcon", R.drawable.icon_lg_gold_bg, R.mipmap.icon_foreground_sa, R.string.NM_AppIcon_Gold),
+        LG_MIDNIGHT("LinkiMidnightIcon", R.drawable.icon_lg_midnight_bg, R.mipmap.icon_foreground_sa, R.string.NM_AppIcon_Midnight),
+
+
         // --- LinkiGram: user-selectable icon colours (see res/drawable/icon_custom_bg_XX.xml)
         CUSTOM_01("CustomIcon01", R.drawable.icon_custom_bg_01, R.mipmap.icon_foreground_sa, 0, 0xFFE53935),
         CUSTOM_02("CustomIcon02", R.drawable.icon_custom_bg_02, R.mipmap.icon_foreground_sa, 0, 0xFFFB8C00),

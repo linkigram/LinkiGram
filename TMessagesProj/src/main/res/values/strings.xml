@@ -5812,6 +5812,12 @@
     <string name="AppIconPremium">Premium</string>
     <string name="AppIconTurbo">Turbo</string>
     <string name="AppIconNox">Nox</string>
+    <string name="NM_AppIcon_Aurora">Aurora</string>
+    <string name="NM_AppIcon_Sunset">Sunset</string>
+    <string name="NM_AppIcon_Mint">Mint</string>
+    <string name="NM_AppIcon_Neon">Neon</string>
+    <string name="NM_AppIcon_Gold">Gold</string>
+    <string name="NM_AppIcon_Midnight">Midnight</string>
     <string name="AppIconChangedTo">App icon has been changed to %1$s</string>
     <string name="FileTooLarge">File Too Large</string>
     <string name="PremiumPreviewAppIcon">Premium App Icon</string>

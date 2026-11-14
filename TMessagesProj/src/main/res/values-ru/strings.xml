@@ -1530,6 +1530,12 @@
     <string name="NM_Ayu_ShadowDb">Локальное хранилище сохранённых сообщений и данных трекинга.</string>
     <!-- LinkiGram: custom launcher icon colour picker -->
     <string name="AppIconCustomColor">Свой цвет</string>
+    <string name="NM_AppIcon_Aurora">Аврора</string>
+    <string name="NM_AppIcon_Sunset">Закат</string>
+    <string name="NM_AppIcon_Mint">Мята</string>
+    <string name="NM_AppIcon_Neon">Неон</string>
+    <string name="NM_AppIcon_Gold">Золото</string>
+    <string name="NM_AppIcon_Midnight">Полночь</string>
     <string name="AppIconCustomColorHint">Введите HEX-код цвета (например #1E88E5). Android не умеет перекрашивать иконку на лету, поэтому применится ближайший из 16 встроенных цветов.</string>
 
 
