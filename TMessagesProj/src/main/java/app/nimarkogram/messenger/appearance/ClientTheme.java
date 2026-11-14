@@ -32,8 +32,7 @@ public final class ClientTheme {
     private ClientTheme() { }
 
     public static boolean isEnabled() {
-        return ColorOs17Theme.isEnabled() || LinkiGramYouTheme.isEnabled()
-                || Material3Theme.isEnabled();
+        return ColorOs17Theme.isEnabled() || LinkiGramYouTheme.isEnabled();
     }
 
     public static int resolveColor(int key, int original) {
@@ -41,12 +40,10 @@ public final class ClientTheme {
         if (key == Theme.key_chat_outBubbleGradient1 || key == Theme.key_chat_outBubbleGradient2
                 || key == Theme.key_chat_outBubbleGradient3 || key == Theme.key_chat_outBubbleGradientAnimated)
             return 0;
-        if (LinkiGramYouTheme.isEnabled() || Material3Theme.isEnabled()) {
+        if (LinkiGramYouTheme.isEnabled()) {
             if (key == Theme.key_actionBarTabActiveText) return color(ON_CONTAINER);
             if (key == Theme.key_actionBarTabLine) return color(CONTAINER);
-        }
-        if (Material3Theme.isEnabled()) {
-            int messageColor = Material3Theme.resolveMessageColor(key, Theme.isCurrentThemeDark(), Material3Theme.getSeedColor());
+            int messageColor = LinkiGramYouTheme.resolveMessageColor(key, Theme.isCurrentThemeDark(), LinkiGramYouTheme.paletteSeed());
             if (messageColor != 0) return messageColor;
         }
         int role = ROLES.get(key, 0);
@@ -75,15 +72,6 @@ public final class ClientTheme {
 
     public static int color(int role) {
         final boolean dark = Theme.isCurrentThemeDark();
-        if (Material3Theme.isEnabled()) {
-            if (role == SELECTOR) return Theme.multAlpha(color(PRIMARY), dark ? 0.14f : 0.10f);
-            if (role == ERROR) return dark ? 0xFFFFB4AB : 0xFFBA1A1A;
-            if (role == INVERSE) return dark ? 0xFFE5E5E7 : 0xFF303033;
-            if (role == ON_INVERSE) return dark ? 0xFF222224 : 0xFFF5F5F5;
-            if (role == SURFACE_SELECTED) return Material3Theme.mix(color(SURFACE), color(PRIMARY), 0.08f);
-            if (role == DIVIDER) return Material3Theme.mix(color(BACKGROUND), color(OUTLINE), 0.24f);
-            return Material3Theme.roleColor(Material3Theme.getSeedColor(), dark, role);
-        }
         if (ColorOs17Theme.isEnabled()) {
             switch (role) {
                 case BACKGROUND: return dark ? 0xFF101010 : 0xFFF5F5F5;
@@ -106,6 +94,9 @@ public final class ClientTheme {
                 case DIVIDER: return dark ? 0xFF363639 : 0xFFE6E6E9;
                 default: return 0;
             }
+        }
+        if (LinkiGramYouTheme.isEnabled()) {
+            return LinkiGramYouTheme.roleColor(LinkiGramYouTheme.paletteSeed(), dark, role);
         }
         int[] colors = palette(dark).colors;
         return colors[role > 0 && role < colors.length ? role : ON_SURFACE];
@@ -151,24 +142,20 @@ public final class ClientTheme {
     }
 
     public static int popupRadius() {
-        if (Material3Theme.isEnabled()) return Material3Theme.MEDIUM_SHAPE_DP;
         if (ColorOs17Theme.isEnabled()) return 24;
-        return LinkiGramYouTheme.radius("popup", 16);
+        return LinkiGramYouTheme.radius("popup", LinkiGramYouTheme.MEDIUM_SHAPE_DP);
     }
     public static int dialogRadius() {
         if (ColorOs17Theme.isEnabled()) return 24;
-        if (Material3Theme.isEnabled()) return 28;
         return LinkiGramYouTheme.radius("dialog", 28);
     }
     public static int sectionRadius() {
         if (ColorOs17Theme.isEnabled()) return 20;
-        if (Material3Theme.isEnabled()) return Material3Theme.LARGE_SHAPE_DP;
-        return LinkiGramYouTheme.radius("section", 24);
+        return LinkiGramYouTheme.radius("section", LinkiGramYouTheme.LARGE_SHAPE_DP);
     }
     public static int bubbleRadius() {
         if (ColorOs17Theme.isEnabled()) return 20;
-        if (Material3Theme.isEnabled()) return 20;
-        return LinkiGramYouTheme.radius("bubble", 24);
+        return LinkiGramYouTheme.radius("bubble", LinkiGramYouTheme.BUBBLE_SHAPE_DP);
     }
     public static int menuHeight() {
         if (ColorOs17Theme.isEnabled()) return 52;

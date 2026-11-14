@@ -1658,7 +1658,7 @@ public class ActionBar extends FrameLayout implements FactorAnimator.Target, The
                 }
 
                 if (titleTextView[i] != null && titleTextView[i].getVisibility() != GONE) {
-                    if (app.nimarkogram.messenger.appearance.Material3Theme.isEnabled()) {
+                    if (app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled()) {
                         // Yougram keeps the compact 20sp semibold title (the base
                         // typeface is already bold) instead of the 22sp You growth.
                         titleTextView[i].setTextSize(20);

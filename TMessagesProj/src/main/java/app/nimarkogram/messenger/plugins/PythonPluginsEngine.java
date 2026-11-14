@@ -4146,11 +4146,19 @@ public class PythonPluginsEngine implements PluginsController.PluginsEngine {
                         continue;
                     }
                     String key = id.substring(2, id.length() - 2);
+                    if (literal == null) {
+                        // Python None (for example __icon__ = None) arrives as a
+                        // Java null; treat it as an absent metadata entry instead
+                        // of crashing the installer on literal.toString().
+                        continue;
+                    }
                     if ("requirements".equals(key)) {
                         try {
                             metadata.put(
                                     key,
                                     literal.asList().stream()
+                                            .filter(value ->
+                                                    value != null)
                                             .map(Object::toString)
                                             .map(String::trim)
                                             .filter(value ->

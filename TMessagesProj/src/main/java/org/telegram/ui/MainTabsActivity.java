@@ -286,10 +286,6 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     }
 
     private int getNavigationBarSurfaceColor() {
-        if (app.nimarkogram.messenger.appearance.Material3Theme.isEnabled()) {
-            return app.nimarkogram.messenger.appearance.ClientTheme.color(
-                    app.nimarkogram.messenger.appearance.ClientTheme.SURFACE_HIGH);
-        }
         int color = app.nimarkogram.messenger.appearance.LinkiGramYouTheme.navigationBarColor(
                 ApplicationLoader.applicationContext,
                 app.nimarkogram.messenger.appearance.LinkiGramYouTheme.NAV_COLOR_SURFACE,
@@ -321,17 +317,11 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     private void applyTabsWrapperBackground() {
         if (tabsViewWrapper == null) return;
         final boolean colorOs = app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled();
-        final boolean material3 = app.nimarkogram.messenger.appearance.Material3Theme.isEnabled();
         final boolean youDocked = tabsDocked && app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled();
         final boolean glass = youDocked && glassTabsBackground() != null;
         if (colorOs) {
             tabsViewWrapper.setBackground(app.nimarkogram.messenger.appearance.ColorOs17Theme.navigationBarBackgroundDrawable());
             setTabsNavStripVisible(false);
-        } else if (material3) {
-            // Material 3 floating pill: the wrapper stays transparent and only
-            // the system navigation strip under it keeps the surface colour.
-            tabsViewWrapper.setBackground(null);
-            setTabsNavStripVisible(true);
         } else if (glass) {
             tabsViewWrapper.setBackground(null);
             setTabsNavStripVisible(true);
@@ -1274,7 +1264,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
 
         ViewGroup.MarginLayoutParams lp;
         {
-            final int navigationStyleHeight = app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled() || app.nimarkogram.messenger.appearance.Material3Theme.isEnabled()
+            final int navigationStyleHeight = app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled()
                     ? 64 : app.nimarkogram.messenger.appearance.AppearanceConfig.newNavigationBarStyle() ? 72
                     : DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS;
             final int height = navigationBarHeight + updateLayoutHeight + dp(navigationStyleHeight);
@@ -1287,7 +1277,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         {
             int bottomMargin = isUpdateLayoutVisible ? (navigationBarHeight + updateLayoutHeight) : 0;
             if (tabletLayout && MainTabsLayout.isBottomNavigationVisible()) {
-                int tabsHeight = app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled() || app.nimarkogram.messenger.appearance.Material3Theme.isEnabled()
+                int tabsHeight = app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled()
                         ? dp(64) : dp(DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS);
                 bottomMargin = Math.max(bottomMargin, navigationBarHeight + tabsHeight);
             }
@@ -1306,7 +1296,6 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         if (materialNavigation) {
             ViewGroup.LayoutParams tabsParams = tabsView.getLayoutParams();
             final boolean colorOs = app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled();
-            final boolean material3 = app.nimarkogram.messenger.appearance.Material3Theme.isEnabled();
             final boolean fullWidthDock = colorOs;
             int height = dp(64);
             if (tabsParams.height != height) { tabsParams.height = height; tabsView.setLayoutParams(tabsParams); }
@@ -1514,7 +1503,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         final boolean isUpdateLayoutVisible = updateLayoutWrapper.isUpdateLayoutVisible();
         final int updateLayoutHeight = isUpdateLayoutVisible ? dp(UpdateLayoutWrapper.HEIGHT) : 0;
         final int tabsHeight = !MainTabsLayout.isBottomNavigationVisible() ? 0
-                : app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled() || app.nimarkogram.messenger.appearance.Material3Theme.isEnabled() ? dp(64)
+                : app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled() ? dp(64)
                 : app.nimarkogram.messenger.appearance.AppearanceConfig.newNavigationBarStyle() ? dp(72)
                 : dp(MainTabsLayout.isBottomNavigationFloating()
                         ? DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS : DialogsActivity.MAIN_TABS_HEIGHT);
@@ -1726,7 +1715,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         }
         tabsViewBackground.setRadius(dp(tabsDocked ? 0 : DialogsActivity.MAIN_TABS_HEIGHT / 2f));
         tabsViewBackground.setPadding(dp(tabsDocked ? 0 : DialogsActivity.MAIN_TABS_MARGIN - 0.334f));
-        if (app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled() || app.nimarkogram.messenger.appearance.Material3Theme.isEnabled()) {
+        if (app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled()) {
             tabsView.setBackgroundColor(0x00000000);
             applyTabsWrapperBackground();
         } else if (tabsDocked && app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled()) {
@@ -1756,7 +1745,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             fadeView.invalidate();
         }
         if (tabsView != null) {
-            if (app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled() || app.nimarkogram.messenger.appearance.Material3Theme.isEnabled()) {
+            if (app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled()) {
                 tabsView.setBackgroundColor(0x00000000);
                 applyTabsWrapperBackground();
             } else if (tabsDocked && app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled()) {

@@ -37,7 +37,12 @@ public final class Provider {
                     "https://api.deepseek.com/v1",
                     "deepseek-chat",
                     "https://platform.deepseek.com/api_keys",
-                    "deepseek.com")));
+                    "deepseek.com"),
+            new Provider("tk233", "Tk233",
+                    "https://tk233.cc/v1",
+                    "deepseek-v4.1-flash-1017",
+                    null,
+                    "tk233.cc")));
 
     private final String id;
     private final String title;

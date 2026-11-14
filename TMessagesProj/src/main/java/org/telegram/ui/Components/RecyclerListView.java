@@ -3577,7 +3577,7 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
     }
 
     int getSectionColorForDecoration() {
-        if (app.nimarkogram.messenger.appearance.Material3Theme.isEnabled()) {
+        if (app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled()) {
             // Yougram settings: lifted container cards over the darker page background.
             return app.nimarkogram.messenger.appearance.ClientTheme.color(
                     app.nimarkogram.messenger.appearance.ClientTheme.SURFACE_HIGH);
@@ -3670,11 +3670,11 @@ public class RecyclerListView extends RecyclerView implements IBlur3Capture {
     private final float[] materialCorners = new float[8];
     private void materialCorners(View view) {
         boolean above = sectionNeighbor(view, -1), below = sectionNeighbor(view, 1);
-        if (app.nimarkogram.messenger.appearance.Material3Theme.isEnabled()) {
+        if (app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled()) {
             // Yougram settings groups: a 28dp outer edge that morphs into an
             // 8dp inner join, with a 2dp gap between the segments.
-            float outer = dp(app.nimarkogram.messenger.appearance.Material3Theme.LARGE_SHAPE_DP);
-            float inner = dp(app.nimarkogram.messenger.appearance.Material3Theme.SMALL_SHAPE_DP);
+            float outer = dp(app.nimarkogram.messenger.appearance.LinkiGramYouTheme.LARGE_SHAPE_DP);
+            float inner = dp(app.nimarkogram.messenger.appearance.LinkiGramYouTheme.SMALL_SHAPE_DP);
             float top = above ? inner : outer;
             float bottom = below ? inner : outer;
             for (int i = 0; i < 4; i++) materialCorners[i] = top;

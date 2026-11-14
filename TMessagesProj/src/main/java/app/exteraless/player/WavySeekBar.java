@@ -172,7 +172,7 @@ public class WavySeekBar extends View {
 
     @Override
     protected void onDraw(@NonNull Canvas canvas) {
-        if (app.nimarkogram.messenger.appearance.Material3Theme.isEnabled()) {
+        if (app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled()) {
             long now = SystemClock.elapsedRealtime();
             float dt = frozen ? 0f : lastFrame == 0 ? 0.016f : Math.min(0.05f, (now - lastFrame) / 1000f);
             lastFrame = frozen ? 0 : now;

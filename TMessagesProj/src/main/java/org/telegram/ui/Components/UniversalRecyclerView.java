@@ -490,7 +490,7 @@ public class UniversalRecyclerView extends RecyclerListView {
         final int cardColor = app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled()
                 ? app.nimarkogram.messenger.appearance.ClientTheme.glassColor(
                         app.nimarkogram.messenger.appearance.ClientTheme.SURFACE)
-                : app.nimarkogram.messenger.appearance.Material3Theme.isEnabled()
+                : app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled()
                 ? app.nimarkogram.messenger.appearance.ClientTheme.color(
                         app.nimarkogram.messenger.appearance.ClientTheme.SURFACE_HIGH)
                 : Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider);

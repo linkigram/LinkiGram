@@ -503,13 +503,6 @@ public class SeekBarView extends FrameLayout implements Theme.Colorable {
             drawTimestampLabel(canvas);
             return;
         }
-        if (app.nimarkogram.messenger.appearance.Material3Theme.isEnabled() && !twoSided) {
-            outerPaint1.setColor(app.nimarkogram.messenger.appearance.ClientTheme.color(app.nimarkogram.messenger.appearance.ClientTheme.PRIMARY));
-            innerPaint1.setColor(app.nimarkogram.messenger.appearance.ClientTheme.color(app.nimarkogram.messenger.appearance.ClientTheme.TRACK));
-            drawMaterialSlider(canvas, left, right, centerY, thumbX);
-            drawTimestampLabel(canvas);
-            return;
-        }
         if (isMd3Slider() && !twoSided) {
             drawMaterialSlider(canvas, left, right, centerY, thumbX);
             drawTimestampLabel(canvas);

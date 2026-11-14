@@ -8,11 +8,10 @@ public final class MaterialStyle {
 
     public static boolean listItems() {
         return LinkiGramYouTheme.isEnabled() || ColorOs17Theme.isEnabled()
-                || Material3Theme.isEnabled() || NimarkoConfig.m3ListItems();
+                || NimarkoConfig.m3ListItems();
     }
     public static int dividerStyle() {
-        if (LinkiGramYouTheme.isEnabled() || ColorOs17Theme.isEnabled()
-                || Material3Theme.isEnabled()) return 2;
+        if (LinkiGramYouTheme.isEnabled() || ColorOs17Theme.isEnabled()) return 2;
         return Math.max(0, Math.min(2, NimarkoConfig.getPreferences().getInt("materialDividerStyle", NimarkoConfig.disableDividers ? 0 : 1)));
     }
     public static boolean segments() { return listItems() || dividerStyle() == 2; }
@@ -29,12 +28,12 @@ public final class MaterialStyle {
     public static int switchTextInset() { return ClientTheme.isEnabled() ? switchWidth() + 38 : 70; }
     public static int switchWidth() {
         if (ColorOs17Theme.isEnabled()) return 44;
-        if (Material3Theme.isEnabled() || LinkiGramYouTheme.isEnabled()) return 52;
+        if (LinkiGramYouTheme.isEnabled()) return 52;
         return 37;
     }
     public static int switchHeight() {
         if (ColorOs17Theme.isEnabled()) return 26;
-        if (Material3Theme.isEnabled() || LinkiGramYouTheme.isEnabled()) return 32;
+        if (LinkiGramYouTheme.isEnabled()) return 32;
         return 20;
     }
 }
