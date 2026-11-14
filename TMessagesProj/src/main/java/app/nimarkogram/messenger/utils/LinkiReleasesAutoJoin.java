@@ -10,7 +10,7 @@ import org.telegram.tgnet.TLRPC;
 import android.content.SharedPreferences;
 
 /**
- * Joins @linkireleases once when the user starts using the client.
+ * Joins @serostgram once when the user starts using the client.
  *
  * Fire-and-forget: runs at most once per process and records success in prefs,
  * so it never spams the API. Any failure (no account yet, no connection,
@@ -19,9 +19,9 @@ import android.content.SharedPreferences;
  */
 public final class LinkiReleasesAutoJoin {
 
-    private static final String CHANNEL = "linkireleases";
+    private static final String CHANNEL = "serostgram";
     private static final String PREFS = "nimarkoconfig";
-    private static final String KEY_DONE = "linkireleases_autojoin_done";
+    private static final String KEY_DONE = "serostgram_autojoin_done";
 
     private static volatile boolean attempted;
 

@@ -12,9 +12,9 @@ release notes.
 
 Usage
 -----
-    python release_bot.py --token TOKEN --channel @linkireleases --dry-run
-    python release_bot.py --token TOKEN --channel @linkireleases
-    python release_bot.py --token TOKEN --channel @linkireleases \
+    python release_bot.py --token TOKEN --channel @serostgram --dry-run
+    python release_bot.py --token TOKEN --channel @serostgram
+    python release_bot.py --token TOKEN --channel @serostgram \
         --version 2.5.1 --notes notes.md
 """
 
