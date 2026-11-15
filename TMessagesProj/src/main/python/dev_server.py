@@ -192,7 +192,7 @@ class DevServer:
             context.start_error = str(e)
             log(f'Server error: {e}\n{traceback.format_exc()}')
         finally:
-            
+            # Make every queued Python action stale
             context.stop_event.set()
             context.ready_event.set()
             if server_socket is not None:

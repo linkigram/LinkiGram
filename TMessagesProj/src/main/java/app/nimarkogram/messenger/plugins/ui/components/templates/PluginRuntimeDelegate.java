@@ -263,6 +263,10 @@ public final class PluginRuntimeDelegate {
     private PluginRuntimeDelegate() {
     }
 
+    /**
+     * Capability handed to plugin UI code: a queue that coalesces frame
+     * callbacks for one runtime token and is revoked together with it.
+     */
     public static FrameCallbackQueue newFrameCallbackQueue(
             PluginsController.PluginRuntimeToken runtimeToken) {
         requireMainThread();

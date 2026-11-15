@@ -19,6 +19,23 @@ _EXECUTOR_PATCHED = globals().get("_EXECUTOR_PATCHED", False)
 _LOW_LEVEL_THREAD_PATCHED = globals().get(
     "_LOW_LEVEL_THREAD_PATCHED", False)
 
+# The propagation wrappers are process-wide, not per-module: a process which
+# imports this module twice (runtime reload, a second loader, host tests) must
+# not stack a second layer on top of the first, or every queued callback would
+# run once per layer.  The marker travels on the wrapper itself so the guard
+# survives a fresh module object.
+_PATCH_MARKER = "__nimarko_process_patched__"
+
+def _already_patched(target):
+    return getattr(target, _PATCH_MARKER, False)
+
+def _mark_patched(wrapper):
+    try:
+        setattr(wrapper, _PATCH_MARKER, True)
+    except Exception:
+        pass
+    return wrapper
+
 def _token_from_globals(namespace):
     if isinstance(namespace, dict):
         return namespace.get(_MODULE_TOKEN_KEY)
@@ -356,7 +373,8 @@ def _install_thread_propagation():
 
     try:
         import threading
-        if not _THREAD_PATCHED:
+        if not _THREAD_PATCHED and not _already_patched(
+                threading.Thread.__init__):
             original_init = threading.Thread.__init__
             original_bootstrap_inner = threading.Thread._bootstrap_inner
 
@@ -391,11 +409,13 @@ def _install_thread_propagation():
                     if original_run is not None:
                         self.run = original_run
 
-            threading.Thread.__init__ = owned_init
-            threading.Thread._bootstrap_inner = owned_bootstrap_inner
+            threading.Thread.__init__ = _mark_patched(owned_init)
+            threading.Thread._bootstrap_inner = _mark_patched(
+                owned_bootstrap_inner)
             _THREAD_PATCHED = True
 
-        if not _TIMER_PATCHED:
+        if not _TIMER_PATCHED and not _already_patched(
+                threading.Timer.__init__):
             original_timer_init = threading.Timer.__init__
 
             @functools.wraps(original_timer_init)
@@ -419,14 +439,15 @@ def _install_thread_propagation():
                     args=args, kwargs=kwargs)
                 self._nimarko_runtime_token = token
 
-            threading.Timer.__init__ = owned_timer_init
+            threading.Timer.__init__ = _mark_patched(owned_timer_init)
             _TIMER_PATCHED = True
     except Exception:
         pass
 
     try:
         import _thread
-        if not _LOW_LEVEL_THREAD_PATCHED:
+        if not _LOW_LEVEL_THREAD_PATCHED and not _already_patched(
+                _thread.start_new_thread):
             original_start_new_thread = _thread.start_new_thread
 
             @functools.wraps(original_start_new_thread)
@@ -448,14 +469,15 @@ def _install_thread_propagation():
                     return original_start_new_thread(invoke, args)
                 return original_start_new_thread(invoke, args, kwargs)
 
-            _thread.start_new_thread = owned_start_new_thread
+            _thread.start_new_thread = _mark_patched(owned_start_new_thread)
             _LOW_LEVEL_THREAD_PATCHED = True
     except Exception:
         pass
 
     try:
         import concurrent.futures
-        if not _EXECUTOR_PATCHED:
+        if not _EXECUTOR_PATCHED and not _already_patched(
+                concurrent.futures.Future.add_done_callback):
             original_submit = concurrent.futures.ThreadPoolExecutor.submit
             original_add_done_callback = concurrent.futures.Future.add_done_callback
 
@@ -472,7 +494,8 @@ def _install_thread_propagation():
 
                 return original_submit(self, invoke)
 
-            concurrent.futures.ThreadPoolExecutor.submit = owned_submit
+            concurrent.futures.ThreadPoolExecutor.submit = _mark_patched(
+                owned_submit)
 
             @functools.wraps(original_add_done_callback)
             def owned_add_done_callback(self, fn):
@@ -487,7 +510,8 @@ def _install_thread_propagation():
 
                 return original_add_done_callback(self, invoke)
 
-            concurrent.futures.Future.add_done_callback = owned_add_done_callback
+            concurrent.futures.Future.add_done_callback = _mark_patched(
+                owned_add_done_callback)
             _EXECUTOR_PATCHED = True
     except Exception:
         pass

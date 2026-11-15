@@ -91,6 +91,7 @@ import android.util.StateSet;
 import android.util.TypedValue;
 import android.view.Display;
 import android.view.Gravity;
+import android.view.Choreographer;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.PixelCopy;
@@ -996,8 +997,63 @@ public class AndroidUtilities {
     }
 
     public static void removeFromParent(View child) {
-        if (child != null && child.getParent() != null) {
-            ((ViewGroup) child.getParent()).removeView(child);
+        removeFromParent(child, null);
+    }
+
+    public static void removeFromParent(View child, Runnable afterRemoval) {
+        if (child == null) {
+            if (afterRemoval != null) {
+                if (Looper.myLooper() == Looper.getMainLooper()) {
+                    afterRemoval.run();
+                } else {
+                    runOnUIThread(afterRemoval);
+                }
+            }
+            return;
+        }
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnUIThread(() -> removeFromParent(child, afterRemoval));
+            return;
+        }
+
+        ViewParent viewParent = child.getParent();
+        if (!(viewParent instanceof ViewGroup)) {
+            if (afterRemoval != null && viewParent == null) {
+                afterRemoval.run();
+            }
+            return;
+        }
+        ViewGroup parent = (ViewGroup) viewParent;
+
+        // Removing a direct window child (the root view itself) while the
+        // framework is traversing it corrupts the view hierarchy, so the
+        // removal is deferred past the current frame: hide it now and drop it
+        // from the main thread once the frame has been committed.
+        final boolean isDirectWindowChild =
+                parent == child.getRootView() && parent.isAttachedToWindow();
+        if (isDirectWindowChild) {
+            final int previousVisibility = child.getVisibility();
+            child.setVisibility(View.GONE);
+            Runnable removeIfStillOwned = () -> {
+                if (child.getParent() == parent) {
+                    parent.removeView(child);
+                }
+                if (afterRemoval != null && child.getParent() != parent) {
+                    child.setVisibility(previousVisibility);
+                    afterRemoval.run();
+                }
+            };
+            try {
+                Choreographer.getInstance().postFrameCallback(
+                        frameTimeNanos -> parent.post(removeIfStillOwned));
+            } catch (Throwable t) {
+                parent.postOnAnimation(() -> parent.post(removeIfStillOwned));
+            }
+        } else {
+            parent.removeView(child);
+            if (afterRemoval != null && child.getParent() != parent) {
+                afterRemoval.run();
+            }
         }
     }
 

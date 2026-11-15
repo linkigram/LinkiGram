@@ -213,6 +213,11 @@ public class UniversalView extends View
         }
     }
 
+    /**
+     * Coalescing rule: publishing one state schedules exactly one draw
+     * callback. Repeated calls with the same size and revision are collapsed,
+     * and a newer revision supersedes an in-flight request.
+     */
     private void scheduleDrawCallback() {
         UniversalViewDelegate callbackDelegate = this.delegate;
         PluginsController.PluginRuntimeToken runtimeToken =

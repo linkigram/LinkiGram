@@ -76,9 +76,9 @@ class JavaPythonBoundaryProxySafetyTest(unittest.TestCase):
         ]
 
         entered = dispatch.index(
-            'controller.enterPluginRuntime(this.runtimeToken)')
+            'PluginHookGuard.enterRuntime(controller, this.runtimeToken)')
         post_enter_decision = dispatch.index(
-            'controller.getPluginRuntimeTaskDecision(this.runtimeToken)',
+            'PluginHookGuard.decision(controller, this.runtimeToken)',
             entered + 1,
         )
         close = dispatch.rindex('closeExecutionScope(')
@@ -95,15 +95,15 @@ class JavaPythonBoundaryProxySafetyTest(unittest.TestCase):
             replacement.index(
                 'private Throwable closeExecutionScope(')
         ]
-        self.assertIn('onPluginExecutionFailed(', report)
+        self.assertIn('PluginHookGuard.failed(', report)
 
         close_helper = replacement[
             replacement.index('private Throwable closeExecutionScope('):
             replacement.index('private static Object invokeOriginal(')
         ]
         self.assertLess(
-            close_helper.index('onPluginExecutionFinished('),
-            close_helper.index('controller.exitPluginRuntime('),
+            close_helper.index('PluginHookGuard.finished('),
+            close_helper.index('PluginHookGuard.exitRuntime('),
         )
         self.assertIn('mergeFailures(', close_helper)
         self.assertIn('rethrowIfFatal(replacementFailure)', replacement)

@@ -741,6 +741,8 @@ public class PluginsController implements PluginsHooks {
         }
     }
 
+    /** Latest requested state for the plugin: the pending toggle when one is
+     * in flight, otherwise the startup activation or the saved preference. */
     public boolean getRequestedPluginEnabled(String pluginId) {
         if (TextUtils.isEmpty(pluginId)) return false;
         synchronized (generationLock(pluginId)) {
@@ -1667,6 +1669,10 @@ public class PluginsController implements PluginsHooks {
         }
     }
 
+    /**
+     * Final shutdown publication: revoke every remaining runtime and complete
+     * the queued shutdown callbacks without waiting on the plugins queue.
+     */
     private void finishControllerShutdown() {
         completeCancelledToggleCallbacks(
                 cancelPendingTogglesForLifecycleBoundary());
@@ -2176,6 +2182,8 @@ public class PluginsController implements PluginsHooks {
         });
     }
 
+    /** Completion for forcibly superseded operations: the plain two-argument
+     * entry point that clears any ownership so every waiter is released. */
     private void deliverToggleCallbacks(
             List<PendingToggleCallback> callbacks,
             boolean finalState, String ignoredError) {
@@ -2209,6 +2217,10 @@ public class PluginsController implements PluginsHooks {
                 lifecycleEpoch, requestedState ? error : null);
     }
 
+    /**
+     * Watchdog/emergency OFF publication: persist the disabled state and
+     * complete any queued waiters as superseded.
+     */
     public boolean forceDisablePluginDurably(String pluginId) {
         if (TextUtils.isEmpty(pluginId)) return false;
         final PluginCleanup cleanup;
@@ -2421,6 +2433,10 @@ public class PluginsController implements PluginsHooks {
         finishPluginDeactivation(cleanup);
     }
 
+    /**
+     * Phase one of disable: detach every artifact owned by the exact runtime
+     * token without closing any Python reference.
+     */
     private PluginCleanup detachPluginRuntimeLocked(String str) {
         return detachPluginRuntimeLocked(str, null);
     }
@@ -2521,6 +2537,10 @@ public class PluginsController implements PluginsHooks {
         }
     }
 
+    /**
+     * Complete phase-one notifications: the detached settings survive as plain
+     * Java state, but their borrowed Python callbacks are dropped here.
+     */
     private void finishPluginDeactivation(PluginCleanup cleanup) {
         if (cleanup == null) return;
         PluginDebugLog.log("CTRL deactivation begin plugin="

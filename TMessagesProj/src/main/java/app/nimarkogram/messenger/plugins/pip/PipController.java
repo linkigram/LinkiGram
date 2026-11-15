@@ -2013,6 +2013,7 @@ public final class PipController {
         return !artifact.exists();
     }
 
+    // Cleanup / uninstall
     public synchronized void cleanup() {
         if (registryLoaded && !cleanupRequired
                 && activeDeferredArtifactTransactions.isEmpty()) {
@@ -5607,6 +5608,7 @@ public final class PipController {
         }
     }
 
+    // Resolver
     public WheelCandidate resolveWheel(ParsedRequirement req) throws IOException {
         refreshRuntimeMarkerEnvironment();
         try {
@@ -6985,6 +6987,8 @@ public final class PipController {
 
     private PipController() {}
 
+    /** Parses METADATA: reads the dependency list out of a distribution
+     * METADATA file, bounded and without trusting its size. */
     public List<String> parseDependenciesFromMetadata(File metadataFile) {
         if (metadataFile == null || !metadataFile.isFile()) {
             return Collections.emptyList();

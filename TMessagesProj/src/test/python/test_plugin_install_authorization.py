@@ -1,4 +1,5 @@
 import hashlib
+import os
 import pathlib
 import re
 import unittest
@@ -400,11 +401,17 @@ class PluginInstallAuthorizationTest(unittest.TestCase):
         self.assertIn('revokeUnqueuedAuthority();', dismiss)
 
     def test_nimarkoprivacy_keeps_exact_runtime_self_update(self):
-        for path in (
-                pathlib.Path('/root/plugins/NimarkoPrivacy.plugin'),
-                pathlib.Path(
-                    '/root/claude_plugins/nimarkoplugins/'
-                    'NimarkoPrivacy.plugin')):
+        candidates = (
+            pathlib.Path('/root/plugins/NimarkoPrivacy.plugin'),
+            pathlib.Path(
+                '/root/claude_plugins/nimarkoplugins/'
+                'NimarkoPrivacy.plugin'),
+        )
+        available = [path for path in candidates if os.access(path, os.R_OK)]
+        if not available:
+            self.skipTest(
+                'NimarkoPrivacy.plugin is not available on this host')
+        for path in available:
             source = _source(path)
             self.assertIn(
                 'plugin_runtime.run_owned_callback(', source)

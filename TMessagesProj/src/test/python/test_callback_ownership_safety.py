@@ -257,7 +257,8 @@ class CallbackOwnershipSafetyTest(unittest.TestCase):
         self.assertNotIn('isPluginActive(', enter)
         self.assertEqual(
             hook.count(
-                'controller.getWatchdog().onPluginExecutionFailed('),
+                'PluginHookGuard.failed(controller, this.pluginId, '
+                'pythonFailure)'),
             2,
         )
         for method, end in (
@@ -270,7 +271,7 @@ class CallbackOwnershipSafetyTest(unittest.TestCase):
             py_check = section.index(
                 'catch (PyException pythonFailure)')
             failed = section.index(
-                'onPluginExecutionFailed(', py_check)
+                'PluginHookGuard.failed(', py_check)
             rethrow = section.index(
                 'throw pythonFailure;', failed)
             self.assertLess(py_check, failed)
@@ -305,15 +306,15 @@ class CallbackOwnershipSafetyTest(unittest.TestCase):
             'private void handleHookError(', replace_start)
         dispatch = replacement[replace_start:replace_end]
         self.assertIn(
-            'getPluginRuntimeTaskDecision(this.runtimeToken)',
+            'PluginHookGuard.decision(controller, this.runtimeToken)',
             dispatch,
         )
         self.assertIn(
-            'controller.enterPluginRuntime(this.runtimeToken)',
+            'PluginHookGuard.enterRuntime(controller, this.runtimeToken)',
             dispatch,
         )
         self.assertIn(
-            'controller.exitPluginRuntime(this.runtimeToken)',
+            'PluginHookGuard.exitRuntime(controller, this.runtimeToken)',
             dispatch,
         )
         self.assertNotIn('isPluginActive(', dispatch)

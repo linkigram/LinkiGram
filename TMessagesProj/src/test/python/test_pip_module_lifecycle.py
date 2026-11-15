@@ -1476,7 +1476,6 @@ class PipModuleLifecycleTest(unittest.TestCase):
             self.source.index(
                 "private static String httpGet("):
             self.source.index(
-                "// ---------------------------------------------------------------------\n"
                 "    // Resolver")
         ]
         self.assertIn(

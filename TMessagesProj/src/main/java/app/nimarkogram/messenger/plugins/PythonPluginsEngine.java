@@ -1600,6 +1600,8 @@ public class PythonPluginsEngine implements PluginsController.PluginsEngine {
                         .requiresProcessRestart();
     }
 
+    /** Process-wide guard: once any Python runtime is abandoned or any
+     * lifecycle operation has timed out, the engine itself cannot recover. */
     public static boolean isProcessPythonRuntimeAbandoned() {
         return PYTHON_RUNTIME_ABANDONED.get();
     }
