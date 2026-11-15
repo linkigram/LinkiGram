@@ -137,6 +137,7 @@ public class LinkiHubCard extends LinearLayout {
         GradientDrawable fill = new GradientDrawable();
         fill.setCornerRadius(radius);
         fill.setColor(cardColor());
+        fill.setStroke(AndroidUtilities.dp(1), Theme.isCurrentThemeDark() ? 0x20FFFFFF : 0x14000000);
         GradientDrawable mask = new GradientDrawable();
         mask.setCornerRadius(radius);
         mask.setColor(Color.WHITE);
@@ -148,6 +149,7 @@ public class LinkiHubCard extends LinearLayout {
         if (ClientTheme.glassEnabled()) {
             return ClientTheme.glassColor(ClientTheme.SURFACE);
         }
+        if (ClientTheme.isEnabled()) return ClientTheme.color(ClientTheme.SURFACE_HIGH);
         return Theme.getColor(Theme.key_windowBackgroundWhite);
     }
 }

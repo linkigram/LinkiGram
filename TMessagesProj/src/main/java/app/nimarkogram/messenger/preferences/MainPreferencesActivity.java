@@ -15,7 +15,6 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import app.nimarkogram.messenger.plugins.PluginsController;
 import app.nimarkogram.messenger.plugins.ui.PluginsActivity;
 import app.nimarkogram.messenger.utils.AppRestartHelper;
 import app.nimarkogram.messenger.wsbypass.preferences.WsBypassPreferencesActivity;
@@ -112,7 +111,8 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
     @Override
     public void fillItems(ArrayList<UItem> arrayList, UniversalAdapter universalAdapter) {
         fillingItems = true;
-        arrayList.add(UItem.asFullyCustom(createHub(getContext())));
+        // The hub paints its own tiles; a white section behind the whole view hides them.
+        arrayList.add(UItem.asFullyCustom(createHub(getContext())).setTransparent(true));
         fillingItems = false;
     }
 
@@ -144,6 +144,8 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
                 R.string.NM_QuickPrivacyModes, R.string.NM_HUB_Card_PrivacyModes, "quick privacy stealth modes"));
         items.add(card(ID_AYUMOMENTS, IconBackgroundColors.RED, R.drawable.msg_delete_solar,
                 R.string.NM_AyuMoments, R.string.NM_HUB_Card_AyuMoments, "ayu moments ghost deleted"));
+        items.add(card(ID_PLUGINS, IconBackgroundColors.PURPLE, R.drawable.msg_plugins,
+                R.string.Plugins, R.string.NM_HUB_Card_Plugins, "plugins плагины engine install check"));
         return items;
     }
 
@@ -154,10 +156,6 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
         // Full-width action row: no description.
         items.add(card(ID_DRAWER_MENU, IconBackgroundColors.GRAY, R.drawable.msg_customize,
                 R.string.LF_Menu, 0, "side menu drawer settings"));
-        if (PluginsController.isPluginEngineSupported()) {
-            items.add(card(ID_PLUGINS, IconBackgroundColors.PURPLE, R.drawable.msg_plugins,
-                    R.string.Plugins, R.string.NM_HUB_Card_Plugins, "plugins engine install check"));
-        }
         items.add(card(ID_NIMARKO_MEDIA, IconBackgroundColors.BLUE_DEEP, R.drawable.msg_download_solar,
                 R.string.NM_DownloadMedia, R.string.NM_HUB_Card_Media, "media downloader downloads chats channels"));
         items.add(card(ID_BANNERS, IconBackgroundColors.ORANGE, R.drawable.msg_photos_solar,
@@ -387,6 +385,10 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
         if (app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled()) {
             return app.nimarkogram.messenger.appearance.ClientTheme.glassColor(
                     app.nimarkogram.messenger.appearance.ClientTheme.SURFACE);
+        }
+        if (app.nimarkogram.messenger.appearance.ClientTheme.isEnabled()) {
+            return app.nimarkogram.messenger.appearance.ClientTheme.color(
+                    app.nimarkogram.messenger.appearance.ClientTheme.SURFACE_HIGH);
         }
         return Theme.getColor(Theme.key_windowBackgroundWhite);
     }

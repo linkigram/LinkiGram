@@ -64,6 +64,12 @@ public abstract class NimarkoUniversalPreferencesActivity extends UniversalFragm
     @Override
     public View createView(Context context) {
         View view = super.createView(context);
+        org.telegram.ui.ActionBar.ThemeBind.backgroundColor(view,
+                org.telegram.ui.ActionBar.Theme.key_windowBackgroundGray, getResourceProvider());
+        if (listView != null) {
+            listView.setSections(true);
+            listView.adapter.setApplyBackground(false);
+        }
         
         ViewCompat.setOnApplyWindowInsetsListener(view, this::onInsetsInternal);
         ViewCompat.requestApplyInsets(view);

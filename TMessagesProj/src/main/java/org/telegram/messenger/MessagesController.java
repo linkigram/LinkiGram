@@ -6434,6 +6434,7 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     public void cleanup() {
+        com.radolyn.ayugram.messages.AyuDeletedDialogs.reset(currentAccount);
         getContactsController().cleanup();
         MediaController.getInstance().cleanup();
         getNotificationsController().cleanup();
@@ -10171,6 +10172,10 @@ public class MessagesController extends BaseController implements NotificationCe
     }
 
     protected void deleteDialog(long did, int first, int onlyHistory, int max_id, boolean revoke, TLRPC.InputPeer peer, long taskId) {
+        if (onlyHistory == 3 && com.radolyn.ayugram.messages.AyuDeletedDialogs.isEnabledFor(currentAccount, did)) {
+            com.radolyn.ayugram.messages.AyuDeletedDialogs.onDialogEmptied(currentAccount, did);
+            return;
+        }
         if (onlyHistory == 2) {
             if (did == getUserConfig().getClientUserId()) {
                 getSavedMessagesController().deleteAllDialogs();
@@ -13722,6 +13727,7 @@ public class MessagesController extends BaseController implements NotificationCe
                 }
                 boolean added = false;
                 dialogsLoaded = true;
+                com.radolyn.ayugram.messages.AyuDeletedDialogs.restore(currentAccount);
 
                 int archivedDialogsCount = 0;
                 int lastDialogDate = migrate && !allDialogs.isEmpty() ? allDialogs.get(allDialogs.size() - 1).last_message_date : 0;
@@ -21288,10 +21294,13 @@ public class MessagesController extends BaseController implements NotificationCe
                             for (TLRPC.Message msg : messagesToSave) {
                                 long topicId = MessageObject.getTopicId(accountForAyu, msg, isForum(dialogId));
                                 com.radolyn.ayugram.messages.AyuSavePreferences prefs = new com.radolyn.ayugram.messages.AyuSavePreferences(msg, accountForAyu, dialogId, topicId, msg.id, (int) (getConnectionsManager().getCurrentTime()));
-                                ayuMessagesController.onMessageDeleted(prefs);
+                                // Commit the archive before the queued Telegram DB deletion.
+                                ayuMessagesController.onMessageDeleted(prefs, false);
                             }
                         }
                         notificationsToSend.put(dialogId, messageIds);
+                        AndroidUtilities.runOnUIThread(() ->
+                                com.radolyn.ayugram.messages.AyuDeletedDialogs.onDialogEmptied(accountForAyu, dialogId));
                     }
                 }
                 if (!notificationsToSend.isEmpty()) {

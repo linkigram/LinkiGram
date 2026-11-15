@@ -68,6 +68,7 @@ import org.telegram.tgnet.tl.TL_bots;
 import org.telegram.tgnet.tl.TL_ephemeral;
 import org.telegram.tgnet.tl.TL_iv;
 import org.telegram.tgnet.tl.TL_update;
+import app.nimarkogram.messenger.search.MessageSearchDateRange;
 import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.EmojiThemes;
 import org.telegram.ui.ActionBar.Theme;
@@ -347,6 +348,7 @@ public class MediaDataController extends BaseController {
     private boolean[] emojiStatusesFetching = new boolean[4];
 
     public void cleanup() {
+        retireMessageSearch();
         for (int a = 0; a < recentStickers.length; a++) {
             if (recentStickers[a] != null) {
                 recentStickers[a].clear();
@@ -3732,13 +3734,14 @@ public class MediaDataController extends BaseController {
     private void updateSearchResults() {
         ArrayList<MessageObject> previousSearchResultMessages = new ArrayList<>(searchResultMessages);
         searchResultMessages.clear();
-        HashSet<Integer> messageIds = new HashSet<>();
+        HashSet<MessageSearchKey> messageIds = new HashSet<>();
         for (int i = 0; i < searchServerResultMessages.size(); ++i) {
             MessageObject m = searchServerResultMessages.get(i);
-            if ((!m.hasValidGroupId() || m.isPrimaryGroupMessage) && !messageIds.contains(m.getId())) {
+            MessageSearchKey key = new MessageSearchKey(m);
+            if ((!m.hasValidGroupId() || m.isPrimaryGroupMessage) && !messageIds.contains(key)) {
                 MessageObject prev = null;
                 for (int j = 0; j < previousSearchResultMessages.size(); ++j) {
-                    if (previousSearchResultMessages.get(j).getId() == m.getId()) {
+                    if (previousSearchResultMessages.get(j).getId() == m.getId() && previousSearchResultMessages.get(j).getDialogId() == m.getDialogId()) {
                         prev = previousSearchResultMessages.get(j);
                         break;
                     }
@@ -3750,15 +3753,16 @@ public class MediaDataController extends BaseController {
                 }
                 m.isSavedFiltered = true;
                 searchResultMessages.add(m);
-                messageIds.add(m.getId());
+                messageIds.add(key);
             }
         }
         for (int i = 0; i < searchLocalResultMessages.size(); ++i) {
             MessageObject m = searchLocalResultMessages.get(i);
-            if (!messageIds.contains(m.getId())) {
+            MessageSearchKey key = new MessageSearchKey(m);
+            if (!messageIds.contains(key)) {
                 MessageObject prev = null;
                 for (int j = 0; j < previousSearchResultMessages.size(); ++j) {
-                    if (previousSearchResultMessages.get(j).getId() == m.getId()) {
+                    if (previousSearchResultMessages.get(j).getId() == m.getId() && previousSearchResultMessages.get(j).getDialogId() == m.getDialogId()) {
                         prev = previousSearchResultMessages.get(j);
                         break;
                     }
@@ -3770,7 +3774,7 @@ public class MediaDataController extends BaseController {
                 }
                 m.isSavedFiltered = true;
                 searchResultMessages.add(m);
-                messageIds.add(m.getId());
+                messageIds.add(key);
             }
         }
     }
@@ -3791,9 +3795,7 @@ public class MediaDataController extends BaseController {
     }
 
     public void clearFoundMessageObjects() {
-        searchResultMessages.clear();
-        searchServerResultMessages.clear();
-        searchLocalResultMessages.clear();
+        retireMessageSearch();
     }
 
     public boolean isMessageFound(int messageId, boolean mergeDialog) {
@@ -3804,13 +3806,20 @@ public class MediaDataController extends BaseController {
         searchMessagesInChat(query, dialogId, mergeDialogId, guid, direction, replyMessageId, false, user, chat, true, reaction);
     }
 
+    public void searchMessagesInChat(String query, long dialogId, long mergeDialogId, int guid, int direction, long replyMessageId, TLRPC.User user, TLRPC.Chat chat, ReactionsLayoutInBubble.VisibleReaction reaction, MessageSearchDateRange dates) {
+        searchMessagesInChat(query, dialogId, mergeDialogId, guid, direction, replyMessageId, false, user, chat, true, reaction, dates);
+    }
+
     public void jumpToSearchedMessage(int guid, int index) {
+        MessageSearchSession session = messageSearchSession;
+        if (!currentMessageSearch(session) || session.guid != guid) return;
         if (index < 0 || index >= searchResultMessages.size()) {
             return;
         }
         lastReturnedNum = index;
+        ++session.navigationRevision;
         MessageObject messageObject = searchResultMessages.get(lastReturnedNum);
-        getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, messageObject.getId(), getMask(), messageObject.getDialogId(), lastReturnedNum, getSearchCount(), true);
+        getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, messageObject.getId(), getMask(), messageObject.getDialogId(), lastReturnedNum, getSearchCount(), true, session);
     }
 
     public int getSearchPosition() {
@@ -3818,10 +3827,23 @@ public class MediaDataController extends BaseController {
     }
 
     public int getSearchCount() {
+        MessageSearchSession session = messageSearchSession;
+        if (currentMessageSearch(session) && session.dateHistory) return searchServerResultMessages.size();
         if (searchServerResultMessages.isEmpty()) {
             return Math.max(Math.max(messagesSearchCount[0] + messagesSearchCount[1], messagesLocalSearchCount), searchServerResultMessages.size());
         }
         return Math.max(messagesSearchCount[0] + messagesSearchCount[1], searchServerResultMessages.size());
+    }
+
+    public boolean isSearchCountExact() {
+        MessageSearchSession session = messageSearchSession;
+        return !currentMessageSearch(session) || !session.dateHistory
+                || !session.failed && messageSearchOperation == null && messagesSearchEndReached[0] && messagesSearchEndReached[1];
+    }
+
+    public boolean isCurrentSearchNotification(int guid, Object source) {
+        MessageSearchSession session = messageSearchSession;
+        return source == session && currentMessageSearch(session) && session.guid == guid;
     }
 
     public void setSearchedPosition(int index) {
@@ -3829,318 +3851,564 @@ public class MediaDataController extends BaseController {
             return;
         }
         lastReturnedNum = index;
+        if (currentMessageSearch(messageSearchSession)) ++messageSearchSession.navigationRevision;
     }
 
     public boolean searchEndReached() {
-        return messagesSearchEndReached[0] && lastMergeDialogId == 0 && messagesSearchEndReached[1] || (loadingSearchLocal || loadedPredirectedSearchLocal);
+        return messagesSearchEndReached[0] && messagesSearchEndReached[1] || loadingSearchLocal || loadedPredirectedSearchLocal;
     }
 
     public void loadMoreSearchMessages(boolean fromList) {
-        if (loadingMoreSearchMessages || reqId != 0 || messagesSearchEndReached[0] && lastMergeDialogId == 0 && messagesSearchEndReached[1]) {
-            return;
-        }
-        int temp = lastReturnedNum;
-        lastReturnedNum = searchResultMessages.size();
-        loadingMoreSearchMessages = true;
-        searchMessagesInChat(null, lastDialogId, lastMergeDialogId, lastGuid, 1, lastReplyMessageId, false, lastSearchUser, lastSearchChat, false, lastReaction);
-        lastReturnedNum = temp;
+        messageSearchUi(() -> {
+            MessageSearchSession session = messageSearchSession;
+            if (!currentMessageSearch(session) || session.failed || loadingMoreSearchMessages || messageSearchOperation != null) return;
+            continueMessageSearch(session, lastReturnedNum, false);
+        });
     }
 
     public boolean isSearchLoading() {
-        return reqId != 0;
+        return currentMessageSearch(messageSearchOperation);
+    }
+
+    private final java.util.concurrent.atomic.AtomicLong messageSearchGeneration = new java.util.concurrent.atomic.AtomicLong();
+    private volatile MessageSearchSession messageSearchSession;
+    private volatile MessageSearchOperation messageSearchOperation;
+    private Object messageSearchLocalOperation;
+
+    private static final class MessageSearchSession {
+        final long generation, dialogId, mergeDialogId, replyMessageId, selfId;
+        final int guid;
+        final String query;
+        final TLRPC.User user;
+        final TLRPC.Chat chat;
+        final long userId, chatId;
+        final TLRPC.InputPeer from;
+        final TLRPC.Reaction reaction;
+        final TLRPC.MessagesFilter filter;
+        final MessageSearchDateRange dates;
+        final boolean saved, hashtag, dateHistory;
+        final int[] offsets = new int[2];
+        long navigationRevision;
+        boolean failed;
+
+        MessageSearchSession(long generation, long dialogId, long mergeDialogId, int guid, long replyMessageId,
+                long selfId, String query, TLRPC.User user, TLRPC.Chat chat,
+                ReactionsLayoutInBubble.VisibleReaction reaction, TLRPC.MessagesFilter filter, MessageSearchDateRange dates, TLRPC.InputPeer from) {
+            this.generation = generation;
+            this.dialogId = dialogId;
+            this.mergeDialogId = mergeDialogId;
+            this.guid = guid;
+            this.replyMessageId = replyMessageId;
+            this.selfId = selfId;
+            this.query = query;
+            this.user = user;
+            this.chat = chat;
+            userId = user == null ? 0 : user.id;
+            chatId = chat == null ? 0 : chat.id;
+            this.from = from;
+            this.reaction = reaction == null ? null : reaction.toTLReaction();
+            this.filter = filter;
+            this.dates = dates;
+            saved = dialogId == selfId;
+            hashtag = query.trim().startsWith("#") || query.trim().startsWith("$");
+            dateHistory = dates.isActive() && TextUtils.isEmpty(query) && user == null && chat == null
+                    && reaction == null && filter instanceof TLRPC.TL_inputMessagesFilterEmpty;
+        }
+
+        boolean matches(long dialog, long merge, int owner, long reply, TLRPC.User user, TLRPC.Chat chat,
+                ReactionsLayoutInBubble.VisibleReaction reaction) {
+            return dialogId == dialog && mergeDialogId == merge && guid == owner && replyMessageId == reply
+                    && userId == (user == null ? 0 : user.id) && chatId == (chat == null ? 0 : chat.id)
+                    && (reaction == null ? this.reaction == null : reaction.isStar
+                    ? this.reaction instanceof TLRPC.TL_reactionPaid : reaction.isSame(this.reaction));
+        }
+
+        boolean canSearchSavedLocally() {
+            return saved && reaction != null && !dates.isActive() && user == null && chat == null
+                    && filter instanceof TLRPC.TL_inputMessagesFilterEmpty;
+        }
+    }
+
+    private static final class MessageSearchOperation {
+        final MessageSearchSession session;
+        final int leg, offset;
+        final boolean preflight;
+        int position;
+        long navigationRevision;
+        boolean jump;
+        MessageSearchOperation(MessageSearchSession session, int leg, int offset, int position, boolean preflight, boolean jump) {
+            this.session = session;
+            this.leg = leg;
+            this.offset = offset;
+            this.position = position;
+            navigationRevision = session.navigationRevision;
+            this.preflight = preflight;
+            this.jump = jump;
+        }
+    }
+
+    private static final class MessageSearchKey {
+        final long dialogId;
+        final int messageId;
+        MessageSearchKey(MessageObject message) {
+            dialogId = message.getDialogId();
+            messageId = message.getId();
+        }
+        @Override public boolean equals(Object object) {
+            if (!(object instanceof MessageSearchKey)) return false;
+            MessageSearchKey other = (MessageSearchKey) object;
+            return dialogId == other.dialogId && messageId == other.messageId;
+        }
+        @Override public int hashCode() {
+            return 31 * (int) (dialogId ^ dialogId >>> 32) + messageId;
+        }
+    }
+
+    private static void messageSearchUi(Runnable action) {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) action.run();
+        else AndroidUtilities.runOnUIThread(action);
+    }
+
+    private boolean currentMessageSearch(MessageSearchSession session) {
+        return session != null && messageSearchSession == session && messageSearchGeneration.get() == session.generation;
+    }
+
+    private boolean currentMessageSearch(MessageSearchOperation operation) {
+        return operation != null && messageSearchOperation == operation && currentMessageSearch(operation.session);
+    }
+
+    private void resetMessageSearchState() {
+        messageSearchOperation = null;
+        messageSearchLocalOperation = null;
+        reqId = mergeReqId = 0;
+        loadingMoreSearchMessages = loadingSearchLocal = loadedPredirectedSearchLocal = false;
+        lastReturnedNum = messagesLocalSearchCount = 0;
+        messagesSearchCount[0] = messagesSearchCount[1] = 0;
+        messagesSearchEndReached[0] = messagesSearchEndReached[1] = true;
+        searchResultMessages.clear();
+        searchServerResultMessages.clear();
+        searchLocalResultMessages.clear();
+        searchServerResultMessagesMap[0].clear();
+        searchServerResultMessagesMap[1].clear();
+    }
+
+    private void cancelMessageSearchRequests(int primary, int merge) {
+        if (primary != 0) getConnectionsManager().cancelRequest(primary, true);
+        if (merge != 0) getConnectionsManager().cancelRequest(merge, true);
+    }
+
+    private void retireMessageSearch() {
+        long generation = messageSearchGeneration.incrementAndGet();
+        messageSearchUi(() -> {
+            if (messageSearchGeneration.get() != generation) return;
+            int primary = reqId, merge = mergeReqId;
+            messageSearchSession = null;
+            resetMessageSearchState();
+            lastMergeDialogId = lastDialogId = lastReplyMessageId = 0;
+            lastSearchUser = null;
+            lastSearchChat = null;
+            lastReaction = null;
+            lastSearchQuery = null;
+            cancelMessageSearchRequests(primary, merge);
+        });
+    }
+
+    public void cancelSearchMessagesInChat(int guid) {
+        messageSearchUi(() -> {
+            MessageSearchSession session = messageSearchSession;
+            if (session != null && session.guid == guid) retireMessageSearch();
+        });
+    }
+
+    private MessageSearchSession beginMessageSearch(String query, long dialogId, long mergeDialogId, int guid,
+            long replyMessageId, TLRPC.User user, TLRPC.Chat chat, ReactionsLayoutInBubble.VisibleReaction reaction,
+            TLRPC.MessagesFilter filter, MessageSearchDateRange dates) {
+        long generation = messageSearchGeneration.incrementAndGet();
+        int primary = reqId, merge = mergeReqId;
+        MessageSearchSession session = new MessageSearchSession(generation, dialogId, mergeDialogId, guid, replyMessageId,
+                getUserConfig().getClientUserId(), query, user, chat, reaction, filter, dates, messageSearchFrom(user, chat));
+        if (messageSearchGeneration.get() != generation) return session;
+        messageSearchSession = session;
+        resetMessageSearchState();
+        lastGuid = guid;
+        lastDialogId = dialogId;
+        lastMergeDialogId = mergeDialogId;
+        lastReplyMessageId = replyMessageId;
+        lastSearchUser = user;
+        lastSearchChat = chat;
+        lastReaction = reaction;
+        lastSearchQuery = query;
+        messagesSearchEndReached[0] = false;
+        messagesSearchEndReached[1] = mergeDialogId == 0;
+        cancelMessageSearchRequests(primary, merge);
+        return session;
+    }
+
+    private TLRPC.InputPeer messageSearchFrom(TLRPC.User user, TLRPC.Chat chat) {
+        if (user != null) {
+            if (user.access_hash == 0 && user.fromMessageDialogId != 0 && user.fromMessageId != 0) {
+                TLRPC.TL_inputPeerUserFromMessage peer = new TLRPC.TL_inputPeerUserFromMessage();
+                peer.user_id = user.id;
+                peer.msg_id = user.fromMessageId;
+                peer.peer = getMessagesController().getInputPeer(user.fromMessageDialogId);
+                return peer.peer == null ? null : peer;
+            }
+            return MessagesController.getInputPeer(user);
+        }
+        if (chat != null) {
+            if (ChatObject.isChannel(chat) && chat.access_hash == 0 && chat.fromMessageDialogId != 0 && chat.fromMessageId != 0) {
+                TLRPC.TL_inputPeerChannelFromMessage peer = new TLRPC.TL_inputPeerChannelFromMessage();
+                peer.channel_id = chat.id;
+                peer.msg_id = chat.fromMessageId;
+                peer.peer = getMessagesController().getInputPeer(chat.fromMessageDialogId);
+                return peer.peer == null ? null : peer;
+            }
+            return MessagesController.getInputPeer(chat);
+        }
+        return null;
+    }
+
+    private TLRPC.TL_messages_search messageSearchRequest(MessageSearchOperation operation) {
+        MessageSearchSession session = operation.session;
+        long dialog = operation.leg == 0 ? session.dialogId : session.mergeDialogId;
+        TLRPC.TL_messages_search request = new TLRPC.TL_messages_search();
+        request.peer = getMessagesController().getInputPeer(dialog);
+        request.q = session.query;
+        request.filter = session.filter;
+        request.min_date = session.dates.getMinDate();
+        request.max_date = session.dates.getMaxDate();
+        request.limit = operation.preflight ? 1 : 21;
+        request.offset_id = operation.offset;
+        if (session.from != null) {
+            request.from_id = session.from;
+            request.flags |= 1;
+        }
+        if (session.replyMessageId != 0) {
+            if (dialog == session.selfId || getMessagesController().isMonoForum(dialog)) {
+                request.saved_peer_id = getMessagesController().getInputPeer(session.replyMessageId);
+                request.flags |= 4;
+            } else {
+                request.top_msg_id = (int) session.replyMessageId;
+                request.flags |= 2;
+            }
+        }
+        if (session.reaction != null) {
+            request.saved_reaction.add(session.reaction);
+            request.flags |= 8;
+        }
+        return request;
+    }
+
+    private TLObject messageDateHistoryRequest(MessageSearchOperation operation, TLRPC.TL_messages_search criteria) {
+        int date = operation.offset == 0 ? operation.session.dates.getMaxDate() : 0;
+        if ((criteria.flags & 4) != 0) {
+            if (criteria.saved_peer_id == null) return null;
+            TLRPC.TL_messages_getSavedHistory request = new TLRPC.TL_messages_getSavedHistory();
+            request.peer = criteria.saved_peer_id;
+            long dialog = operation.leg == 0 ? operation.session.dialogId : operation.session.mergeDialogId;
+            if (dialog != operation.session.selfId) request.parent_peer = criteria.peer;
+            request.offset_id = operation.offset;
+            request.offset_date = date;
+            request.limit = criteria.limit;
+            return request;
+        }
+        if ((criteria.flags & 2) != 0) {
+            TLRPC.TL_messages_getReplies request = new TLRPC.TL_messages_getReplies();
+            request.peer = criteria.peer;
+            request.msg_id = criteria.top_msg_id;
+            request.offset_id = operation.offset;
+            request.offset_date = date;
+            request.limit = criteria.limit;
+            return request;
+        }
+        TLRPC.TL_messages_getHistory request = new TLRPC.TL_messages_getHistory();
+        request.peer = criteria.peer;
+        request.offset_id = operation.offset;
+        request.offset_date = date;
+        request.limit = criteria.limit;
+        return request;
+    }
+
+    private boolean messageSearchDateAdmitted(MessageSearchSession session, TLRPC.Message message) {
+        return message != null && (!session.dates.isActive()
+                || message.date > session.dates.getMinDate() && message.date < session.dates.getMaxDate());
+    }
+
+    private void notifyMessageSearch(MessageSearchSession session, boolean jump) {
+        if (!currentMessageSearch(session)) return;
+        MessageObject selected = lastReturnedNum >= 0 && lastReturnedNum < searchResultMessages.size()
+                ? searchResultMessages.get(lastReturnedNum) : null;
+        getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, session.guid,
+                selected == null ? 0 : selected.getId(), getMask(), selected == null ? 0L : selected.getDialogId(),
+                lastReturnedNum, getSearchCount(), jump, session);
+    }
+
+    private void finishMessageSearchOperation(MessageSearchOperation operation, boolean failed) {
+        if (!currentMessageSearch(operation)) return;
+        messageSearchOperation = null;
+        reqId = mergeReqId = 0;
+        loadingMoreSearchMessages = false;
+        operation.session.failed = failed;
+    }
+
+    private void startSavedMessageSearch(MessageSearchSession session) {
+        if (!currentMessageSearch(session) || !session.canSearchSavedLocally()) return;
+        Object local = messageSearchLocalOperation = new Object();
+        int predictedCount = getMessagesController().getSavedTagCount(session.replyMessageId, lastReaction);
+        if (!currentMessageSearch(session) || messageSearchLocalOperation != local) return;
+        messagesLocalSearchCount = TextUtils.isEmpty(session.query) ? predictedCount : 0;
+        loadingSearchLocal = true;
+        getMessagesStorage().searchSavedByTag(session.reaction, session.replyMessageId, session.query, 300, 0, (messages, users, chats, emojis) -> {
+            if (!currentMessageSearch(session) || messageSearchLocalOperation != local) return;
+            getMessagesController().putUsers(users, true);
+            if (!currentMessageSearch(session) || messageSearchLocalOperation != local) return;
+            getMessagesController().putChats(chats, true);
+            if (!currentMessageSearch(session) || messageSearchLocalOperation != local) return;
+            AnimatedEmojiDrawable.getDocumentFetcher(currentAccount).processDocuments(emojis);
+            if (!currentMessageSearch(session) || messageSearchLocalOperation != local) return;
+            loadingSearchLocal = false;
+            loadedPredirectedSearchLocal = TextUtils.isEmpty(session.query) && predictedCount > 0 && predictedCount < 300
+                    && messages.size() == predictedCount;
+            searchLocalResultMessages.clear();
+            searchLocalResultMessages.addAll(messages);
+            updateSearchResults();
+            notifyMessageSearch(session, true);
+        }, true);
+    }
+
+    private void sendMessageSearch(MessageSearchSession session, int leg, int position, boolean jump, boolean preflight) {
+        sendMessageSearchPage(session, leg, position, jump, preflight, 2);
+    }
+
+    private void sendMessageSearchPage(MessageSearchSession session, int leg, int position, boolean jump, boolean preflight, int emptyPagesRemaining) {
+        if (!currentMessageSearch(session)) return;
+        MessageSearchOperation operation = new MessageSearchOperation(session, leg, preflight ? 0 : session.offsets[leg], position, preflight, jump);
+        messageSearchOperation = operation;
+        ++lastReqId;
+        TLRPC.TL_messages_search criteria = messageSearchRequest(operation);
+        if (!currentMessageSearch(operation)) return;
+        TLObject request = session.dateHistory ? messageDateHistoryRequest(operation, criteria) : criteria;
+        if (!currentMessageSearch(operation)) return;
+        if (request == null || criteria.peer == null || (session.user != null || session.chat != null) && session.from == null
+                || session.dates.isActive() && DialogObject.isEncryptedDialog(session.dialogId)) {
+            boolean navigate = currentMessageSearchJump(operation);
+            finishMessageSearchOperation(operation, true);
+            notifyMessageSearch(session, navigate);
+            return;
+        }
+        try {
+            int requestId = getConnectionsManager().sendRequest(request, (response, error) -> {
+                if (!currentMessageSearch(operation)) return;
+                TLRPC.messages_Messages result = error == null && response instanceof TLRPC.messages_Messages
+                        && !(session.dateHistory && response instanceof TLRPC.TL_messages_messagesNotModified)
+                        ? (TLRPC.messages_Messages) response : null;
+                ArrayList<MessageObject> objects = new ArrayList<>();
+                int rawCount = result == null ? 0 : result.messages.size();
+                ArrayList<TLRPC.Message> page = result == null ? new ArrayList<>() : new ArrayList<>(result.messages);
+                if (session.dateHistory) page.sort((a, b) -> {
+                    if (a == null || b == null) return a == b ? 0 : a == null ? 1 : -1;
+                    int byDate = Integer.compare(b.date, a.date);
+                    return byDate != 0 ? byDate : Integer.compare(b.id, a.id);
+                });
+                int consumed = preflight ? 0 : session.dateHistory ? rawCount : Math.min(rawCount, criteria.limit - 1);
+                int cursor = operation.offset;
+                boolean datedPage = false, entirelyBeforeRange = true, entirelyAfterRange = true;
+                for (int i = 0; i < consumed; i++) {
+                    if (!currentMessageSearch(operation)) return;
+                    TLRPC.Message message = page.get(i);
+                    if (message == null) continue;
+                    if (session.dateHistory) {
+                        if (message.id <= 0 || operation.offset > 0 && message.id >= operation.offset) continue;
+                        cursor = cursor == 0 ? message.id : Math.min(cursor, message.id);
+                        if (message.date > 0) {
+                            datedPage = true;
+                            entirelyBeforeRange &= message.date <= session.dates.getMinDate();
+                            entirelyAfterRange &= message.date >= session.dates.getMaxDate();
+                        }
+                        if (message instanceof TLRPC.TL_messageService) continue;
+                    } else if (message.id > 0) cursor = message.id;
+                    if (message instanceof TLRPC.TL_messageEmpty || message.action instanceof TLRPC.TL_messageActionHistoryClear) continue;
+                    if (!messageSearchDateAdmitted(session, message)) continue;
+                    MessageObject object = new MessageObject(currentAccount, message, null, null, null, null, null, true, true, 0, false, false, session.saved);
+                    if (object.hasValidGroupId()) object.isPrimaryGroupMessage = true;
+                    object.setQuery(session.query, !session.hashtag);
+                    objects.add(object);
+                }
+                final int nextOffset = cursor;
+                final boolean historyFloor = datedPage && entirelyBeforeRange;
+                final boolean historyAboveRange = datedPage && entirelyAfterRange;
+                AndroidUtilities.runOnUIThread(() -> {
+                    if (!currentMessageSearch(operation)) return;
+                    if (preflight) {
+                        if (result != null) {
+                            messagesSearchEndReached[1] = rawCount == 0;
+                            messagesSearchCount[1] = result instanceof TLRPC.TL_messages_messagesSlice || result instanceof TLRPC.TL_messages_channelMessages ? result.count : rawCount;
+                        }
+                        finishMessageSearchOperation(operation, false);
+                        sendMessageSearch(session, 0, operation.position, operation.jump, false);
+                        return;
+                    }
+                    if (result == null) {
+                        boolean navigate = currentMessageSearchJump(operation);
+                        finishMessageSearchOperation(operation, true);
+                        notifyMessageSearch(session, navigate);
+                        return;
+                    }
+                    getMessagesStorage().putUsersAndChats(result.users, result.chats, true, true);
+                    if (!currentMessageSearch(operation)) return;
+                    getMessagesController().putUsers(result.users, false);
+                    if (!currentMessageSearch(operation)) return;
+                    getMessagesController().putChats(result.chats, false);
+                    if (!currentMessageSearch(operation)) return;
+                    Runnable done = () -> {
+                        if (!currentMessageSearch(operation)) return;
+                        int previousSize = searchServerResultMessages.size();
+                        for (MessageObject object : objects) {
+                            if (!messageSearchDateAdmitted(session, object.messageOwner)) continue;
+                            if (searchServerResultMessagesMap[leg].indexOfKey(object.getId()) >= 0) continue;
+                            searchServerResultMessages.add(object);
+                            searchServerResultMessagesMap[leg].put(object.getId(), object);
+                        }
+                        session.offsets[leg] = nextOffset;
+                        boolean stalled = session.dateHistory
+                                ? rawCount > 0 && (nextOffset <= 0 || nextOffset == operation.offset || historyAboveRange)
+                                : rawCount >= criteria.limit && (nextOffset <= 0 || nextOffset == operation.offset);
+                        messagesSearchEndReached[leg] = !stalled && (rawCount < criteria.limit || session.dateHistory && historyFloor);
+                        messagesSearchCount[leg] = session.dateHistory ? searchServerResultMessagesMap[leg].size()
+                                : result instanceof TLRPC.TL_messages_messagesSlice || result instanceof TLRPC.TL_messages_channelMessages ? result.count : rawCount;
+                        updateSearchResults();
+                        boolean sameNavigation = session.navigationRevision == operation.navigationRevision;
+                        int selectedPosition = sameNavigation ? operation.position : lastReturnedNum;
+                        boolean merging = leg == 0 && messagesSearchEndReached[0] && session.mergeDialogId != 0 && !messagesSearchEndReached[1];
+                        boolean jumpNow = operation.jump && sameNavigation
+                                && (selectedPosition >= 0 && selectedPosition < searchResultMessages.size()
+                                || !session.dateHistory && !merging && searchResultMessages.isEmpty());
+                        boolean jumpLater = operation.jump && sameNavigation && !jumpNow;
+                        lastReturnedNum = searchResultMessages.isEmpty() ? 0 : Math.max(0, Math.min(selectedPosition, searchResultMessages.size() - 1));
+                        boolean pauseEmptyTraversal = session.dateHistory && !messagesSearchEndReached[leg]
+                                && searchServerResultMessages.size() == previousSize && emptyPagesRemaining == 0;
+                        finishMessageSearchOperation(operation, stalled || pauseEmptyTraversal);
+                        notifyMessageSearch(session, jumpNow);
+                        if (!currentMessageSearch(session) || messageSearchOperation != null) return;
+                        if (merging) {
+                            boolean stillSameNavigation = session.navigationRevision == operation.navigationRevision;
+                            sendMessageSearch(session, 1, stillSameNavigation ? operation.position : lastReturnedNum, jumpLater && stillSameNavigation, false);
+                        } else if (session.dateHistory && !stalled && !messagesSearchEndReached[leg]
+                                && searchServerResultMessages.size() == previousSize && emptyPagesRemaining > 0) {
+                            boolean stillSameNavigation = session.navigationRevision == operation.navigationRevision;
+                            sendMessageSearchPage(session, leg, stillSameNavigation ? operation.position : lastReturnedNum,
+                                    jumpLater && stillSameNavigation, false, emptyPagesRemaining - 1);
+                        }
+                    };
+                    if (session.saved) loadReplyMessagesForMessages(objects, session.dialogId, 0, session.replyMessageId, done, session.guid, null);
+                    else done.run();
+                });
+            }, ConnectionsManager.RequestFlagFailOnServerErrors);
+            if (currentMessageSearch(operation)) {
+                if (preflight) mergeReqId = requestId;
+                else reqId = requestId;
+            } else getConnectionsManager().cancelRequest(requestId, true);
+        } catch (RuntimeException failure) {
+            FileLog.e(failure);
+            if (currentMessageSearch(operation)) {
+                boolean navigate = currentMessageSearchJump(operation);
+                finishMessageSearchOperation(operation, true);
+                notifyMessageSearch(session, navigate);
+            }
+        }
+    }
+
+    private void continueMessageSearch(MessageSearchSession session, int position, boolean jump) {
+        if (!currentMessageSearch(session) || messageSearchOperation != null) return;
+        int leg = messagesSearchEndReached[0] ? 1 : 0;
+        if (leg == 1 && (session.mergeDialogId == 0 || messagesSearchEndReached[1])) return;
+        session.failed = false;
+        loadingMoreSearchMessages = true;
+        sendMessageSearch(session, leg, position, jump, false);
+    }
+
+    private boolean promoteMessageSearchNavigation(MessageSearchSession session, int position, boolean jump) {
+        MessageSearchOperation operation = messageSearchOperation;
+        if (!currentMessageSearch(operation) || operation.session != session || operation.preflight) return false;
+        operation.position = position;
+        operation.jump |= jump;
+        operation.navigationRevision = session.navigationRevision;
+        return true;
+    }
+
+    private boolean currentMessageSearchJump(MessageSearchOperation operation) {
+        return currentMessageSearch(operation) && operation.jump
+                && operation.session.navigationRevision == operation.navigationRevision
+                && (searchResultMessages.isEmpty() ? !operation.session.dateHistory
+                : operation.position >= 0 && operation.position < searchResultMessages.size());
+    }
+
+    private void searchMessagesInChatOwned(String query, long dialogId, long mergeDialogId, int guid, int direction,
+            long replyMessageId, boolean internal, TLRPC.User user, TLRPC.Chat chat, boolean jumpToMessage,
+            ReactionsLayoutInBubble.VisibleReaction reaction, MessageSearchDateRange dates) {
+        MessageSearchSession session = messageSearchSession;
+        if (query == null && dates != null && currentMessageSearch(session) && !session.dates.equals(dates)
+                && session.matches(dialogId, mergeDialogId, guid, replyMessageId, user, chat, reaction)) {
+            query = session.query;
+            internal = false;
+        }
+        if (query != null && (!internal || !currentMessageSearch(session) || !session.query.equals(query)
+                || !session.matches(dialogId, mergeDialogId, guid, replyMessageId, user, chat, reaction)
+                || dates != null && !session.dates.equals(dates))) {
+            session = beginMessageSearch(query, dialogId, mergeDialogId, guid, replyMessageId, user, chat, reaction,
+                    new TLRPC.TL_inputMessagesFilterEmpty(), dates == null ? MessageSearchDateRange.ALL : dates);
+            if (!currentMessageSearch(session)) return;
+            getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsLoading, guid, session);
+            if (!currentMessageSearch(session)) return;
+            startSavedMessageSearch(session);
+            if (currentMessageSearch(session)) sendMessageSearch(session, session.dateHistory || mergeDialogId == 0 ? 0 : 1,
+                    0, jumpToMessage, !session.dateHistory && mergeDialogId != 0);
+            return;
+        }
+        if (!currentMessageSearch(session) || !session.matches(dialogId, mergeDialogId, guid, replyMessageId, user, chat, reaction)) return;
+        if (query != null) {
+            continueMessageSearch(session, lastReturnedNum, jumpToMessage);
+            return;
+        }
+        if (direction == 2) {
+            ++session.navigationRevision;
+            lastReturnedNum = Math.max(0, lastReturnedNum - 1);
+            notifyMessageSearch(session, jumpToMessage);
+        } else if (direction == 1) {
+            ++session.navigationRevision;
+            int position = searchResultMessages.isEmpty() ? 0 : lastReturnedNum + 1;
+            if (position < searchResultMessages.size()) {
+                lastReturnedNum = position;
+                notifyMessageSearch(session, jumpToMessage);
+            } else if (!promoteMessageSearchNavigation(session, position, jumpToMessage)) {
+                continueMessageSearch(session, position, jumpToMessage);
+            }
+        }
     }
 
     public void searchMessagesInChat(String query, long dialogId, long mergeDialogId, int guid, int direction, long replyMessageId, boolean internal, TLRPC.User user, TLRPC.Chat chat, boolean jumpToMessage, ReactionsLayoutInBubble.VisibleReaction reaction) {
-        int max_id = 0;
-        long queryWithDialog = dialogId;
-        boolean firstQuery = !internal;
-        if (reqId != 0) {
-            loadingMoreSearchMessages = false;
-            getConnectionsManager().cancelRequest(reqId, true);
-            reqId = 0;
-        }
-        if (mergeReqId != 0) {
-            getConnectionsManager().cancelRequest(mergeReqId, true);
-            mergeReqId = 0;
-        }
-        if (query == null) {
-            if (searchResultMessages.isEmpty()) {
-                loadingMoreSearchMessages = false;
-                return;
-            }
-            if (direction == 1) {
-                lastReturnedNum++;
-                if (lastReturnedNum < searchResultMessages.size()) {
-                    MessageObject messageObject = searchResultMessages.get(lastReturnedNum);
-                    getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, messageObject.getId(), getMask(), messageObject.getDialogId(), lastReturnedNum, getSearchCount(), jumpToMessage);
-                    loadingMoreSearchMessages = false;
-                    return;
-                } else {
-                    if (messagesSearchEndReached[0] && mergeDialogId == 0 && messagesSearchEndReached[1]) {
-                        lastReturnedNum--;
-                        loadingMoreSearchMessages = false;
-                        return;
-                    }
-                    firstQuery = false;
-                    query = lastSearchQuery;
-                    MessageObject messageObject = searchResultMessages.get(searchResultMessages.size() - 1);
-                    if (messageObject.getDialogId() == dialogId && !messagesSearchEndReached[0]) {
-                        max_id = messageObject.getId();
-                        queryWithDialog = dialogId;
-                    } else {
-                        if (messageObject.getDialogId() == mergeDialogId) {
-                            max_id = messageObject.getId();
-                        }
-                        queryWithDialog = mergeDialogId;
-                        messagesSearchEndReached[1] = false;
-                    }
-                }
-            } else if (direction == 2) {
-                lastReturnedNum--;
-                if (lastReturnedNum < 0) {
-                    lastReturnedNum = 0;
-                    return;
-                }
-                if (lastReturnedNum >= searchResultMessages.size()) {
-                    lastReturnedNum = searchResultMessages.size() - 1;
-                }
-                MessageObject messageObject = searchResultMessages.get(lastReturnedNum);
-                getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, messageObject.getId(), getMask(), messageObject.getDialogId(), lastReturnedNum, getSearchCount(), jumpToMessage);
-                loadingMoreSearchMessages = false;
-                return;
-            } else {
-                loadingMoreSearchMessages = false;
-                return;
-            }
-        } else if (firstQuery) {
-            messagesSearchEndReached[0] = messagesSearchEndReached[1] = false;
-            messagesSearchCount[0] = messagesSearchCount[1] = 0;
-            searchResultMessages.clear();
-            searchLocalResultMessages.clear();
-            searchServerResultMessagesMap[0].clear();
-            searchServerResultMessagesMap[1].clear();
-            getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsLoading, guid);
-        }
-        final boolean isHashtag = query != null && (query.trim().startsWith("#") || query.trim().startsWith("$"));
-        if (messagesSearchEndReached[0] && !messagesSearchEndReached[1] && mergeDialogId != 0) {
-            queryWithDialog = mergeDialogId;
-        }
-        if (queryWithDialog == dialogId && firstQuery) {
-            if (mergeDialogId != 0) {
-                TLRPC.InputPeer inputPeer = getMessagesController().getInputPeer(mergeDialogId);
-                if (inputPeer == null) {
-                    return;
-                }
-                TLRPC.TL_messages_search req = new TLRPC.TL_messages_search();
-                req.peer = inputPeer;
-                lastMergeDialogId = mergeDialogId;
-                req.limit = 1;
-                req.q = query;
-                if (user != null) {
-                    req.from_id = MessagesController.getInputPeer(user);
-                    req.flags |= 1;
-                } else if (chat != null) {
-                    req.from_id = MessagesController.getInputPeer(chat);
-                    req.flags |= 1;
-                }
-                if (replyMessageId != 0) {
-                    if (dialogId == getUserConfig().getClientUserId() || getMessagesController().isMonoForum(queryWithDialog)) {
-                        req.saved_peer_id = getMessagesController().getInputPeer(replyMessageId);
-                        req.flags |= 4;
-                    } else {
-                        req.top_msg_id = (int) replyMessageId;
-                        req.flags |= 2;
-                    }
-                }
-                if (reaction != null) {
-                    req.saved_reaction.add(reaction.toTLReaction());
-                    req.flags |= 8;
-                }
-                req.filter = new TLRPC.TL_inputMessagesFilterEmpty();
-                mergeReqId = getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
-                    if (lastMergeDialogId == mergeDialogId) {
-                        mergeReqId = 0;
-                        if (response != null) {
-                            TLRPC.messages_Messages res = (TLRPC.messages_Messages) response;
-                            messagesSearchEndReached[1] = res.messages.isEmpty();
-                            messagesSearchCount[1] = res instanceof TLRPC.TL_messages_messagesSlice ? res.count : res.messages.size();
-                            searchMessagesInChat(req.q, dialogId, mergeDialogId, guid, direction, replyMessageId, true, user, chat, jumpToMessage, reaction);
-                        } else {
-                            messagesSearchEndReached[1] = true;
-                            messagesSearchCount[1] = 0;
-                            searchMessagesInChat(req.q, dialogId, mergeDialogId, guid, direction, replyMessageId, true, user, chat, jumpToMessage, reaction);
-                        }
-                    }
-                }), ConnectionsManager.RequestFlagFailOnServerErrors);
-                return;
-            } else {
-                lastMergeDialogId = 0;
-                messagesSearchEndReached[1] = true;
-                messagesSearchCount[1] = 0;
-            }
-        }
-        TLRPC.TL_messages_search req = new TLRPC.TL_messages_search();
-        req.peer = getMessagesController().getInputPeer(queryWithDialog);
-        if (req.peer == null) {
-            loadingMoreSearchMessages = false;
-            return;
-        }
-        lastGuid = guid;
-        lastDialogId = dialogId;
-        lastSearchUser = user;
-        lastSearchChat = chat;
-        lastReplyMessageId = replyMessageId;
-        lastReaction = reaction;
-        req.limit = 21;
-        req.q = query != null ? query : "";
-        req.offset_id = max_id;
-        if (user != null) {
-            req.from_id = MessagesController.getInputPeer(user);
-            req.flags |= 1;
-        } else if (chat != null) {
-            req.from_id = MessagesController.getInputPeer(chat);
-            req.flags |= 1;
-        }
-        loadingSearchLocal = false;
-        loadedPredirectedSearchLocal = false;
-        int currentReqId = ++lastReqId;
-        final boolean isSaved = dialogId == getUserConfig().getClientUserId();
-        if (isSaved && reaction != null && firstQuery) {
-            lastReturnedNum = 0;
-            searchServerResultMessages.clear();
-            searchServerResultMessagesMap[0].clear();
-            searchServerResultMessagesMap[1].clear();
+        searchMessagesInChat(query, dialogId, mergeDialogId, guid, direction, replyMessageId, internal, user, chat, jumpToMessage, reaction, null);
+    }
 
-            final int predictedCount = getMessagesController().getSavedTagCount(lastReplyMessageId, reaction);
-            messagesLocalSearchCount = TextUtils.isEmpty(req.q) ? predictedCount : 0;
-            loadingSearchLocal = true;
-            loadedPredirectedSearchLocal = false;
-            getMessagesStorage().searchSavedByTag(reaction.toTLReaction(), lastReplyMessageId, query, 300, searchLocalResultMessages == null ? 0 : searchLocalResultMessages.size(), (messages, users, chats, emojis) -> {
-                if (currentReqId == lastReqId) {
-                    loadedPredirectedSearchLocal = messages.size() == predictedCount;
-                    loadingSearchLocal = false;
-                    getMessagesController().putUsers(users, true);
-                    getMessagesController().putChats(chats, true);
-                    AnimatedEmojiDrawable.getDocumentFetcher(currentAccount).processDocuments(emojis);
-                    searchLocalResultMessages = messages;
-                    updateSearchResults();
-                    getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, 0, getMask(), dialogId, lastReturnedNum, getSearchCount(), true);
-                }
-            }, true);
-        }
-        if (lastReplyMessageId != 0) {
-            if (queryWithDialog == getUserConfig().getClientUserId() || getMessagesController().isMonoForum(queryWithDialog)) {
-                req.saved_peer_id = getMessagesController().getInputPeer(lastReplyMessageId);
-                req.flags |= 4;
-            } else {
-                req.top_msg_id = (int) lastReplyMessageId;
-                req.flags |= 2;
-            }
-        }
-        if (reaction != null) {
-            req.saved_reaction.add(reaction.toTLReaction());
-            req.flags |= 8;
-        }
-        req.filter = new TLRPC.TL_inputMessagesFilterEmpty();
-        lastSearchQuery = query;
-        long queryWithDialogFinal = queryWithDialog;
-        String finalQuery = query;
-        reqId = getConnectionsManager().sendRequest(req, (response, error) -> {
-            ArrayList<MessageObject> messageObjects = new ArrayList<>();
-
-            if (error == null) {
-                TLRPC.messages_Messages res = (TLRPC.messages_Messages) response;
-                int N = Math.min(res.messages.size(), req.limit - 1);
-                for (int a = 0; a < N; a++) {
-                    TLRPC.Message message = res.messages.get(a);
-                    MessageObject messageObject = new MessageObject(currentAccount, message, null, null, null, null, null, true, true, 0, false, false, isSaved);
-                    if (messageObject.hasValidGroupId()) {
-                        messageObject.isPrimaryGroupMessage = true;
-                    }
-                    messageObject.setQuery(finalQuery, !isHashtag);
-                    messageObjects.add(messageObject);
-                }
-            }
-            AndroidUtilities.runOnUIThread(() -> {
-                if (currentReqId == lastReqId) {
-                    reqId = 0;
-                    if (!jumpToMessage) {
-                        loadingMoreSearchMessages = false;
-                    }
-                    if (response != null) {
-                        TLRPC.messages_Messages res = (TLRPC.messages_Messages) response;
-                        for (int a = 0; a < res.messages.size(); a++) {
-                            TLRPC.Message message = res.messages.get(a);
-                            if (message instanceof TLRPC.TL_messageEmpty || message.action instanceof TLRPC.TL_messageActionHistoryClear) {
-                                res.messages.remove(a);
-                                a--;
-                            }
-                        }
-                        getMessagesStorage().putUsersAndChats(res.users, res.chats, true, true);
-                        getMessagesController().putUsers(res.users, false);
-                        getMessagesController().putChats(res.chats, false);
-                        Runnable done = () -> {
-                            if (req.offset_id == 0 && queryWithDialogFinal == dialogId) {
-                                lastReturnedNum = 0;
-                                searchServerResultMessages.clear();
-                                searchServerResultMessagesMap[0].clear();
-                                searchServerResultMessagesMap[1].clear();
-                                messagesSearchCount[0] = 0;
-                                getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsLoading, guid);
-                            }
-                            boolean added = false;
-                            int N = Math.min(res.messages.size(), req.limit - 1);
-                            for (int a = 0; a < N; a++) {
-                                added = true;
-                                MessageObject messageObject = messageObjects.get(a);
-                                searchServerResultMessages.add(messageObject);
-                                searchServerResultMessagesMap[queryWithDialogFinal == dialogId ? 0 : 1].put(messageObject.getId(), messageObject);
-                            }
-                            updateSearchResults();
-                            messagesSearchEndReached[queryWithDialogFinal == dialogId ? 0 : 1] = res.messages.size() < req.limit;
-                            messagesSearchCount[queryWithDialogFinal == dialogId ? 0 : 1] = res instanceof TLRPC.TL_messages_messagesSlice || res instanceof TLRPC.TL_messages_channelMessages ? res.count : res.messages.size();
-                            if (searchServerResultMessages.isEmpty()) {
-                                getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, 0, getMask(), (long) 0, 0, 0, jumpToMessage);
-                            } else {
-                                if (added) {
-                                    if (lastReturnedNum >= searchResultMessages.size()) {
-                                        lastReturnedNum = searchResultMessages.size() - 1;
-                                    }
-                                    MessageObject messageObject = searchResultMessages.get(lastReturnedNum);
-                                    getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, messageObject.getId(), getMask(), messageObject.getDialogId(), lastReturnedNum, getSearchCount(), jumpToMessage);
-                                } else if (isSaved) {
-                                    getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, 0, getMask(), dialogId, lastReturnedNum, getSearchCount(), false);
-                                }
-                            }
-                            if (queryWithDialogFinal == dialogId && messagesSearchEndReached[0] && mergeDialogId != 0 && !messagesSearchEndReached[1]) {
-                                searchMessagesInChat(lastSearchQuery, dialogId, mergeDialogId, guid, 0, replyMessageId, true, user, chat, jumpToMessage, lastReaction);
-                            }
-                        };
-                        if (isSaved) {
-                            loadReplyMessagesForMessages(messageObjects, dialogId, 0, lastReplyMessageId, done, guid, null);
-                        } else {
-                            done.run();
-                        }
-                    }
-                }
-            });
-        }, ConnectionsManager.RequestFlagFailOnServerErrors);
+    public void searchMessagesInChat(String query, long dialogId, long mergeDialogId, int guid, int direction, long replyMessageId, boolean internal, TLRPC.User user, TLRPC.Chat chat, boolean jumpToMessage, ReactionsLayoutInBubble.VisibleReaction reaction, MessageSearchDateRange dates) {
+        messageSearchUi(() -> searchMessagesInChatOwned(query, dialogId, mergeDialogId, guid, direction, replyMessageId, internal, user, chat, jumpToMessage, reaction, dates));
     }
 
     public void portSavedSearchResults(int guid, ReactionsLayoutInBubble.VisibleReaction reaction, String query, ArrayList<MessageObject> local, ArrayList<MessageObject> loaded, int num, int count, boolean reached) {
-        lastReaction = reaction;
-        lastSearchQuery = query;
-        messagesSearchEndReached[0] = reached;
-        messagesSearchEndReached[1] = true;
-        searchServerResultMessages.clear();
-        searchServerResultMessages.addAll(loaded);
-        searchLocalResultMessages.clear();
-        searchLocalResultMessages.addAll(local);
-        updateSearchResults();
-        messagesSearchCount[0] = count;
-        messagesSearchCount[1] = 0;
-        lastReturnedNum = num;
-        getNotificationCenter().postNotificationName(NotificationCenter.chatSearchResultsAvailable, guid, 0, getMask(), getUserConfig().getClientUserId(), lastReturnedNum, getSearchCount(), true);
+        messageSearchUi(() -> {
+            MessageSearchSession session = beginMessageSearch(query == null ? "" : query, getUserConfig().getClientUserId(), 0,
+                    guid, 0, null, null, reaction, new TLRPC.TL_inputMessagesFilterEmpty(), MessageSearchDateRange.ALL);
+            if (!currentMessageSearch(session)) return;
+            searchServerResultMessages.addAll(loaded);
+            searchLocalResultMessages.addAll(local);
+            for (MessageObject object : loaded) searchServerResultMessagesMap[0].put(object.getId(), object);
+            session.offsets[0] = loaded.isEmpty() ? 0 : loaded.get(loaded.size() - 1).getId();
+            messagesSearchEndReached[0] = reached;
+            messagesSearchCount[0] = count;
+            updateSearchResults();
+            lastReturnedNum = searchResultMessages.isEmpty() ? 0 : Math.max(0, Math.min(num, searchResultMessages.size() - 1));
+            notifyMessageSearch(session, true);
+        });
     }
 
     public String getLastSearchQuery() {

@@ -4508,12 +4508,44 @@ public class MessagesStorage extends BaseController {
     }
 
     public void deleteDialog(long did, int messagesOnly) {
+        final long localCopyOwner = getUserConfig().getClientUserId();
+        final boolean keepLocal = messagesOnly != 2
+                && com.radolyn.ayugram.messages.AyuDeletedDialogs.shouldSnapshot(currentAccount, did);
         storageQueue.postRunnable(() -> {
             SQLiteCursor cursor = null;
             SQLiteCursor cursor2 = null;
             SQLitePreparedStatement state5 = null;
             SQLitePreparedStatement state6 = null;
             try {
+                if (keepLocal && getUserConfig().getClientUserId() == localCopyOwner) {
+                    // Archive all cached messages before deleteDialog removes the source rows.
+                    cursor = database.queryFinalized("SELECT data FROM messages_v2 WHERE uid = " + did);
+                    try {
+                        while (cursor.next()) {
+                            NativeByteBuffer data = cursor.byteBufferValue(0);
+                            if (data == null) continue;
+                            try {
+                                TLRPC.Message message = TLRPC.Message.TLdeserialize(data, data.readInt32(false), false);
+                                if (message != null) {
+                                    message.readAttachPath(data, getUserConfig().getClientUserId());
+                                    message.dialog_id = did;
+                                    com.radolyn.ayugram.messages.AyuMessagesController.getInstance().onMessageDeleted(
+                                            new com.radolyn.ayugram.messages.AyuSavePreferences(message, currentAccount), false);
+                                }
+                            } finally {
+                                data.reuse();
+                            }
+                        }
+                    } finally {
+                        cursor.dispose();
+                        cursor = null;
+                    }
+                    AndroidUtilities.runOnUIThread(() -> {
+                        if (getUserConfig().getClientUserId() == localCopyOwner) {
+                            com.radolyn.ayugram.messages.AyuDeletedDialogs.onDialogEmptied(currentAccount, did);
+                        }
+                    });
+                }
                 if (messagesOnly == 3) {
                     int lastMid = -1;
                     cursor = database.queryFinalized("SELECT last_mid FROM dialogs WHERE did = " + did);

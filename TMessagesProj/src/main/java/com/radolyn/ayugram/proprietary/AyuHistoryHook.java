@@ -29,11 +29,59 @@ import java.util.Set;
 
 public abstract class AyuHistoryHook {
 
+    /** Merge the archive before the page is rendered, rather than simulating new arrivals. */
+    public static void mergeLoadAsync(int account, long dialogId, long topicId, boolean topic,
+            boolean thread, int loadType, int anchor, int count, ArrayList<MessageObject> page,
+            java.util.function.Consumer<ArrayList<MessageObject>> callback) {
+        final long owner = UserConfig.getInstance(account).getClientUserId();
+        MessagesStorage.getInstance(account).getStorageQueue().postRunnable(() -> {
+            ArrayList<MessageObject> merged = new ArrayList<>(page);
+            try {
+                if (UserConfig.getInstance(account).getClientUserId() == owner
+                        && !com.radolyn.ayugram.messages.AyuDeletedDialogs.isSuppressed(account, dialogId)) {
+                    long start = 0, end = Integer.MAX_VALUE;
+                    if (!page.isEmpty()) {
+                        Pair<Integer, Integer> bounds = getMinAndMaxIds(page);
+                        start = Math.max(0, bounds.first);
+                        end = bounds.second;
+                        if (anchor == 0 && (loadType == 0 || loadType == 2)) end = Integer.MAX_VALUE;
+                        if (loadType == 0 && page.size() < count) start = 0;
+                    } else if (anchor > 0) {
+                        if (loadType == 1) start = (long) anchor + 1;
+                        else end = (long) anchor - 1;
+                    }
+                    AyuMessagesController archive = AyuMessagesController.getInstance();
+                    List<DeletedMessageFull> saved = thread
+                            ? archive.getThreadMessages(owner, dialogId, topicId, start, end, Math.max(200, count))
+                            : topic && topicId != 0
+                            ? archive.getTopicMessages(owner, dialogId, topicId, start, end, Math.max(200, count))
+                            : archive.getMessages(owner, dialogId, start, end, Math.max(200, count));
+                    HashSet<Integer> ids = new HashSet<>();
+                    for (MessageObject object : page) ids.add(object.getId());
+                    for (DeletedMessageFull full : saved) {
+                        if (!hasContent(full) || !ids.add(full.message.messageId)) continue;
+                        TLRPC.TL_message message = map(full, account);
+                        merged.add(createMessageObject(account, message, null, null, MessagesController.getInstance(account)));
+                    }
+                    merged.sort(AyuHistoryHook::doHook_compareMessages);
+                }
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+            AndroidUtilities.runOnUIThread(() -> {
+                if (UserConfig.getInstance(account).getClientUserId() == owner) callback.accept(merged);
+            });
+        });
+    }
+
     public static void doHookAsync(int currentAccount, long startId, long endId, long dialogId, int limit, long topicId, int loadType, boolean isChannelComment, long threadMessageId, boolean isTopic) {
+        if (com.radolyn.ayugram.messages.AyuDeletedDialogs.isSuppressed(currentAccount, dialogId)) return;
+        final long owner = UserConfig.getInstance(currentAccount).getClientUserId();
         MessagesStorage storage = MessagesStorage.getInstance(currentAccount);
         MessagesController messagesController = MessagesController.getInstance(currentAccount);
         storage.getStorageQueue().postRunnable(() -> {
             try {
+                if (UserConfig.getInstance(currentAccount).getClientUserId() != owner) return;
                 doHookInternal(currentAccount, messagesController, storage, startId, endId, dialogId, limit, topicId, loadType, isChannelComment, threadMessageId, isTopic);
             } catch (Throwable t) {
                 android.util.Log.e("AyuDebug", "doHook failed d=" + dialogId, t);
@@ -198,6 +246,8 @@ public abstract class AyuHistoryHook {
             android.util.Log.i("AyuDebug", "doHook: mapped=" + messageObjects.size() + " d=" + dialogId + ", posting didReceiveNewMessages");
 
             AndroidUtilities.runOnUIThread(() -> {
+                if (UserConfig.getInstance(currentAccount).getClientUserId() != clientUserId
+                        || com.radolyn.ayugram.messages.AyuDeletedDialogs.isSuppressed(currentAccount, dialogId)) return;
                 // MessagesController.getInstance(currentAccount).updateInterfaceWithMessages(dialogId, messageObjects, 0);
                 NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.didReceiveNewMessages, dialogId, messageObjects, false, 0);
                 NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.replyMessagesDidLoad, dialogId, messageObjects, null);

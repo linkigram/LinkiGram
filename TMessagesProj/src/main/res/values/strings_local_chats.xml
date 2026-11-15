@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="LinkiKeepChatTitle">Keep chat locally?</string>
+    <string name="LinkiKeepChatInfo">The chat will be deleted on Telegram. Keep a local copy of messages already received on this device? Saved copies are available only on this device while deleted-message saving is enabled.</string>
+    <string name="LinkiKeepChatYes">Keep locally</string>
+    <string name="LinkiKeepChatNo">Do not keep</string>
+</resources>

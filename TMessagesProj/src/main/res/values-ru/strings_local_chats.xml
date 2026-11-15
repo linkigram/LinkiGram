@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="LinkiKeepChatTitle">Оставить чат локально?</string>
+    <string name="LinkiKeepChatInfo">Чат будет удалён в Telegram. Оставить локальную копию сообщений, уже полученных на этом устройстве? Копии доступны только на этом устройстве, пока включено сохранение удалённых сообщений.</string>
+    <string name="LinkiKeepChatYes">Оставить локально</string>
+    <string name="LinkiKeepChatNo">Не оставлять</string>
+</resources>

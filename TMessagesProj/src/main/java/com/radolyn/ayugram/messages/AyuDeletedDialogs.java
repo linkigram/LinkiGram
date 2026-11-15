@@ -23,18 +23,19 @@ import java.util.List;
 
 public final class AyuDeletedDialogs {
 
-    private static final boolean[] restored = new boolean[UserConfig.MAX_ACCOUNT_COUNT];
+    private static final long[] restored = new long[UserConfig.MAX_ACCOUNT_COUNT];
 
     private AyuDeletedDialogs() {
     }
 
-    private static boolean isEnabledFor(int account, long dialogId) {
+    public static boolean isEnabledFor(int account, long dialogId) {
         if (!app.nimarkogram.messenger.NimarkoConfig.saveDeletedMessages || !app.nimarkogram.messenger.NimarkoConfig.saveDeletedInPrivateChats) {
             return false;
         }
         if (!DialogObject.isUserDialog(dialogId) || dialogId == UserConfig.getInstance(account).getClientUserId()) {
             return false;
         }
+        if (isSuppressed(account, dialogId)) return false;
         if (AyuSavePreferences.getSaveDeletedExclusion(dialogId) || !AyuSavePreferences.saveInDialogFolder(account, dialogId)) {
             return false;
         }
@@ -69,7 +70,8 @@ public final class AyuDeletedDialogs {
                 return;
             }
             AndroidUtilities.runOnUIThread(() -> {
-                if (apply(account, deletedDialog, message)) {
+                if (UserConfig.getInstance(account).getClientUserId() == userId && isEnabledFor(account, dialogId)
+                        && apply(account, deletedDialog, message)) {
                     MessagesController.getInstance(account).sortDialogs(null);
                     NotificationCenter.getInstance(account).postNotificationName(NotificationCenter.dialogsNeedReload);
                 }
@@ -95,11 +97,32 @@ public final class AyuDeletedDialogs {
         });
     }
 
+    private static String choiceKey(int account, long dialogId) {
+        return "linki_deleted_dialog_" + UserConfig.getInstance(account).getClientUserId() + "_" + dialogId;
+    }
+
+    public static boolean isSuppressed(int account, long dialogId) {
+        return MessagesController.getMainSettings(account).getInt(choiceKey(account, dialogId), 0) == -1;
+    }
+
+    public static boolean shouldSnapshot(int account, long dialogId) {
+        return isEnabledFor(account, dialogId)
+                && MessagesController.getMainSettings(account).getInt(choiceKey(account, dialogId), 0) == 1;
+    }
+
+    public static void setLocalChoice(int account, long dialogId, boolean keep) {
+        MessagesController.getMainSettings(account).edit().putInt(choiceKey(account, dialogId), keep ? 1 : -1).apply();
+        if (!keep) forget(account, dialogId);
+    }
+
+    public static void reset(int account) {
+        restored[account] = 0;
+    }
+
     public static void restore(int account) {
-        if (account < 0 || account >= restored.length || restored[account]) {
+        if (account < 0 || account >= restored.length) {
             return;
         }
-        restored[account] = true;
         if (!app.nimarkogram.messenger.NimarkoConfig.saveDeletedMessages || !app.nimarkogram.messenger.NimarkoConfig.saveDeletedInPrivateChats) {
             return;
         }
@@ -107,6 +130,8 @@ public final class AyuDeletedDialogs {
         if (userId == 0) {
             return;
         }
+        if (restored[account] == userId) return;
+        restored[account] = userId;
         Utilities.globalQueue.postRunnable(() -> {
             final DeletedDialogDao dao = AyuData.getDeletedDialogDao();
             if (dao == null) {
@@ -146,11 +171,13 @@ public final class AyuDeletedDialogs {
                     FileLog.e(e);
                 }
                 AndroidUtilities.runOnUIThread(() -> {
+                    if (UserConfig.getInstance(account).getClientUserId() != userId) return;
                     final MessagesController controller = MessagesController.getInstance(account);
                     controller.putUsers(users, true);
                     boolean changed = false;
                     for (int i = 0; i < found.size(); i++) {
-                        if (controller.getUser(found.get(i).dialogId) != null && apply(account, found.get(i), messages.get(i))) {
+                        if (isEnabledFor(account, found.get(i).dialogId)
+                                && controller.getUser(found.get(i).dialogId) != null && apply(account, found.get(i), messages.get(i))) {
                             changed = true;
                         }
                     }

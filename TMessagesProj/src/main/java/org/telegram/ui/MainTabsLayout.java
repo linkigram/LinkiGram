@@ -352,7 +352,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
             final View child = getChildAt(a);
             if (child instanceof GlassTabView) {
                 ((GlassTabView) child).setSelected(child == tab, animated);
-                ((GlassTabView) child).setSkipDrawSelector(!app.nimarkogram.messenger.appearance.AppearanceConfig.newNavigationBarStyle());
+                ((GlassTabView) child).setSkipDrawSelector(usesMovingSelector());
             }
         }
         moveSelectorTo(tab, animated);
@@ -367,7 +367,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         for (int a = 0, N = getChildCount(); a < N; a++) {
             final View child = getChildAt(a);
             if (child instanceof GlassTabView) {
-                ((GlassTabView) child).setSkipDrawSelector(!app.nimarkogram.messenger.appearance.AppearanceConfig.newNavigationBarStyle());
+                ((GlassTabView) child).setSkipDrawSelector(usesMovingSelector());
             }
         }
         moveSelectorTo(selected, animated);
@@ -459,29 +459,37 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         super.draw(canvas);
     }
 
+    private static boolean usesMovingSelector() {
+        return app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled()
+                || !app.nimarkogram.messenger.appearance.AppearanceConfig.newNavigationBarStyle();
+    }
+
     private void updateSelectorColor() {
         final int background = Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider);
         final boolean dark = androidx.core.graphics.ColorUtils.calculateLuminance(background) < 0.5;
-        selectorPaint.setColor(dark ? 0x24FFFFFF : 0x14000000);
+        selectorPaint.setColor(dark ? 0x1FFFFFFF : 0x10000000);
     }
 
     @Override
     protected void dispatchDraw(@NonNull Canvas canvas) {
-        if (selectorInitialized && !app.nimarkogram.messenger.appearance.AppearanceConfig.newNavigationBarStyle()) {
+        if (selectorInitialized && usesMovingSelector()) {
+            final boolean you = app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled();
+            final boolean stackedYou = you && getBottomNavigationMode() == BOTTOM_NAVIGATION_MODE_SHOW;
             final float x = animatedLongSelectedViewCenterX + animatedLongSelectedViewOffsetX;
-            final float sWidth = getInterpolatedWidthByX(x, this);
-            final float sHeight = getHeight() - getPaddingTop() - getPaddingBottom();
-            selectorRect.set(x - sWidth / 2f, (getHeight() - sHeight) / 2f,
-                    x + sWidth / 2f, (getHeight() + sHeight) / 2f);
+            final float slotWidth = getInterpolatedWidthByX(x, this);
+            final float sWidth = stackedYou ? Math.min(dp(52), Math.max(0, slotWidth - dp(8))) : slotWidth;
+            final float sHeight = stackedYou ? dp(32) : getHeight() - getPaddingTop() - getPaddingBottom();
+            final float top = stackedYou ? getPaddingTop() + dp(2) : (getHeight() - sHeight) / 2f;
+            selectorRect.set(x - sWidth / 2f, top, x + sWidth / 2f, top + sHeight);
             final float radius = sHeight / 2f;
             canvas.save();
             final float travel = Math.min(0.18f,
                     Math.abs(selectorTargetX - x) / Math.max(1f, sWidth) * 0.16f);
-            final boolean liquidGlass = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
+            final boolean liquidGlass = you || LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
             if (liquidGlass) {
                 canvas.scale((selectorStretchX + travel) * (1f + selectorPress * 0.16f),
-                        (selectorStretchY - travel * 0.3f) * (1f + selectorPress * 0.34f),
-                        x, getHeight() / 2f);
+                        (selectorStretchY - travel * 0.3f) * (1f + selectorPress * (stackedYou ? 0.22f : 0.16f)),
+                        x, stackedYou ? selectorRect.top : selectorRect.centerY());
             }
             canvas.drawRoundRect(selectorRect, radius, radius, selectorPaint);
             if (liquidGlass) {
@@ -490,6 +498,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                 selectorLightMatrix.setTranslate(x + lightOffset, 0);
                 selectorLightShader.setLocalMatrix(selectorLightMatrix);
                 canvas.drawRoundRect(selectorRect, radius, radius, selectorHighlightPaint);
+                selectorEdgePaint.setColor(Theme.isCurrentThemeDark() ? 0x48FFFFFF : 0x60FFFFFF);
                 canvas.drawRoundRect(selectorRect, radius, radius, selectorEdgePaint);
             }
             canvas.restore();
@@ -505,7 +514,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     private final RectF selectorRect = new RectF();
     private final Matrix selectorLightMatrix = new Matrix();
     private final LinearGradient selectorLightShader = new LinearGradient(-dp(40), 0, dp(40), 0,
-            new int[]{0x00FFFFFF, 0x10FFFFFF, 0x00FFFFFF}, null, Shader.TileMode.CLAMP);
+            new int[]{0x00FFFFFF, 0x22FFFFFF, 0x00FFFFFF}, null, Shader.TileMode.CLAMP);
     private boolean selectorInitialized;
     private boolean selectorFollowsPager;
     private float selectorTargetX;
@@ -677,7 +686,8 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     public boolean dispatchTouchEvent(MotionEvent event) {
         final int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL
-                || action == MotionEvent.ACTION_POINTER_UP) {
+                || action == MotionEvent.ACTION_POINTER_UP
+                && event.getPointerId(event.getActionIndex()) == selectorPointerId) {
             // The spring keeps driving the pressed tab back to 1x, so the reference stays
             // until the next press replaces it.
             selectorPressAnimation.animateToFinalPosition(0f);

@@ -2616,6 +2616,27 @@ public class AlertsCreator {
         return d;
     }
 
+    private static final class LocalChatDeleteCallback implements MessagesStorage.BooleanCallback {
+        private final int account;
+        private final long owner, dialogId;
+        private final boolean keep;
+        private final MessagesStorage.BooleanCallback callback;
+
+        LocalChatDeleteCallback(int account, long owner, long dialogId, boolean keep, MessagesStorage.BooleanCallback callback) {
+            this.account = account;
+            this.owner = owner;
+            this.dialogId = dialogId;
+            this.keep = keep;
+            this.callback = callback;
+        }
+
+        @Override public void run(boolean revoke) {
+            if (UserConfig.getInstance(account).getClientUserId() != owner || callback == null) return;
+            com.radolyn.ayugram.messages.AyuDeletedDialogs.setLocalChoice(account, dialogId, keep);
+            callback.run(revoke);
+        }
+    }
+
     public static void createClearOrDeleteDialogAlert(BaseFragment fragment, boolean clear, TLRPC.Chat chat, TLRPC.User user, boolean secret, boolean canDeleteHistory, MessagesStorage.BooleanCallback onProcessRunnable) {
         createClearOrDeleteDialogAlert(fragment, clear, false, chat, user, secret, false, false, canDeleteHistory, onProcessRunnable, fragment != null ? fragment.getResourceProvider() : null);
     }
@@ -2638,6 +2659,26 @@ public class AlertsCreator {
         final int account = fragment.getCurrentAccount();
 
         Context context = fragment.getParentActivity();
+        if (!clear && !secret && user != null && !UserObject.isUserSelf(user) && !second
+                && (!user.bot || app.nimarkogram.messenger.NimarkoConfig.saveDeletedMessageForBotUser)
+                && app.nimarkogram.messenger.NimarkoConfig.saveDeletedMessages
+                && app.nimarkogram.messenger.NimarkoConfig.saveDeletedInPrivateChats
+                && !(onProcessRunnable instanceof LocalChatDeleteCallback)) {
+            final long owner = UserConfig.getInstance(account).getClientUserId();
+            fragment.showDialog(new AlertDialog.Builder(context, resourcesProvider)
+                    .setTitle(getString(R.string.LinkiKeepChatTitle))
+                    .setMessage(getString(R.string.LinkiKeepChatInfo))
+                    .setPositiveButton(getString(R.string.LinkiKeepChatYes), (dialog, which) ->
+                            createClearOrDeleteDialogAlert(fragment, clear, second, chat, user, secret, checkDeleteForAll,
+                                    forceDeleteForAll, canDeleteHistory,
+                                    new LocalChatDeleteCallback(account, owner, user.id, true, onProcessRunnable), resourcesProvider))
+                    .setNegativeButton(getString(R.string.LinkiKeepChatNo), (dialog, which) ->
+                            createClearOrDeleteDialogAlert(fragment, clear, second, chat, user, secret, checkDeleteForAll,
+                                    forceDeleteForAll, canDeleteHistory,
+                                    new LocalChatDeleteCallback(account, owner, user.id, false, onProcessRunnable), resourcesProvider))
+                    .setNeutralButton(getString(R.string.Cancel), null).create());
+            return;
+        }
         AlertDialog.Builder builder = new AlertDialog.Builder(context, resourcesProvider);
         long selfUserId = UserConfig.getInstance(account).getClientUserId();
 
