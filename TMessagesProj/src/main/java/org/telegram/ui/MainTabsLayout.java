@@ -764,6 +764,17 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     }
 
     @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        // Navigating into a chat detaches this bar and clears its selector geometry.
+        // Restore it even when the committed tab has not changed.
+        setSelectorToSelectedTab(false);
+        post(() -> {
+            if (isAttachedToWindow()) setSelectorToSelectedTab(false);
+        });
+    }
+
+    @Override
     protected void onDetachedFromWindow() {
         if (isDraggingSelector) {
             isDraggingSelector = false;

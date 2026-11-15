@@ -6927,6 +6927,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     @Override
     protected void onPause() {
         super.onPause();
+        app.nimarkogram.messenger.nfc.LinkiShareController.onAppPause(this);
         isResumed = false;
         WidgetMedia.onAppPaused(true);
         PipCoordinator.getInstance().onActivityPause(this);
@@ -7239,6 +7240,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
     @Override
     protected void onResume() {
         super.onResume();
+        app.nimarkogram.messenger.nfc.LinkiShareController.onAppResume(this);
         WidgetMedia.onAppPaused(false);
         isResumed = true;
         PipCoordinator.getInstance().onActivityResume(this);

@@ -474,6 +474,11 @@ public final class NimarkoConfig {
     }
 
     public static volatile boolean saveDeletedMessages = getPreferences().getBoolean("saveDeletedMessages", true);
+    public static volatile boolean linkiShareEverywhere = getPreferences().getBoolean("linkiShareEverywhere", false);
+    public static void toggleLinkiShareEverywhere() {
+        linkiShareEverywhere = !linkiShareEverywhere;
+        getEditor().putBoolean("linkiShareEverywhere", linkiShareEverywhere).apply();
+    }
     public static void toggleSaveDeletedMessages() {
         saveDeletedMessages = !saveDeletedMessages;
         getEditor().putBoolean("saveDeletedMessages", saveDeletedMessages).apply();

@@ -7,7 +7,6 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLRPC;
 
 import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 import java.net.URLEncoder;
 
 /**
@@ -48,7 +47,7 @@ public final class LinkiSharePayload {
     }
 
     public static LinkiSharePayload fromUri(String raw) {
-        if (TextUtils.isEmpty(raw)) {
+        if (TextUtils.isEmpty(raw) || raw.length() > 2048) {
             return null;
         }
         final Uri uri;
@@ -73,7 +72,8 @@ public final class LinkiSharePayload {
         if (userId <= 0) {
             return null;
         }
-        return new LinkiSharePayload(userId, decode(uri.getQueryParameter("n")), decode(uri.getQueryParameter("u")));
+        // Uri.getQueryParameter already URL-decodes. A second pass corrupts '+' and '%' in names.
+        return new LinkiSharePayload(userId, uri.getQueryParameter("n"), uri.getQueryParameter("u"));
     }
 
     /** The payload of the current account, or null when no account is authorized. */
@@ -115,14 +115,4 @@ public final class LinkiSharePayload {
         }
     }
 
-    private static String decode(String value) {
-        if (value == null || value.isEmpty()) {
-            return "";
-        }
-        try {
-            return URLDecoder.decode(value, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            return value;
-        }
-    }
 }

@@ -23,6 +23,7 @@ def method(source, signature):
 
 source = (JAVA / "com/radolyn/ayugram/proprietary/AyuHistoryHook.java").read_text()
 methods = "\n".join(method(source, name) for name in (
+    "public static boolean shouldMergeHistoryPage(",
     "public static void mergeLoadAsync(",
     "public static Pair<Integer, Integer> getMinAndMaxIds(",
     "private static int doHook_compareMessages(",
@@ -113,6 +114,9 @@ public class AyuHistoryHook {
     }
     public static void main(String[] args){
         dateTests();
+        check(shouldMergeHistoryPage(0,0));check(shouldMergeHistoryPage(3,3));
+        check(!shouldMergeHistoryPage(0,1));check(!shouldMergeHistoryPage(3,1));
+        check(!shouldMergeHistoryPage(1,1));check(!shouldMergeHistoryPage(0,3));
         AyuMessagesController.rows.add(new DeletedMessageFull(110,7));
         AyuMessagesController.rows.add(new DeletedMessageFull(100,7));
         AyuMessagesController.rows.add(new DeletedMessageFull(90,8));
@@ -143,7 +147,10 @@ with tempfile.TemporaryDirectory(prefix="history-tests-", dir="/tmp/opencode") a
     stub.parent.mkdir(parents=True)
     stub.write_text("package com.radolyn.ayugram.messages; public class AyuDeletedDialogs {"
                     "public static boolean suppressed; public static boolean isSuppressed(int a,long d){return suppressed;} }")
-    subprocess.run(["javac", "-d", str(tmp), str(tmp / "AyuHistoryHook.java"), str(stub),
+    chat = tmp / "org/telegram/ui/ChatActivity.java"
+    chat.parent.mkdir(parents=True)
+    chat.write_text("package org.telegram.ui; public class ChatActivity { public static final int MODE_DEFAULT=0, MODE_SAVED=3; }")
+    subprocess.run(["javac", "-d", str(tmp), str(tmp / "AyuHistoryHook.java"), str(stub), str(chat),
                     str(JAVA / "app/nimarkogram/messenger/search/MessageSearchDateRange.java")], check=True)
     subprocess.run(["java", "-cp", str(tmp), "AyuHistoryHook"], check=True)
     # Execute the production DAO range query against a database reopened from disk.

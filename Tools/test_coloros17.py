@@ -38,7 +38,19 @@ def main():
         "android/graphics/PorterDuff.java": "package android.graphics; public class PorterDuff {public enum Mode {MULTIPLY}}",
         "android/graphics/PorterDuffColorFilter.java": "package android.graphics; public class PorterDuffColorFilter {public final int color;public PorterDuffColorFilter(int c,PorterDuff.Mode m){color=c;}}",
         "android/content/Context.java": "package android.content; public class Context { public static int seed=0xFF008577; public int getColor(int id){return seed;} }",
-        "android/os/Build.java": "package android.os; public class Build {public static class VERSION {public static int SDK_INT=35;} public static class VERSION_CODES {public static final int S=31;} }",
+        "android/os/Build.java": "package android.os; public class Build {public static class VERSION {public static int SDK_INT=35;} public static class VERSION_CODES {public static final int S=31,TIRAMISU=33;} }",
+        "android/view/Gravity.java": "package android.view; public class Gravity {public static final int TOP=48;}",
+        "android/graphics/Color.java": """package android.graphics; public class Color {
+ public static final int BLACK=0xff000000,WHITE=0xffffffff;
+ public static void colorToHSV(int c,float[] hsv){java.awt.Color.RGBtoHSB((c>>16)&255,(c>>8)&255,c&255,hsv);hsv[0]*=360;}
+ public static int HSVToColor(float[] hsv){return java.awt.Color.HSBtoRGB(hsv[0]/360,hsv[1],hsv[2]);}
+}""",
+        "androidx/core/graphics/ColorUtils.java": """package androidx.core.graphics; public class ColorUtils {
+ public static int blendARGB(int a,int b,float t){int r=0;for(int s:new int[]{0,8,16,24})r|=((int)(((a>>>s)&255)*(1-t)+((b>>>s)&255)*t))<<s;return r;}
+ public static double calculateLuminance(int c){double[] v=new double[3];for(int i=0;i<3;i++){double x=((c>>(16-i*8))&255)/255.0;v[i]=x<=.04045?x/12.92:Math.pow((x+.055)/1.055,2.4);}return .2126*v[0]+.7152*v[1]+.0722*v[2];}
+}""",
+        "android/graphics/drawable/LayerDrawable.java": "package android.graphics.drawable; public class LayerDrawable extends Drawable {public LayerDrawable(Drawable[] d){} public void setLayerGravity(int i,int g){} public void setLayerHeight(int i,int h){} public void setLayerInset(int i,int l,int t,int r,int b){} }",
+        "org/telegram/messenger/LiteMode.java": "package org.telegram.messenger; public class LiteMode {public static final int FLAG_LIQUID_GLASS=1; public static boolean isEnabled(int flag){return false;}}",
         "android/R.java": "package android; public class R {public static class color {" + "".join(f"public static final int {k}={i+1};" for i,k in enumerate(system_colors)) + "}}",
         "android/graphics/Rect.java": "package android.graphics; public class Rect {public int left,top,right,bottom;}",
         "android/graphics/drawable/Drawable.java": "package android.graphics.drawable; import android.graphics.Rect; public class Drawable {public static int filterColor; public void setColorFilter(android.graphics.PorterDuffColorFilter f){filterColor=f.color;} public boolean getPadding(Rect p){p.left=p.top=p.right=p.bottom=4;return true;}}",

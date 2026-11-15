@@ -146,13 +146,13 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
                 R.string.NM_AyuMoments, R.string.NM_HUB_Card_AyuMoments, "ayu moments ghost deleted"));
         items.add(card(ID_PLUGINS, IconBackgroundColors.PURPLE, R.drawable.msg_plugins,
                 R.string.Plugins, R.string.NM_HUB_Card_Plugins, "plugins плагины engine install check"));
+        items.add(card(ID_LINKI_SHARE, IconBackgroundColors.GREEN, R.drawable.msg_secret_solar,
+                R.string.NM_LS_Title, R.string.NM_HUB_Card_LinkiShare, "linki share nfc profile exchange"));
         return items;
     }
 
     private ArrayList<CardDef> miscSection() {
         ArrayList<CardDef> items = new ArrayList<>();
-        items.add(card(ID_LINKI_SHARE, IconBackgroundColors.GREEN, R.drawable.msg_secret_solar,
-                R.string.NM_LS_Title, R.string.NM_HUB_Card_LinkiShare, "linki share nfc profile exchange"));
         // Full-width action row: no description.
         items.add(card(ID_DRAWER_MENU, IconBackgroundColors.GRAY, R.drawable.msg_customize,
                 R.string.LF_Menu, 0, "side menu drawer settings"));

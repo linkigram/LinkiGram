@@ -234,6 +234,13 @@ public final class LinkiGramYouTheme {
                 ? (dark ? mix(0xFF26282E, accent, 0.38f) : mix(0xFFE2ECF8, accent, 0.28f))
                 : (dark ? 0xFF2A2C31 : 0xFFE9EAEE);
         if (dark) bubble = ensureContrast(bubble, Color.WHITE, 4.5f);
+        if (key == Theme.key_chat_inBubbleSelected || key == Theme.key_chat_outBubbleSelected
+                || key == Theme.key_chat_inTimeSelectedText || key == Theme.key_chat_outTimeSelectedText
+                || key == Theme.key_chat_inViewsSelected || key == Theme.key_chat_outViewsSelected
+                || key == Theme.key_chat_inAdminSelectedText || key == Theme.key_chat_outAdminSelectedText) {
+            bubble = mix(bubble, dark ? Color.WHITE : Color.BLACK, 0.10f);
+            if (dark) bubble = ensureContrast(bubble, Color.WHITE, 4.5f);
+        }
         final int text = dark ? Color.WHITE
                 : (contrastRatio(bubble, Color.WHITE) >= contrastRatio(bubble, Color.BLACK) ? Color.WHITE : Color.BLACK);
         final int secondary = ensureContrast(mix(text, bubble, 0.35f), bubble, 3.0f);

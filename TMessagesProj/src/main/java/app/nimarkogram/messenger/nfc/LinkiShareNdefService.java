@@ -31,7 +31,7 @@ public class LinkiShareNdefService extends HostApduService {
             0x00, 0x34,             // maximum C-APDU data size
             0x04, 0x06,             // NDEF File Control TLV: T=04, L=06
             (byte) 0xE1, 0x04,      // NDEF file id
-            0x04, (byte) 0x00,      // maximum NDEF file size (1024 bytes)
+            0x10, (byte) 0x00,      // maximum NDEF file size (4096 bytes)
             0x00,                   // read access: everyone
             (byte) 0xFF            // write access: nobody
     };
@@ -41,15 +41,27 @@ public class LinkiShareNdefService extends HostApduService {
     private static final byte[] STATUS_NOT_ALLOWED = {0x69, (byte) 0x86};
     private static final byte[] STATUS_FAILED = {0x6F, 0x00};
 
-    /** Enables emulation only while the exchange screen is in front. */
+    /** Explicit screen session or opt-in foreground sharing session. */
     private static volatile boolean sArmed;
+    private static volatile int sAccount;
+    private static volatile long sOwner;
+    private static final java.util.concurrent.atomic.AtomicLong sArmEpoch = new java.util.concurrent.atomic.AtomicLong();
 
     private enum SelectedFile {NONE, CAPABILITY_CONTAINER, NDEF}
 
     private SelectedFile selected = SelectedFile.NONE;
     private byte[] ndefFile;
+    private long fileEpoch = -1;
 
     public static void setArmed(boolean armed) {
+        setArmed(armed, UserConfig.selectedAccount);
+    }
+
+    public static synchronized void setArmed(boolean armed, int account) {
+        long owner = UserConfig.getInstance(account).getClientUserId();
+        if (sArmed != armed || sAccount != account || sOwner != owner) sArmEpoch.incrementAndGet();
+        sAccount = account;
+        sOwner = owner;
         sArmed = armed;
     }
 
@@ -59,6 +71,25 @@ public class LinkiShareNdefService extends HostApduService {
 
     @Override
     public byte[] processCommandApdu(byte[] apdu, Bundle extras) {
+        synchronized (LinkiShareNdefService.class) {
+            return processCommand(apdu);
+        }
+    }
+
+    private byte[] processCommand(byte[] apdu) {
+        final long epoch = sArmEpoch.get();
+        if (fileEpoch != epoch) {
+            selected = SelectedFile.NONE;
+            ndefFile = null;
+            fileEpoch = epoch;
+        }
+        // A previously selected NDEF file must not leak after pause/lock/logout.
+        if (!sArmed || !LinkiShareController.isSharingAllowed()
+                || UserConfig.getInstance(sAccount).getClientUserId() != sOwner) {
+            selected = SelectedFile.NONE;
+            ndefFile = null;
+            return STATUS_NOT_ALLOWED;
+        }
         if (apdu == null || apdu.length < 4) {
             return STATUS_FAILED;
         }
@@ -128,6 +159,7 @@ public class LinkiShareNdefService extends HostApduService {
         try {
             final NdefRecord record = NdefRecord.createUri(payload.toUri());
             final byte[] message = new NdefMessage(new NdefRecord[]{record}).toByteArray();
+            if (message.length > 4094) return new byte[]{0x00, 0x00};
             final ByteArrayOutputStream out = new ByteArrayOutputStream();
             out.write((message.length >> 8) & 0xFF);
             out.write(message.length & 0xFF);
@@ -143,7 +175,7 @@ public class LinkiShareNdefService extends HostApduService {
         if (!sArmed) {
             return null;
         }
-        final int account = UserConfig.selectedAccount;
+        final int account = sAccount;
         if (account < 0 || account >= UserConfig.MAX_ACCOUNT_COUNT) {
             return null;
         }
@@ -169,7 +201,9 @@ public class LinkiShareNdefService extends HostApduService {
 
     @Override
     public void onDeactivated(int reason) {
-        selected = SelectedFile.NONE;
-        ndefFile = null;
+        synchronized (LinkiShareNdefService.class) {
+            selected = SelectedFile.NONE;
+            ndefFile = null;
+        }
     }
 }

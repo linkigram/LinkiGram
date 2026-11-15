@@ -22006,7 +22006,8 @@ public class ChatActivity extends BaseFragment implements
         // A server/cache reload must not replace the archive with a server-only page.
         final boolean historyMerged = args.length > 15 && Boolean.TRUE.equals(args[15]);
         if (!historyMerged && NimarkoConfig.saveDeletedMessages && currentEncryptedChat == null
-                && (chatMode == 0 || chatMode == MODE_SAVED) && (Long) args[0] == dialog_id) {
+                && com.radolyn.ayugram.proprietary.AyuHistoryHook.shouldMergeHistoryPage(chatMode, (Integer) args[14])
+                && (Long) args[0] == dialog_id) {
             final Object[] mergedArgs = java.util.Arrays.copyOf(args, 16);
             mergedArgs[15] = true;
             com.radolyn.ayugram.proprietary.AyuHistoryHook.mergeLoadAsync(currentAccount, dialog_id,
@@ -22134,7 +22135,7 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         if (chatMode != mode && (chatMode != MODE_SAVED || getSavedDialogId() == getUserConfig().getClientUserId())) {
-            if (chatMode != MODE_SCHEDULED && chatMode != MODE_QUICK_REPLIES) {
+            if (mode == MODE_SCHEDULED && chatMode != MODE_SCHEDULED && chatMode != MODE_QUICK_REPLIES) {
                 if (isTopic) {
                     ForumUtilities.filterMessagesByTopic(threadMessageId, messArr);
                 }

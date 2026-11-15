@@ -29,6 +29,11 @@ import java.util.Set;
 
 public abstract class AyuHistoryHook {
 
+    public static boolean shouldMergeHistoryPage(int displayMode, int loadMode) {
+        return displayMode == loadMode && (displayMode == org.telegram.ui.ChatActivity.MODE_DEFAULT
+                || displayMode == org.telegram.ui.ChatActivity.MODE_SAVED);
+    }
+
     /** Merge the archive before the page is rendered, rather than simulating new arrivals. */
     public static void mergeLoadAsync(int account, long dialogId, long topicId, boolean topic,
             boolean thread, int loadType, int anchor, int count, ArrayList<MessageObject> page,

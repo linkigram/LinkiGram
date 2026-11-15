@@ -67,6 +67,15 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
     private volatile boolean resumed;
     private volatile boolean readHandled;
     private volatile boolean readerModeOn;
+    private LinkiSharePayload receivedPayload;
+    private volatile long sessionGeneration;
+    private long sessionOwner;
+
+    public LinkiShareActivity() {}
+
+    public LinkiShareActivity(LinkiSharePayload payload) {
+        receivedPayload = payload;
+    }
 
     @Override
     public boolean onFragmentCreate() {
@@ -120,6 +129,16 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
         content.addView(subtitleView, LayoutHelper.createLinear(
                 LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 0, 10, 0, 0));
 
+        org.telegram.ui.Cells.TextCheckCell everywhere = new org.telegram.ui.Cells.TextCheckCell(context);
+        everywhere.setTextAndValueAndCheck(LocaleController.getString(R.string.NM_LS_Everywhere),
+                LocaleController.getString(R.string.NM_LS_EverywhereInfo),
+                app.nimarkogram.messenger.NimarkoConfig.linkiShareEverywhere, true, false);
+        everywhere.setOnClickListener(v -> {
+            app.nimarkogram.messenger.NimarkoConfig.toggleLinkiShareEverywhere();
+            everywhere.setChecked(app.nimarkogram.messenger.NimarkoConfig.linkiShareEverywhere);
+        });
+        content.addView(everywhere, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
         enableNfcView = new TextView(context);
         enableNfcView.setGravity(Gravity.CENTER);
         enableNfcView.setTypeface(Typeface.DEFAULT_BOLD);
@@ -148,6 +167,9 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
     @Override
     public void onResume() {
         super.onResume();
+        LinkiShareController.setScreenActive(true);
+        ++sessionGeneration;
+        sessionOwner = getUserConfig().getClientUserId();
         resumed = true;
         readHandled = false;
         if (enableNfcView == null) {
@@ -165,6 +187,13 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
             return;
         }
         enableNfcView.setVisibility(View.GONE);
+        if (receivedPayload != null) {
+            LinkiSharePayload payload = receivedPayload;
+            receivedPayload = null;
+            readHandled = true;
+            onPayload(payload);
+            return;
+        }
         startRoleCycle();
     }
 
@@ -172,7 +201,9 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
     public void onPause() {
         super.onPause();
         resumed = false;
+        ++sessionGeneration;
         stopRoleCycle();
+        LinkiShareController.setScreenActive(false);
     }
 
     @Override
@@ -257,7 +288,7 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
                     nfcAdapter.disableReaderMode(activity);
                     readerModeOn = false;
                 }
-                LinkiShareNdefService.setArmed(true);
+                LinkiShareNdefService.setArmed(true, currentAccount);
             }
         } catch (Throwable e) {
             FileLog.e(e);
@@ -266,18 +297,23 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
 
     @Override
     public void onTagDiscovered(Tag tag) {
-        if (readHandled) {
+        final long generation = sessionGeneration;
+        if (!resumed || readHandled) {
             return;
         }
         final LinkiSharePayload payload = readPayload(tag);
         if (payload == null) {
             return;
         }
-        readHandled = true;
-        AndroidUtilities.runOnUIThread(() -> onPayload(payload));
+        AndroidUtilities.runOnUIThread(() -> {
+            if (generation == sessionGeneration && resumed && !readHandled) {
+                readHandled = true;
+                onPayload(payload);
+            }
+        });
     }
 
-    private static LinkiSharePayload readPayload(Tag tag) {
+    static LinkiSharePayload readPayload(Tag tag) {
         Ndef ndef = null;
         try {
             ndef = Ndef.get(tag);
@@ -330,7 +366,7 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
             }
             readerModeOn = false;
         }
-        LinkiShareNdefService.setArmed(true);
+        LinkiShareNdefService.setArmed(true, currentAccount);
 
         heroView.setPeerLabel(payload.name);
         heroView.setSuccess(true);
@@ -339,7 +375,10 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
         AndroidUtilities.runOnUIThread(() -> heroView.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM));
 
         final boolean self = payload.userId == getUserConfig().getClientUserId();
-        handler.postDelayed(() -> openProfile(payload, self), 1300);
+        final long generation = sessionGeneration;
+        handler.postDelayed(() -> {
+            if (generation == sessionGeneration) openProfile(payload, self);
+        }, 1300);
     }
 
     private void openProfile(LinkiSharePayload payload, boolean self) {
@@ -370,13 +409,15 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
         }
         final TLRPC.TL_contacts_resolveUsername req = new TLRPC.TL_contacts_resolveUsername();
         req.username = payload.username;
+        final long generation = sessionGeneration;
         getConnectionsManager().sendRequest(req, (response, error) -> AndroidUtilities.runOnUIThread(() -> {
+            if (generation != sessionGeneration || isScreenGone()) return;
             if (response instanceof TLRPC.TL_contacts_resolvedPeer) {
                 final TLRPC.TL_contacts_resolvedPeer res = (TLRPC.TL_contacts_resolvedPeer) response;
                 getMessagesController().putUsers(res.users, false);
                 getMessagesController().putChats(res.chats, false);
                 for (TLRPC.User user : res.users) {
-                    if (user.id == payload.userId || !res.users.isEmpty()) {
+                    if (user.id == payload.userId) {
                         showUserProfile(user.id);
                         return;
                     }
@@ -395,6 +436,8 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
     }
 
     private boolean isScreenGone() {
-        return getParentActivity() == null || getParentActivity().isFinishing();
+        return !resumed || isFinished || getUserConfig().getClientUserId() != sessionOwner
+                || !LinkiShareController.isSharingAllowed()
+                || getParentActivity() == null || getParentActivity().isFinishing();
     }
 }

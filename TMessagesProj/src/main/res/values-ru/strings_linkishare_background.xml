@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="NM_LS_Everywhere">На всех экранах LinkiGram</string>
+    <string name="NM_LS_EverywhereInfo">Обмен профилями без открытия Linki-Share, пока LinkiGram на экране и телефон разблокирован. Профиль могут прочитать NFC-считыватели рядом. Выключайте, когда обмен не нужен.</string>
+    <string name="NM_LS_OpenReceived">Открыть профиль, полученный по NFC: %1$s?</string>
+</resources>

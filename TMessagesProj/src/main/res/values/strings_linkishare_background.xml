@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="NM_LS_Everywhere">On all LinkiGram screens</string>
+    <string name="NM_LS_EverywhereInfo">Exchange profiles without opening Linki-Share while LinkiGram is visible and the phone is unlocked. Your profile can be read by nearby NFC readers. Turn off when not needed.</string>
+    <string name="NM_LS_OpenReceived">Open the profile received via NFC: %1$s?</string>
+</resources>
