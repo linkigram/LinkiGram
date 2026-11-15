@@ -33,6 +33,29 @@ public class YouCustomizationActivity extends NimarkoUniversalPreferencesActivit
         int[] defaults = {24, 16, 28, 24};
         for (int i = 0; i < keys.length; i++)
             items.add(UItem.asButton(10 + i, labels[i], LinkiGramYouTheme.radius(keys[i], defaults[i]) + " dp"));
+
+        boolean dark = org.telegram.ui.ActionBar.Theme.isCurrentThemeDark();
+        String[] roleLabels = {
+                LocaleController.getString(R.string.LinkiYouRoleBackground),
+                LocaleController.getString(R.string.LinkiYouRoleSurface),
+                LocaleController.getString(R.string.LinkiYouRoleSurfaceHigh),
+                LocaleController.getString(R.string.LinkiYouRoleOnSurface),
+                LocaleController.getString(R.string.LinkiYouRoleSecondary),
+                LocaleController.getString(R.string.LinkiYouRolePrimary),
+                LocaleController.getString(R.string.LinkiYouRoleContainer),
+                LocaleController.getString(R.string.LinkiYouRoleOutline),
+                LocaleController.getString(R.string.LinkiYouRoleOutBubble),
+                LocaleController.getString(R.string.LinkiYouRoleInBubble),
+        };
+        items.add(UItem.asHeader(LocaleController.getString(R.string.LinkiYouRoles)));
+        for (int i = 0; i < roleLabels.length; i++) {
+            int value = LinkiGramYouTheme.getRoleOverride(LinkiGramYouTheme.OVERRIDABLE_ROLES[i], dark);
+            items.add(UItem.asButton(30 + i, roleLabels[i],
+                    value == 0 ? LocaleController.getString(R.string.LinkiYouRoleAuto)
+                            : String.format(Locale.ROOT, "#%06X", value & 0xffffff)));
+        }
+        items.add(UItem.asShadow(LocaleController.getString(R.string.LinkiYouRolesInfo)));
+        items.add(UItem.asButton(40, LocaleController.getString(R.string.LinkiYouResetColors)));
     }
     @Override public void onClick(UItem item, View view, int position, float x, float y) {
         if (item.id == 1) {
@@ -52,11 +75,20 @@ public class YouCustomizationActivity extends NimarkoUniversalPreferencesActivit
         else if (item.id == 21) presentFragment(new MessageMenuOrderPreferencesActivity());
         else if (item.id == 5) {
             try {
-                String preset = new org.json.JSONObject().put("format", "linkigram-you")
-                        .put("version", 1).put("seed", LinkiGramYouTheme.getSeedColor()).toString();
+                org.json.JSONObject preset = new org.json.JSONObject()
+                        .put("format", "linkigram-you").put("version", 2)
+                        .put("seed", LinkiGramYouTheme.getSeedColor());
+                org.json.JSONObject colors = new org.json.JSONObject();
+                for (int role : LinkiGramYouTheme.OVERRIDABLE_ROLES) {
+                    for (boolean dark : new boolean[]{false, true}) {
+                        int value = LinkiGramYouTheme.getRoleOverride(role, dark);
+                        if (value != 0) colors.put(role + (dark ? "_dark" : "_light"), value);
+                    }
+                }
+                if (colors.length() > 0) preset.put("colors", colors);
                 android.content.Intent send = new android.content.Intent(android.content.Intent.ACTION_SEND);
                 send.setType("text/plain");
-                send.putExtra(android.content.Intent.EXTRA_TEXT, preset);
+                send.putExtra(android.content.Intent.EXTRA_TEXT, preset.toString());
                 getParentActivity().startActivity(android.content.Intent.createChooser(send, "Палитра LinkiGram You"));
             } catch (Exception error) { showPresetError(); }
         } else if (item.id == 6) {
@@ -78,16 +110,35 @@ public class YouCustomizationActivity extends NimarkoUniversalPreferencesActivit
                     .setPositiveButton(LocaleController.getString(R.string.OK), (dialog, which) -> {
                         try {
                             org.json.JSONObject preset = new org.json.JSONObject(input.getText().toString());
-                            if (!"linkigram-you".equals(preset.getString("format")) || preset.getInt("version") != 1)
+                            if (!"linkigram-you".equals(preset.getString("format")))
                                 throw new IllegalArgumentException();
+                            int version = preset.getInt("version");
+                            if (version != 1 && version != 2) throw new IllegalArgumentException();
                             Object value = preset.get("seed");
                             if (!(value instanceof Number)) throw new IllegalArgumentException();
                             long seed = ((Number) value).longValue();
                             if (seed < Integer.MIN_VALUE || seed > Integer.MAX_VALUE) throw new IllegalArgumentException();
                             LinkiGramYouTheme.setSeedColor((int) seed);
+                            LinkiGramYouTheme.clearRoleOverrides();
+                            if (version >= 2 && preset.has("colors")) {
+                                org.json.JSONObject colors = preset.getJSONObject("colors");
+                                for (int role : LinkiGramYouTheme.OVERRIDABLE_ROLES) {
+                                    for (boolean dark : new boolean[]{false, true}) {
+                                        String key = role + (dark ? "_dark" : "_light");
+                                        if (!colors.has(key)) continue;
+                                        long c = colors.getLong(key);
+                                        if (c >= Integer.MIN_VALUE && c <= Integer.MAX_VALUE)
+                                            LinkiGramYouTheme.setRoleOverride(role, dark, (int) c);
+                                    }
+                                }
+                            }
                             refresh();
                         } catch (Exception error) { showPresetError(); }
                     }).create());
+        } else if (item.id >= 30 && item.id < 40) {
+            openRolePicker(LinkiGramYouTheme.OVERRIDABLE_ROLES[item.id - 30]);
+        } else if (item.id == 40) {
+            LinkiGramYouTheme.clearRoleOverrides(); refresh();
         } else if (item.id >= 10 && item.id <= 13) {
             String key = new String[]{"bubble", "popup", "dialog", "section"}[item.id - 10];
             int[] values = {4, 8, 12, 16, 20, 24, 28, 32};
@@ -99,7 +150,38 @@ public class YouCustomizationActivity extends NimarkoUniversalPreferencesActivit
                     }).create());
         }
     }
-    @Override public boolean onLongClick(UItem item, View view, int position, float x, float y) { return false; }
+    @Override public boolean onLongClick(UItem item, View view, int position, float x, float y) {
+        if (item.id >= 30 && item.id < 40) {
+            LinkiGramYouTheme.clearRoleOverride(LinkiGramYouTheme.OVERRIDABLE_ROLES[item.id - 30],
+                    org.telegram.ui.ActionBar.Theme.isCurrentThemeDark());
+            refresh();
+            return true;
+        }
+        return false;
+    }
+
+    private void openRolePicker(int role) {
+        boolean dark = org.telegram.ui.ActionBar.Theme.isCurrentThemeDark();
+        int current = LinkiGramYouTheme.getRoleOverride(role, dark);
+        if (current == 0) current = effectiveRoleColor(role, dark) | 0xff000000;
+        ColorPicker picker = new ColorPicker(getParentActivity(), false, (color, n, applyNow) -> {
+            if (applyNow) { LinkiGramYouTheme.setRoleOverride(role, dark, color); refresh(); }
+        });
+        picker.setColor(current, 0);
+        picker.setType(-1, true, 1, 1, false, 0, false);
+        BottomSheet sheet = new BottomSheet(getParentActivity(), false);
+        sheet.setCustomView(picker);
+        sheet.show();
+    }
+
+    private int effectiveRoleColor(int role, boolean dark) {
+        int seed = LinkiGramYouTheme.paletteSeed();
+        if (role == LinkiGramYouTheme.CUSTOM_OUT_BUBBLE)
+            return LinkiGramYouTheme.resolveMessageColor(org.telegram.ui.ActionBar.Theme.key_chat_outBubble, dark, seed);
+        if (role == LinkiGramYouTheme.CUSTOM_IN_BUBBLE)
+            return LinkiGramYouTheme.resolveMessageColor(org.telegram.ui.ActionBar.Theme.key_chat_inBubble, dark, seed);
+        return LinkiGramYouTheme.roleColor(seed, dark, role);
+    }
     private void refresh() {
         if (listView != null && listView.adapter != null) listView.adapter.update(true);
         if (getParentLayout() != null) getParentLayout().rebuildAllFragmentViews(false, false);

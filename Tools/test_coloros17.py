@@ -71,6 +71,7 @@ public class NimarkoConfig {
   java.util.Map<String,Integer> ints=new java.util.HashMap<>();
   public int getInt(String k,int d){return ints.getOrDefault(k,d);}
   public Pref putInt(String k,int v){ints.put(k,v);return this;}
+  public Pref remove(String k){ints.remove(k);return this;}
   public Pref edit(){return this;} public Pref putBoolean(String k,boolean v){m.put(k,v);return this;}
   public void apply(){}
  }
@@ -136,7 +137,37 @@ public class Check {
   check(ClientTheme.color(ClientTheme.PRIMARY)!=systemPrimary,"custom seed changes Material palette");
   LinkiGramYouTheme.setSeedColor(0);
   check(ClientTheme.color(ClientTheme.PRIMARY)==systemPrimary,"reset restores system palette");
-  check(ClientTheme.resolveColor(-500,original)==original,"unmapped content colors preserved");
+  // per role colour overrides layered on top of the seeded palette
+  Theme.dark=false;
+  int baseSurface=ClientTheme.color(ClientTheme.SURFACE);
+  int basePrimaryLight=ClientTheme.color(ClientTheme.PRIMARY);
+  check(!LinkiGramYouTheme.hasRoleOverride(LinkiGramYouTheme.CUSTOM_OUT_BUBBLE,false),"no override by default");
+  LinkiGramYouTheme.setRoleOverride(ClientTheme.SURFACE,false,0xFF123456);
+  check(ClientTheme.color(ClientTheme.SURFACE)==0xFF123456,"surface override applies");
+  check(LinkiGramYouTheme.getRoleOverride(ClientTheme.SURFACE,false)==0xFF123456,"surface override persists");
+  check(baseSurface!=0xFF123456,"surface override changes the palette");
+  LinkiGramYouTheme.setRoleOverride(ClientTheme.PRIMARY,true,0xFF00AA66);
+  Theme.dark=true;
+  check(ClientTheme.color(ClientTheme.PRIMARY)==0xFF00AA66,"dark primary override applies");
+  Theme.dark=false;
+  check(ClientTheme.color(ClientTheme.PRIMARY)==basePrimaryLight,"light primary unaffected by dark override");
+  int bubbleBefore=LinkiGramYouTheme.resolveMessageColor(Theme.key_chat_outBubble,false,LinkiGramYouTheme.paletteSeed());
+  LinkiGramYouTheme.setRoleOverride(LinkiGramYouTheme.CUSTOM_OUT_BUBBLE,false,0xFF404040);
+  check(LinkiGramYouTheme.resolveMessageColor(Theme.key_chat_outBubble,false,LinkiGramYouTheme.paletteSeed())==0xFF404040,"outgoing bubble override applies");
+  check(LinkiGramYouTheme.resolveMessageColor(Theme.key_chat_inBubble,false,LinkiGramYouTheme.paletteSeed())!=0xFF404040,"incoming bubble untouched");
+  check(bubbleBefore!=0xFF404040,"bubble override changes bubble colour");
+  LinkiGramYouTheme.clearRoleOverride(LinkiGramYouTheme.CUSTOM_OUT_BUBBLE,false);
+  check(!LinkiGramYouTheme.hasRoleOverride(LinkiGramYouTheme.CUSTOM_OUT_BUBBLE,false),"single override cleared");
+  LinkiGramYouTheme.setRoleOverride(ClientTheme.CONTAINER,false,0xFF334455);
+  LinkiGramYouTheme.clearRoleOverrides();
+  check(!LinkiGramYouTheme.hasRoleOverride(ClientTheme.SURFACE,false),"all overrides cleared (surface)");
+  check(!LinkiGramYouTheme.hasRoleOverride(ClientTheme.CONTAINER,false),"all overrides cleared (container)");
+  Theme.dark=true;
+  check(!LinkiGramYouTheme.hasRoleOverride(ClientTheme.PRIMARY,true),"all overrides cleared (dark primary)");
+  Theme.dark=false;
+  check(ClientTheme.color(ClientTheme.SURFACE)==baseSurface,"palette restored after reset");
+  check(ClientTheme.color(ClientTheme.PRIMARY)==basePrimaryLight,"primary restored after reset");
+  check(LinkiGramYouTheme.resolveColor(-500,original)==original,"unmapped content colors preserved");
   ColorOs17Theme.setEnabled(true);
   android.graphics.drawable.Drawable base=new android.graphics.drawable.Drawable();
   android.graphics.Rect p=new android.graphics.Rect();

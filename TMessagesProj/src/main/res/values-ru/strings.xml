@@ -1785,6 +1785,20 @@
     <string name="LinkiYouSystemColor">Использовать цвета системы</string>
     <string name="LinkiYouColorsInfo">Из акцентного цвета создаётся палитра Material You для светлой и тёмной темы.</string>
     <string name="LinkiYouLayout">Расположение</string>
+    <string name="LinkiYouRoles">Роли цветов</string>
+    <string name="LinkiYouRoleBackground">Фон</string>
+    <string name="LinkiYouRoleSurface">Поверхность</string>
+    <string name="LinkiYouRoleSurfaceHigh">Приподнятая поверхность</string>
+    <string name="LinkiYouRoleOnSurface">Текст</string>
+    <string name="LinkiYouRoleSecondary">Вторичный текст</string>
+    <string name="LinkiYouRolePrimary">Акцент</string>
+    <string name="LinkiYouRoleContainer">Контейнер</string>
+    <string name="LinkiYouRoleOutline">Обводка</string>
+    <string name="LinkiYouRoleOutBubble">Исходящие сообщения</string>
+    <string name="LinkiYouRoleInBubble">Входящие сообщения</string>
+    <string name="LinkiYouRoleAuto">Автоматически</string>
+    <string name="LinkiYouRolesInfo">Роли цветов переопределяют палитру, построенную из акцентного цвета. Светлая и тёмная темы настраиваются отдельно — удержание сбрасывает роль.</string>
+    <string name="LinkiYouResetColors">Сбросить роли цветов</string>
     <!-- Account session import/export -->
     <string name="SessionTransferButton">Сессия</string>
     <string name="SessionTransferLogin">Войти через сессию</string>

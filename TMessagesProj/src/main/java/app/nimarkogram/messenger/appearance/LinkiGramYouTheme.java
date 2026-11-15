@@ -42,6 +42,23 @@ public final class LinkiGramYouTheme {
     private static volatile boolean loaded;
     private static final String PREF_SEED = "linkigramYouSeedColor";
 
+    /** Pseudo-roles for the two chat bubble colours, which are keyed separately. */
+    public static final int CUSTOM_OUT_BUBBLE = 100;
+    public static final int CUSTOM_IN_BUBBLE = 101;
+    /** Colour roles the customization screen can override on top of the seeded palette. */
+    public static final int[] OVERRIDABLE_ROLES = {
+            ClientTheme.BACKGROUND,
+            ClientTheme.SURFACE,
+            ClientTheme.SURFACE_HIGH,
+            ClientTheme.ON_SURFACE,
+            ClientTheme.SECONDARY,
+            ClientTheme.PRIMARY,
+            ClientTheme.CONTAINER,
+            ClientTheme.OUTLINE,
+            CUSTOM_OUT_BUBBLE,
+            CUSTOM_IN_BUBBLE,
+    };
+
     private LinkiGramYouTheme() { }
 
     public static int radius(String element, int fallback) {
@@ -60,6 +77,42 @@ public final class LinkiGramYouTheme {
 
     public static void setSeedColor(int color) {
         app.nimarkogram.messenger.NimarkoConfig.getPreferences().edit().putInt(PREF_SEED, color == 0 ? 0 : color | 0xff000000).apply();
+    }
+
+    private static String roleOverrideKey(int role, boolean dark) {
+        return "linkigramYouRole_" + role + (dark ? "_dark" : "_light");
+    }
+
+    /** A user colour override for one role in one theme mode; {@code 0} means none. */
+    public static int getRoleOverride(int role, boolean dark) {
+        try {
+            return app.nimarkogram.messenger.NimarkoConfig.getPreferences()
+                    .getInt(roleOverrideKey(role, dark), 0);
+        } catch (Throwable ignore) {
+            return 0;
+        }
+    }
+
+    public static boolean hasRoleOverride(int role, boolean dark) {
+        return getRoleOverride(role, dark) != 0;
+    }
+
+    public static void setRoleOverride(int role, boolean dark, int color) {
+        app.nimarkogram.messenger.NimarkoConfig.getPreferences().edit()
+                .putInt(roleOverrideKey(role, dark), color == 0 ? 0 : color | 0xff000000).apply();
+    }
+
+    public static void clearRoleOverride(int role, boolean dark) {
+        app.nimarkogram.messenger.NimarkoConfig.getPreferences().edit()
+                .remove(roleOverrideKey(role, dark)).apply();
+    }
+
+    /** Drop every per-role override for both light and dark themes. */
+    public static void clearRoleOverrides() {
+        for (int role : OVERRIDABLE_ROLES) {
+            clearRoleOverride(role, false);
+            clearRoleOverride(role, true);
+        }
     }
 
     public static boolean isEnabled() {
@@ -111,6 +164,11 @@ public final class LinkiGramYouTheme {
 
     /** Yougram expressive tonal roles, computed directly from the accent seed. */
     public static int roleColor(int seed, boolean dark, int role) {
+        if (role == ClientTheme.BACKGROUND || role == ClientTheme.SURFACE || role == ClientTheme.SURFACE_HIGH) {
+            return surfaceRole(seed, dark, role);
+        }
+        final int override = getRoleOverride(role, dark);
+        if (override != 0) return override;
         final int primary = primary(seed, dark);
         switch (role) {
             case ClientTheme.PRIMARY:
@@ -119,8 +177,11 @@ public final class LinkiGramYouTheme {
                 return ensureContrast(dark ? Color.BLACK : Color.WHITE, primary, 4.5f);
             case ClientTheme.CONTAINER:
                 return dark ? mix(seed, Color.BLACK, 0.35f) : mix(seed, Color.WHITE, 0.75f);
-            case ClientTheme.ON_CONTAINER:
+            case ClientTheme.ON_CONTAINER: {
+                int containerOverride = getRoleOverride(ClientTheme.CONTAINER, dark);
+                if (containerOverride != 0) return ensureContrast(dark ? Color.WHITE : Color.BLACK, containerOverride, 4.5f);
                 return dark ? mix(seed, Color.WHITE, 0.90f) : mix(seed, Color.BLACK, 0.65f);
+            }
             case ClientTheme.SECONDARY:
                 // onSurfaceVariant in Yougram: light grey on dark, muted grey on light.
                 return dark ? 0xFFD0D0D0 : 0xFF4A4A4A;
@@ -132,10 +193,6 @@ public final class LinkiGramYouTheme {
                 return dark ? mix(0xFF242424, primary, 0.09f) : mix(0xFFE6E6E6, primary, 0.09f);
             case ClientTheme.OUTLINE:
                 return dark ? 0xFF8A8A8A : 0xFF7A7A7A;
-            case ClientTheme.BACKGROUND:
-            case ClientTheme.SURFACE:
-            case ClientTheme.SURFACE_HIGH:
-                return surfaceRole(seed, dark, role);
             case ClientTheme.SELECTOR:
                 return Theme.multAlpha(primary, dark ? 0.14f : 0.10f);
             case ClientTheme.ERROR:
@@ -155,11 +212,15 @@ public final class LinkiGramYouTheme {
 
     /** Dark primary is lightened from the seed; light primary is the seed itself. */
     private static int primary(int seed, boolean dark) {
+        int override = getRoleOverride(ClientTheme.PRIMARY, dark);
+        if (override != 0) return override;
         return dark ? mix(seed, Color.WHITE, 0.20f) : seed;
     }
 
     /** Yougram derives every background from the accent rather than using a neutral grey. */
     private static int surfaceRole(int seed, boolean dark, int role) {
+        int override = getRoleOverride(role, dark);
+        if (override != 0) return override;
         final int primary = primary(seed, dark);
         int surface = mix(dark ? 0xFF121212 : 0xFFFCFCFC, primary, dark ? 0.12f : 0.07f);
         if (dark) surface = mix(surface, Color.BLACK, SURFACE_DARKEN);
@@ -230,9 +291,10 @@ public final class LinkiGramYouTheme {
                 || key == Theme.key_chat_inAdminText || key == Theme.key_chat_inAdminSelectedText;
         if (!outgoing && !incoming) return 0;
         final int accent = primary(seed, dark);
-        int bubble = outgoing
+        final int bubbleOverride = getRoleOverride(outgoing ? CUSTOM_OUT_BUBBLE : CUSTOM_IN_BUBBLE, dark);
+        int bubble = bubbleOverride != 0 ? bubbleOverride : (outgoing
                 ? (dark ? mix(0xFF26282E, accent, 0.38f) : mix(0xFFE2ECF8, accent, 0.28f))
-                : (dark ? 0xFF2A2C31 : 0xFFE9EAEE);
+                : (dark ? 0xFF2A2C31 : 0xFFE9EAEE));
         if (dark) bubble = ensureContrast(bubble, Color.WHITE, 4.5f);
         if (key == Theme.key_chat_inBubbleSelected || key == Theme.key_chat_outBubbleSelected
                 || key == Theme.key_chat_inTimeSelectedText || key == Theme.key_chat_outTimeSelectedText
