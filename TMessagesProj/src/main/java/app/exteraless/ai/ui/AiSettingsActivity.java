@@ -217,7 +217,7 @@ public class AiSettingsActivity extends AiSettingsBaseActivity {
         } else if (position == reasoningRow) {
             showReasoningSelector();
         } else if (position == presetsRow) {
-            showPresets();
+            presentFragment(new AiProvidersActivity());
         } else if (position == testRow) {
             testConnection();
         } else if (position == roleRow) {
@@ -872,7 +872,7 @@ public class AiSettingsActivity extends AiSettingsBaseActivity {
                         cell.setText(getString(R.string.OEAiGetKey), true);
                         cell.setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteBlueText));
                     } else if (position == presetsRow) {
-                        cell.setTextAndValue(getString(R.string.OEAiPresets),
+                        cell.setTextAndValue(getString(R.string.NM_AiProviders_Title),
                                 describe(service()), true);
                     } else if (position == testRow) {
                         cell.setTextAndValue(getString(R.string.OEAiTest),

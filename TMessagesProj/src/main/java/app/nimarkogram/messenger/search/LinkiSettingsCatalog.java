@@ -362,6 +362,7 @@ final class LinkiSettingsCatalog {
         LinkiSettingsSearch.add(items, host, "DrawerPreferencesActivity:LF_Menu", R.string.LF_Menu, R.string.LF_Menu, account -> new app.nimarkogram.messenger.preferences.DrawerPreferencesActivity());
         LinkiSettingsSearch.add(items, host, "DrawerPreferencesActivity:NM_Drawer_NavigationDrawer", R.string.NM_Drawer_NavigationDrawer, R.string.LF_Menu, account -> new app.nimarkogram.messenger.preferences.DrawerPreferencesActivity());
         LinkiSettingsSearch.add(items, host, "DrawerPreferencesActivity:LF_DrawerStyle", R.string.LF_DrawerStyle, R.string.LF_Menu, account -> new app.nimarkogram.messenger.preferences.DrawerPreferencesActivity());
+        LinkiSettingsSearch.add(items, host, "DrawerPreferencesActivity:NM_Drawer_Reorder", R.string.NM_Drawer_Reorder, R.string.LF_Menu, account -> new app.nimarkogram.messenger.preferences.DrawerPreferencesActivity());
         LinkiSettingsSearch.add(items, host, "DrawerPreferencesActivity:Reset", R.string.Reset, R.string.LF_Menu, account -> new app.nimarkogram.messenger.preferences.DrawerPreferencesActivity());
         LinkiSettingsSearch.add(items, host, "DrawerPreferencesActivity:CP_Filters_Header", R.string.CP_Filters_Header, R.string.LF_Menu, account -> new app.nimarkogram.messenger.preferences.DrawerPreferencesActivity());
         LinkiSettingsSearch.add(items, host, "ScreenAppearanceActivity:LF_DrawerStyle", R.string.LF_DrawerStyle, R.string.LF_DrawerStyle, account -> new ScreenAppearanceActivity("drawer"));
@@ -461,6 +462,7 @@ final class LinkiSettingsCatalog {
         LinkiSettingsSearch.add(items, host, "MessagesAndProfilesPreferencesActivity:NM_MP_ProfileBackgroundColor", R.string.NM_MP_ProfileBackgroundColor, R.string.CP_ProfileReplyBackground, account -> new MessagesAndProfilesPreferencesActivity());
         LinkiSettingsSearch.add(items, host, "MessagesAndProfilesPreferencesActivity:NM_MP_ProfileBackgroundEmoji", R.string.NM_MP_ProfileBackgroundEmoji, R.string.CP_ProfileReplyBackground, account -> new MessagesAndProfilesPreferencesActivity());
         LinkiSettingsSearch.add(items, host, "DialogsMenuOrderPreferencesActivity:NM_Menu_Reorder", R.string.NM_Menu_Reorder, R.string.NM_Menu_Reorder, account -> new DialogsMenuOrderPreferencesActivity());
+        LinkiSettingsSearch.add(items, host, "DrawerMenuOrderPreferencesActivity:NM_Drawer_Reorder", R.string.NM_Drawer_Reorder, R.string.NM_Drawer_Reorder, account -> new DrawerMenuOrderPreferencesActivity());
         LinkiSettingsSearch.add(items, host, "IconPackSelectorActivity:AP_IconReplacements", R.string.AP_IconReplacements, R.string.AP_IconReplacements, account -> new IconPackSelectorActivity());
         LinkiSettingsSearch.add(items, host, "PluginsActivity:Plugins", R.string.Plugins, R.string.Plugins, account -> new app.nimarkogram.messenger.plugins.ui.PluginsActivity());
     }

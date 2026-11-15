@@ -595,6 +595,9 @@
     <string name="NM_Menu_Reorder">Порядок пунктов меню</string>
     <string name="NM_Menu_Reorder_Desc">Перетаскивайте пункты контекстного меню сообщения. Удерживайте строку, чтобы начать перетаскивание.</string>
     <string name="NM_Menu_Reorder_Reset">Сбросить порядок</string>
+    <string name="NM_Drawer_Reorder">Порядок пунктов меню</string>
+    <string name="NM_Drawer_Reorder_Desc">Перетаскивайте пункты бокового меню. Удерживайте строку, чтобы начать перетаскивание; видимость — свитчами выше.</string>
+    <string name="NM_Drawer_Divider">Разделитель</string>
     <string name="NM_Menu_Haptic">Виброотклик</string>
     <string name="NM_Menu_Haptic_Desc">Вибрация при открытии меню и закрытии свайпом.</string>
     <string name="NM_Menu_CompactPerChat_On">Компактное меню включено для этого чата</string>
@@ -1668,6 +1671,13 @@
 <string name="OEAiPresetSave">Сохранить текущую пару</string>
 
 <string name="OEAiPresetName">Название пары</string>
+<string name="NM_AiProviders_Title">ИИ-провайдеры</string>
+<string name="NM_AiProviders_Header">Провайдеры</string>
+<string name="NM_AiProviders_Add">Добавить провайдера</string>
+<string name="NM_AiProviders_AddDesc">Новая пара «адрес и модель»</string>
+<string name="NM_AiProviders_AddHint">Задайте адрес, модель и ключ нового провайдера</string>
+<string name="NM_AiProviders_Delete">Удалить провайдера</string>
+<string name="NM_AiProviders_DeleteConfirm">Удалить «%1$s»?</string>
 
 <string name="OEAiRoleAdd">Добавить свою</string>
 

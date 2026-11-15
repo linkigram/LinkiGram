@@ -229,6 +229,7 @@ final class LinkiSettingsEnglishCatalog {
         labels.put(R.string.NM_DownloadMedia, "Media Downloader");
         labels.put(R.string.NM_Drawer_Immersive, "Immersive drawer animation");
         labels.put(R.string.NM_Drawer_NavigationDrawer, "Side menu (drawer)");
+        labels.put(R.string.NM_Drawer_Reorder, "Menu item order");
         labels.put(R.string.NM_EXP_DiscussInsteadOfMute, "Discuss instead of mute on swipe");
         labels.put(R.string.NM_EXP_EdgeToEdge, "Edge-to-edge mode");
         labels.put(R.string.NM_EXP_Header_Beta, "Beta toggles");

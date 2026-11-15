@@ -11787,6 +11787,9 @@
 <string name="NM_Menu_Reorder">Reorder menu items</string>
 <string name="NM_Menu_Reorder_Desc">Drag-to-reorder the message context menu. Long-press a row to start dragging.</string>
 <string name="NM_Menu_Reorder_Reset">Reset to default order</string>
+<string name="NM_Drawer_Reorder">Menu item order</string>
+<string name="NM_Drawer_Reorder_Desc">Drag-to-reorder the side menu. Long-press a row to start dragging; use the switches above to show or hide items.</string>
+<string name="NM_Drawer_Divider">Divider</string>
 <string name="NM_Menu_Haptic">Haptic feedback</string>
 <string name="NM_Menu_Haptic_Desc">Vibrate when the message menu opens or is dismissed by swipe.</string>
 <string name="NM_Menu_CompactPerChat_On">Compact menu enabled for this chat</string>
@@ -13092,6 +13095,13 @@
 <string name="OEAiPresetSave">Save the current pair</string>
 
 <string name="OEAiPresetName">Name for this pair</string>
+<string name="NM_AiProviders_Title">AI providers</string>
+<string name="NM_AiProviders_Header">Providers</string>
+<string name="NM_AiProviders_Add">Add provider</string>
+<string name="NM_AiProviders_AddDesc">New endpoint and model pair</string>
+<string name="NM_AiProviders_AddHint">Set the endpoint, model and key for the new provider</string>
+<string name="NM_AiProviders_Delete">Delete provider</string>
+<string name="NM_AiProviders_DeleteConfirm">Delete %1$s?</string>
 
 <string name="OEAiRoleAdd">Add your own</string>
 

@@ -17,6 +17,7 @@ public class DrawerPreferencesActivity extends NimarkoUniversalPreferencesActivi
         items.add(UItem.asShadow(LocaleController.getString(R.string.LF_MenuHelp)));
         items.add(SettingsHelper.asSwitchCG(-12, LocaleController.getString(R.string.NM_Drawer_NavigationDrawer)).setChecked(app.nimarkogram.messenger.NimarkoConfig.navigationDrawer));
         items.add(UItem.asButton(-10, LocaleController.getString(R.string.LF_DrawerStyle)));
+        items.add(UItem.asButton(-9, LocaleController.getString(R.string.NM_Drawer_Reorder)));
         items.add(UItem.asButton(-11, LocaleController.getString(R.string.Reset)));
         ids.clear(); ids.addAll(MainMenuLayout.getLayout());
         for (int id : MainMenuLayout.getAllItemIds()) if (!ids.contains(id)) ids.add(id);
@@ -42,6 +43,7 @@ public class DrawerPreferencesActivity extends NimarkoUniversalPreferencesActivi
             return;
         }
         if (item.id == -10) { presentFragment(new ScreenAppearanceActivity("drawer")); return; }
+        if (item.id == -9) { presentFragment(new DrawerMenuOrderPreferencesActivity()); return; }
         if (item.id == -11) {
             MainMenuLayout.reset();
             android.content.SharedPreferences.Editor edit = CustomizationPreferences.prefs().edit();

@@ -23,6 +23,7 @@ sections=[('MessageMenuPreferencesActivity','CP_MessageMenu'),
           ('MessageMenuOrderPreferencesActivity','NM_Menu_Reorder'),
           ('MessagesAndProfilesPreferencesActivity','CP_ProfileReplyBackground'),
           ('DialogsMenuOrderPreferencesActivity','NM_Menu_Reorder'),
+          ('DrawerMenuOrderPreferencesActivity','NM_Drawer_Reorder'),
           ('IconPackSelectorActivity','AP_IconReplacements')]
 def cleaned(s):
  return re.sub(r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*|/\*[\s\S]*?\*/',lambda m:' '*len(m[0]),s)
