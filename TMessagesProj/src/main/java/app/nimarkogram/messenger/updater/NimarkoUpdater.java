@@ -43,7 +43,7 @@ import java.util.Locale;
 
 public class NimarkoUpdater {
 
-    private static final String GITHUB_REPO = "timaa130704/LinkiGram";
+    private static final String GITHUB_REPO = "linkigram/LinkiGram";
     private static final String ENDPOINT = "https://api.github.com/repos/" + GITHUB_REPO + "/releases/latest";
 
     public static final DispatchQueue otaQueue = new DispatchQueue("nimarkoOtaQueue");
@@ -54,6 +54,8 @@ public class NimarkoUpdater {
     public static long expectedSizeBytes = 0;   
     public static String expectedSha256 = null; 
     private static final long MAX_APK_BYTES = 512L * 1024L * 1024L;
+    private static volatile JSONObject deltaRelease;
+    private static volatile String deltaApkUrl;
     private static final java.util.regex.Pattern SHA256_PATTERN =
             java.util.regex.Pattern.compile("^[0-9a-fA-F]{64}$");
 
@@ -102,6 +104,9 @@ public class NimarkoUpdater {
         android.content.pm.PackageInfo installed = pm.getPackageInfo(context.getPackageName(), flags);
         if (archive == null || installed == null
                 || !context.getPackageName().equals(archive.packageName)) {
+            return null;
+        }
+        if (versionCode > 0 && androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(archive) != versionCode) {
             return null;
         }
         android.content.pm.Signature[] archiveSignatures = signaturesOf(archive);
@@ -377,6 +382,12 @@ public class NimarkoUpdater {
                 }
                 expectedSizeBytes = sizeBytes;
                 expectedSha256 = null;
+                String digest = apk.optString("digest", "");
+                if (digest.startsWith("sha256:") && SHA256_PATTERN.matcher(digest.substring(7)).matches()) {
+                    expectedSha256 = digest.substring(7);
+                }
+                deltaRelease = obj;
+                deltaApkUrl = downloadURL;
                 if (expectedSizeBytes <= 0 && expectedSha256 == null) {
                     throw new java.io.IOException("update has neither size nor sha256");
                 }
@@ -631,7 +642,10 @@ public class NimarkoUpdater {
                 File outFile = new File(baseDir, "update.apk");
 
                 lastNotifProgress = -1;
-                
+                boolean rebuilt = tryDeltaUpdate(context, link, outFile, myGeneration);
+                long expectedTotal = expectedSizeBytes;
+                long downloaded = rebuilt ? outFile.length() : 0;
+                if (!rebuilt) {
                 long offset = resume && outFile.exists() ? outFile.length() : startOffset;
                 if (offset > 0 && (!outFile.exists()
                         || expectedSizeBytes > 0 && offset >= expectedSizeBytes)) {
@@ -645,13 +659,13 @@ public class NimarkoUpdater {
                 long total = connection.getContentLengthLong();
                 if (append && total > 0) total += offset;   
                 
-                long expectedTotal = expectedSizeBytes > 0 ? expectedSizeBytes : total;
+                expectedTotal = expectedSizeBytes > 0 ? expectedSizeBytes : total;
                 if (expectedTotal > MAX_APK_BYTES) {
                     throw new java.io.IOException("invalid download length: " + expectedTotal);
                 }
                 showProgressNotification(context, expectedTotal > 0 ? (int) (offset * 100L / expectedTotal) : 0);
 
-                long downloaded = offset;
+                downloaded = offset;
                 byte[] buf = new byte[1 << 14];
                 try (InputStream in = connection.getInputStream();
                      FileOutputStream out = new FileOutputStream(outFile, append)) {
@@ -692,6 +706,7 @@ public class NimarkoUpdater {
 
                 if (expectedTotal > 0 && downloaded != expectedTotal) {
                     throw new java.io.IOException("incomplete download " + downloaded + "/" + expectedTotal);
+                }
                 }
 
                 boolean hashVerified = false;
@@ -795,6 +810,167 @@ public class NimarkoUpdater {
                 if (connection != null) connection.disconnect();
             }
         }, 50);
+    }
+
+    private static JSONObject releaseAsset(JSONObject release, String name) {
+        org.json.JSONArray assets = release.optJSONArray("assets");
+        if (assets == null) return null;
+        for (int i = 0; i < assets.length(); i++) {
+            JSONObject asset = assets.optJSONObject(i);
+            if (asset != null && name.equals(asset.optString("name"))
+                    && isHttps(asset.optString("browser_download_url"))) return asset;
+        }
+        return null;
+    }
+
+    private static String deltaHash(JSONObject object, String key) throws Exception {
+        String hash = object.getString(key).toLowerCase(Locale.ROOT);
+        if (!SHA256_PATTERN.matcher(hash).matches()) throw new java.io.IOException("Invalid delta hash");
+        return hash;
+    }
+
+    private static void checkDeltaActive(int generation) throws java.io.IOException {
+        if (generation != downloadGeneration || downloadCanceled || downloadPaused) {
+            throw new java.io.InterruptedIOException("Delta paused or cancelled");
+        }
+    }
+
+    /** Never changes the full-download URL: old bases, missing metadata and bad patches fall back to APK. */
+    private static boolean tryDeltaUpdate(Context context, String fullUrl, File outFile, int generation) throws Exception {
+        JSONObject release = deltaRelease;
+        if (release == null || !fullUrl.equals(deltaApkUrl) || outFile.length() > 0) return false;
+        JSONObject manifestAsset = releaseAsset(release, "linkigram-delta.json");
+        if (manifestAsset == null || manifestAsset.optLong("size") <= 0
+                || manifestAsset.optLong("size") > MAX_RESPONSE_BYTES) return false;
+        File patch = null;
+        File restored = new File(outFile.getParentFile(), "delta-result.tmp");
+        try {
+            checkDeltaActive(generation);
+            android.content.pm.ApplicationInfo info = context.getApplicationInfo();
+            if (info.splitSourceDirs != null && info.splitSourceDirs.length != 0) return false;
+            File base = new File(info.sourceDir);
+            JSONObject manifest = new JSONObject(readDeltaManifest(manifestAsset.getString("browser_download_url"), generation));
+            if (!"linkigram-delta".equals(manifest.getString("format")) || manifest.getInt("version") != 1) return false;
+            JSONObject target = manifest.getJSONObject("target");
+            JSONObject fullAsset = releaseAsset(release, target.getString("name"));
+            if (fullAsset == null || !fullUrl.equals(fullAsset.getString("browser_download_url"))
+                    || !version.equals(target.getString("versionName"))
+                    || target.getLong("size") != expectedSizeBytes || expectedSizeBytes <= 0) return false;
+            String targetHash = deltaHash(target, "sha256");
+            if (expectedSha256 != null && !targetHash.equalsIgnoreCase(expectedSha256)) return false;
+            long targetCode = target.getLong("versionCode");
+            if (targetCode <= getCurrentVersionCode() || targetCode > Integer.MAX_VALUE) return false;
+            org.json.JSONArray patches = manifest.getJSONArray("patches");
+            if (patches.length() > 32) return false;
+            String baseHash = sha256OfFile(base);
+            checkDeltaActive(generation);
+            for (int i = 0; i < patches.length(); i++) {
+                JSONObject entry = patches.getJSONObject(i);
+                if (entry.getLong("fromSize") != base.length()
+                        || !deltaHash(entry, "fromSha256").equals(baseHash)) continue;
+                JSONObject asset = releaseAsset(release, entry.getString("name"));
+                long patchSize = entry.getLong("size");
+                if (asset == null || patchSize <= 0 || patchSize >= expectedSizeBytes * 85 / 100
+                        || patchSize != asset.getLong("size")) return false;
+                String patchHash = deltaHash(entry, "sha256");
+                patch = new File(context.getCacheDir(), "ota-" + patchHash + ".lgdelta");
+                if (outFile.getParentFile().getUsableSpace() < expectedSizeBytes + patchSize + 16L * 1024 * 1024) return false;
+                downloadDeltaFile(context, asset.getString("browser_download_url"), patch, patchSize, generation);
+                if (!patchHash.equals(sha256OfFile(patch))) throw new java.io.IOException("Delta download hash mismatch");
+                ApkDelta.apply(base, patch, restored, new ApkDelta.Control() {
+                    public void check() throws java.io.IOException { checkDeltaActive(generation); }
+                    public void progress(long written, long total) {
+                        dlRealProgress = 80 + (int) (written * 19 / total);
+                    }
+                });
+                checkDeltaActive(generation);
+                if (restored.length() != expectedSizeBytes || !targetHash.equals(sha256OfFile(restored))) {
+                    throw new java.io.IOException("Restored APK does not match release");
+                }
+                android.content.pm.PackageInfo archive = context.getPackageManager().getPackageArchiveInfo(restored.getPath(), 0);
+                if (archive == null || androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(archive) != targetCode
+                        || !version.equals(archive.versionName) || trustedSignerFingerprint(restored) == null) {
+                    throw new java.io.IOException("Restored APK package/version/signer mismatch");
+                }
+                synchronized (downloadBindingLock) {
+                    checkDeltaActive(generation);
+                    expectedSha256 = targetHash;
+                    versionCode = (int) targetCode;
+                    NimarkoUpdateConfig.setPausedDownloadSha256(targetHash);
+                    if (!restored.renameTo(outFile)) throw new java.io.IOException("Cannot commit delta APK");
+                }
+                patch.delete();
+                FileLog.d("LinkiGram OTA: delta reconstructed and verified");
+                return true;
+            }
+        } catch (Exception error) {
+            if ((downloadCanceled || generation != downloadGeneration) && patch != null) patch.delete();
+            checkDeltaActive(generation); // pause/cancel is not a failed patch; do not start full download
+            FileLog.e(error);
+            if (patch != null) patch.delete();
+            dlRealProgress = 0;
+            dlShownProgress = 0;
+            FileLog.d("LinkiGram OTA: delta unavailable, falling back to full APK");
+        } finally {
+            restored.delete();
+        }
+        checkDeltaActive(generation);
+        return false;
+    }
+
+    private static String readDeltaManifest(String url, int generation) throws Exception {
+        HttpURLConnection connection = openApkConnection(url);
+        activeConnection = connection;
+        try (InputStream in = connection.getInputStream(); java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int n;
+            while ((n = in.read(buffer)) != -1) {
+                checkDeltaActive(generation);
+                if (out.size() + n > MAX_RESPONSE_BYTES) throw new java.io.IOException("Delta manifest too large");
+                out.write(buffer, 0, n);
+            }
+            return out.toString("UTF-8");
+        } finally {
+            if (activeConnection == connection) activeConnection = null;
+            connection.disconnect();
+        }
+    }
+
+    private static void downloadDeltaFile(Context context, String url, File file, long size, int generation) throws Exception {
+        long offset = file.length();
+        if (offset == size) return;
+        if (offset > size) { file.delete(); offset = 0; }
+        HttpURLConnection connection = openApkConnection(url, offset);
+        activeConnection = connection;
+        try {
+            boolean append = offset > 0 && connection.getResponseCode() == 206;
+            if (!append) offset = 0;
+            String range = connection.getHeaderField("Content-Range");
+            if (append && (range == null || !range.startsWith("bytes " + offset + "-"))) {
+                throw new java.io.IOException("Invalid delta range");
+            }
+            try (InputStream in = connection.getInputStream(); FileOutputStream out = new FileOutputStream(file, append)) {
+                byte[] buffer = new byte[65536];
+                int n;
+                while ((n = in.read(buffer)) != -1) {
+                    checkDeltaActive(generation);
+                    if (n > size - offset) throw new java.io.IOException("Delta exceeds declared size");
+                    out.write(buffer, 0, n);
+                    offset += n;
+                    dlRealProgress = (int) (offset * 80 / size);
+                    NimarkoUpdateConfig.setUpdateDownloadingProgress(dlRealProgress);
+                    if (dlRealProgress != lastNotifProgress && dlRealProgress % 5 == 0) {
+                        lastNotifProgress = dlRealProgress;
+                        showProgressNotification(context, dlRealProgress);
+                    }
+                }
+                out.getFD().sync();
+            }
+            if (offset != size) throw new java.io.IOException("Incomplete delta download");
+        } finally {
+            if (activeConnection == connection) activeConnection = null;
+            connection.disconnect();
+        }
     }
 
     private static HttpURLConnection openApkConnection(String link) throws Exception {

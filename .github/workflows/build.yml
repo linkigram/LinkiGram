@@ -109,3 +109,31 @@ jobs:
           name: linkigram-apk
           path: TMessagesProj_AppStandalone/build/outputs/apk/afat/standalone/app.apk
           if-no-files-found: error
+
+      - name: Test delta decoder
+        run: |
+          python3 Tools/test_apk_delta.py
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/org-json.jar" https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar
+          echo "3cf6cd6892e32e2b4c1c39e0f52f5248a2f5b37646fdfbb79a66b46b618414ed  $RUNNER_TEMP/org-json.jar" | sha256sum -c -
+          python3 Tools/test_delta_updater.py --json-jar "$RUNNER_TEMP/org-json.jar"
+
+      - name: Prepare optional delta assets
+        id: delta
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p delta-base
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern '*arm64.apk' --dir delta-base
+          python3 Tools/prepare_delta_release.py \
+            --base-dir delta-base \
+            --target TMessagesProj_AppStandalone/build/outputs/apk/afat/standalone/app.apk \
+            --output-dir delta-assets
+
+      - name: Upload delta assets
+        if: steps.delta.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkigram-delta
+          path: delta-assets/*
+          if-no-files-found: error
