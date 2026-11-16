@@ -288,6 +288,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
                     blur3_updateColors();
                     blur3_onFragmentGlassCaptured();
                     if (tabsViewBackground != null) {
+                        tabsViewBackground.invalidateDisplayList();
                         tabsViewBackground.invalidateSelf();
                     }
                     tabsView.invalidate();
@@ -1661,6 +1662,15 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             iBlur3SourceTabGlass.invalidateRenderer();
             iBlur3SourceTabFrosted.invalidateRenderer();
             blur3_invalidateBlur();
+            // The first bar recording can precede the page capture. Updating the
+            // source alone leaves that cached fill on screen until a tab animates.
+            if (tabsViewBackground != null) {
+                tabsViewBackground.invalidateDisplayList();
+                tabsViewBackground.invalidateSelf();
+            }
+            if (tabsView != null) {
+                tabsView.invalidate();
+            }
         }
     }
 
