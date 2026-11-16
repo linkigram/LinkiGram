@@ -152,6 +152,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     }
 
     private boolean tabsLiquidGlassEnabled;
+    private boolean tabsGlassRestorePending = true;
     private View fadeView;
     private app.exteraless.player.PlayerMiniView miniPlayer;
 
@@ -254,6 +255,13 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     protected FrameLayout createContentView(Context context) {
         return new FrameLayout(context) {
             @Override
+            protected void onAttachedToWindow() {
+                super.onAttachedToWindow();
+                tabsGlassRestorePending = true;
+                invalidate();
+            }
+
+            @Override
             protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
                 super.onLayout(changed, left, top, right, bottom);
                 checkUi_tabsPosition();
@@ -272,6 +280,19 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
                 }
 
                 super.dispatchDraw(canvas);
+                // Resume can precede the child pages' layout/capture. Rebind only after
+                // their first draw, even when the liquid-glass preference did not change.
+                if (tabsGlassRestorePending && getWidth() > 0 && getHeight() > 0 && tabsView != null) {
+                    tabsGlassRestorePending = false;
+                    refreshTabsLiquidGlass();
+                    blur3_updateColors();
+                    blur3_onFragmentGlassCaptured();
+                    if (tabsViewBackground != null) {
+                        tabsViewBackground.invalidateSelf();
+                    }
+                    tabsView.invalidate();
+                    invalidate();
+                }
                 blur3_invalidateBlur();
                 blur3_updateFadeColors();
             }
@@ -381,6 +402,10 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     @Override
     public void onResume() {
         super.onResume();
+        tabsGlassRestorePending = true;
+        if (contentView != null) {
+            contentView.invalidate();
+        }
         if (miniPlayer != null) {
             miniPlayer.update(true);
         }
