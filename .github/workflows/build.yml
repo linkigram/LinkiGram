@@ -110,9 +110,11 @@ jobs:
           path: TMessagesProj_AppStandalone/build/outputs/apk/afat/standalone/app.apk
           if-no-files-found: error
 
-      - name: Test delta decoder
+      - name: Test OTA, privacy and glass host contracts
         run: |
           python3 Tools/test_apk_delta.py
+          python3 Tools/test_ghost_reads.py
+          python3 Tools/test_bitmap_glass.py
           curl --fail --location --retry 3 -o "$RUNNER_TEMP/org-json.jar" https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar
           echo "3cf6cd6892e32e2b4c1c39e0f52f5248a2f5b37646fdfbb79a66b46b618414ed  $RUNNER_TEMP/org-json.jar" | sha256sum -c -
           python3 Tools/test_delta_updater.py --json-jar "$RUNNER_TEMP/org-json.jar"

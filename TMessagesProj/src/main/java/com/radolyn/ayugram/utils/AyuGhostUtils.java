@@ -81,6 +81,10 @@ public class AyuGhostUtils {
     }
 
     public static void markReadOnServer(int messageId, TLRPC.InputPeer peer, boolean internal) {
+        markReadOnServer(UserConfig.selectedAccount, messageId, peer, internal);
+    }
+
+    public static void markReadOnServer(int account, int messageId, TLRPC.InputPeer peer, boolean internal) {
         TLObject req;
         if (peer instanceof TLRPC.TL_inputPeerChannel) {
             TLRPC.TL_channels_readHistory request = new TLRPC.TL_channels_readHistory();
@@ -94,26 +98,26 @@ public class AyuGhostUtils {
             req = request;
         }
 
-        AyuState.setAllowReadPacket(true, 1);
-        getConnectionsManager().sendRequest(req, (response, error) -> {
+        ConnectionsManager.getInstance(account).sendRequest(bypass(req), (response, error) -> {
             if (error == null) {
                 if (response instanceof TLRPC.TL_messages_affectedMessages res) {
-                    getMessagesController().processNewDifferenceParams(-1, res.pts, -1, res.pts_count);
+                    MessagesController.getInstance(account).processNewDifferenceParams(-1, res.pts, -1, res.pts_count);
                 }
                 if (internal) FileLog.d("GhostMode: Read-after-send request completed.");
                 // Go offline after sending
                 if (app.nimarkogram.messenger.NimarkoConfig.ghostOfflineAfterSend && !internal) {
-                    Utilities.globalQueue.postRunnable(() -> performStatusRequest(true), OFFLINE_DELAY_MS);
+                    Utilities.globalQueue.postRunnable(() -> performStatusRequest(account, true), OFFLINE_DELAY_MS);
                 }
             }
         });
     }
 
     public static void markReadOnServer(MessageObject message, boolean internal) {
+        final int account = message.currentAccount;
         int messageId = message.getId();
         long dialogId = message.getDialogId();
-        TLRPC.EncryptedChat encryptedChat = getMessagesController().getEncryptedChat(DialogObject.getEncryptedChatId(dialogId));
-        TLRPC.InputPeer inputPeer = getMessagesController().getInputPeer(message.messageOwner.peer_id);
+        TLRPC.EncryptedChat encryptedChat = MessagesController.getInstance(account).getEncryptedChat(DialogObject.getEncryptedChatId(dialogId));
+        TLRPC.InputPeer inputPeer = MessagesController.getInstance(account).getInputPeer(message.messageOwner.peer_id);
         boolean readMessageContents = message.isVoice() || message.isRoundVideo();
         TLObject req;
         if (inputPeer instanceof TLRPC.TL_inputPeerChannel) {
@@ -133,7 +137,7 @@ public class AyuGhostUtils {
             request.peer = new TLRPC.TL_inputEncryptedChat();
             request.peer.chat_id = encryptedChat.id;
             request.peer.access_hash = encryptedChat.access_hash;
-            request.max_date = message.messageOwner.date != 0 ? message.messageOwner.date : getConnectionsManager().getCurrentTime();
+            request.max_date = message.messageOwner.date != 0 ? message.messageOwner.date : ConnectionsManager.getInstance(account).getCurrentTime();
             req = request;
         } else if (readMessageContents) {
             TLRPC.TL_messages_readMessageContents request = new TLRPC.TL_messages_readMessageContents();
@@ -146,16 +150,15 @@ public class AyuGhostUtils {
             req = request;
         }
 
-        AyuState.setAllowReadPacket(true, 1);
-        getConnectionsManager().sendRequest(req, (response, error) -> {
+        ConnectionsManager.getInstance(account).sendRequest(bypass(req), (response, error) -> {
             if (error == null) {
                 if (response instanceof TLRPC.TL_messages_affectedMessages res) {
-                    getMessagesController().processNewDifferenceParams(-1, res.pts, -1, res.pts_count);
+                    MessagesController.getInstance(account).processNewDifferenceParams(-1, res.pts, -1, res.pts_count);
                 }
                 if (internal) FileLog.d("GhostMode: Read-after-send request completed.");
                 // Go offline after sending
                 if (app.nimarkogram.messenger.NimarkoConfig.ghostOfflineAfterSend && !internal) {
-                    Utilities.globalQueue.postRunnable(() -> performStatusRequest(true), OFFLINE_DELAY_MS);
+                    Utilities.globalQueue.postRunnable(() -> performStatusRequest(account, true), OFFLINE_DELAY_MS);
                 }
             }
         });
@@ -238,11 +241,22 @@ public class AyuGhostUtils {
             updateStatus.offline = true;
         }
 
-        // Handle Mark read after sending
-        handleReadAfterSend(account, object);
-
         // Go offline after sending
         RequestDelegate effectiveOnComplete = handleOfflineAfterSend(account, object, onCompleteOrig);
+        // Sending is not permission to read. Only an explicit opt-in and a
+        // successful send may trigger the exception, on the originating account.
+        if (NimarkoConfig.ghostReadReceipts && NimarkoConfig.ghostReadAfterSend
+                && extractPeerFromSendObject(object) != null) {
+            final RequestDelegate delegate = effectiveOnComplete;
+            final long ownerId = UserConfig.getInstance(account).getClientUserId();
+            effectiveOnComplete = (response, error) -> {
+                if (error == null && response != null && ownerId != 0
+                        && UserConfig.getInstance(account).getClientUserId() == ownerId) {
+                    handleReadAfterSend(account, object);
+                }
+                if (delegate != null) delegate.run(response, error);
+            };
+        }
 
         return InterceptResult.Proceed(effectiveOnComplete);
     }
@@ -256,11 +270,18 @@ public class AyuGhostUtils {
                 if (AyuGhostPreferences.isReadExcluded(account, dialogId)) {
                     return;
                 }
-                getMessagesStorage().getStorageQueue().postRunnable(() ->
-                    getMessagesStorage().getDialogMaxMessageId(dialogId, maxId ->
-                        markReadOnServer(maxId, peer, true)
-                    )
-                );
+                final long ownerId = UserConfig.getInstance(account).getClientUserId();
+                MessagesStorage storage = MessagesStorage.getInstance(account);
+                storage.getStorageQueue().postRunnable(() -> {
+                    if (ownerId == 0 || UserConfig.getInstance(account).getClientUserId() != ownerId) return;
+                    storage.getDialogMaxMessageId(dialogId, maxId -> {
+                        if (maxId > 0 && NimarkoConfig.ghostReadReceipts && NimarkoConfig.ghostReadAfterSend
+                                && UserConfig.getInstance(account).getClientUserId() == ownerId
+                                && !AyuGhostPreferences.isReadExcluded(account, dialogId)) {
+                            markReadOnServer(account, maxId, peer, true);
+                        }
+                    });
+                });
             }
         }
     }

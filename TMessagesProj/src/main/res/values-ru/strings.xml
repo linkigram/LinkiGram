@@ -1150,7 +1150,7 @@
     <string name="NM_GhostStories">Скрыть просмотры сторис</string>
     <string name="NM_GhostStories_Desc">Не отмечать сторис как просмотренные</string>
     <string name="NM_GhostReadAfterSend">Отмечать прочитанным после отправки</string>
-    <string name="NM_GhostReadAfterSend_Desc">Когда подтверждения прочтения скрыты, чат отмечается прочитанным после отправки в нём сообщения</string>
+    <string name="NM_GhostReadAfterSend_Desc">Исключение из нечиталки: отмечать этот чат прочитанным только после успешной отправки. По умолчанию выключено. Не включайте, чтобы сообщения оставались непрочитанными даже при ответе.</string>
     <string name="NM_GhostOfflineAfterSend">Уходить в офлайн после отправки</string>
     <string name="NM_GhostOfflineAfterSend_Desc">Отправлять статус офлайна вскоре после каждого исходящего сообщения</string>
     <string name="NM_GhostTyping">Скрыть статус «печатает»</string>

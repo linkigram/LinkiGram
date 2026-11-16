@@ -44,7 +44,8 @@ public class Main {
   static class TL_messages_sendEncrypted extends TLObject {} static class TL_messages_sendEncryptedFile extends TLObject {} static class TL_messages_sendEncryptedMultiMedia extends TLObject {} static class TL_messages_sendEncryptedService extends TLObject {}
  }
  static class TL_account {static class updateStatus extends TLObject {boolean offline;}}
- static class NimarkoConfig {static boolean ghostTyping,ghostRecording,ghostOnline,ghostReadReceipts,ghostStories,hideStoryViews,ghostOfflineAfterSend;}
+ static class NimarkoConfig {static boolean ghostTyping,ghostRecording,ghostOnline,ghostReadReceipts,ghostReadAfterSend,ghostStories,hideStoryViews,ghostOfflineAfterSend;}
+ static class UserConfig {static UserConfig getInstance(int a){return new UserConfig();}long getClientUserId(){return 1;}}
  static class AyuGhostPreferences {static boolean exclude; static boolean isTypingExcluded(int a,long d){return exclude;} static boolean isReadExcluded(int a,long d){return false;}}
  static class AyuState {static boolean getAllowReadPacket(){return false;}}
  static class FileLog {static void d(String s){}}

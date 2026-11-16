@@ -32886,11 +32886,16 @@ public class ChatActivity extends BaseFragment implements
                         app.nimarkogram.messenger.appearance.ClientTheme.color(
                                 app.nimarkogram.messenger.appearance.ClientTheme.SURFACE_HIGH)));
             } else {
-                popupLayout.setBackground(scrimBlur3Factory.create(popupLayout, true)
+                BlurredBackgroundDrawable menuGlass = scrimBlur3Factory.create(popupLayout, true)
                     .setColorProvider(BlurredBackgroundProviderImpl.messageMenuBackground(resourceProvider))
                     .setThickness(dp(14))
                     .setRadius(dp(app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled() ? 24 : liquidMessageMenu ? 20 : 12))
-                    .setPadding(dp(8)));
+                    .setPadding(dp(8));
+                if (liquidMessageMenu && Build.VERSION.SDK_INT >= 33) {
+                    menuGlass.setLiquidGlassMaterial(R.raw.main_tabs_glass_shader);
+                    menuGlass.setIntensity(1f);
+                }
+                popupLayout.setBackground(menuGlass);
             }
 
             boolean addGap = false;

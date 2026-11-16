@@ -11994,7 +11994,7 @@
 <string name="NM_GhostStories">Hide story views</string>
 <string name="NM_GhostStories_Desc">Don\'t mark stories as viewed</string>
 <string name="NM_GhostReadAfterSend">Mark as read after sending</string>
-<string name="NM_GhostReadAfterSend_Desc">When read receipts are hidden, mark the chat as read after you send a message in it</string>
+ <string name="NM_GhostReadAfterSend_Desc">Optional exception to hidden read receipts: mark this chat as read only after a successful send. Off by default. Leave off to stay unread even when replying.</string>
 <string name="NM_GhostOfflineAfterSend">Go offline after sending</string>
 <string name="NM_GhostOfflineAfterSend_Desc">Send an offline status shortly after each outgoing message</string>
 <string name="NM_GhostTyping">Hide typing status</string>

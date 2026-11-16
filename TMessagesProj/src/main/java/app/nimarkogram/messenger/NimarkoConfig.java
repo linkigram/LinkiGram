@@ -316,7 +316,17 @@ public final class NimarkoConfig {
         getEditor().putBoolean("ghostStories", ghostStories).apply();
     }
 
-    public static volatile boolean ghostReadAfterSend = getPreferences().getBoolean("ghostReadAfterSend", true);
+    public static volatile boolean ghostReadAfterSend = loadGhostReadAfterSend();
+
+    private static boolean loadGhostReadAfterSend() {
+        // Older defaults/presets silently enabled a privacy exception. Require a
+        // fresh, explicit opt-in once; keep the existing key for settings backups.
+        if (!getPreferences().getBoolean("ghostReadAfterSendOptInV2", false)) {
+            getEditor().putBoolean("ghostReadAfterSend", false)
+                    .putBoolean("ghostReadAfterSendOptInV2", true).apply();
+        }
+        return getPreferences().getBoolean("ghostReadAfterSend", false);
+    }
     public static void toggleGhostReadAfterSend() {
         ghostReadAfterSend = !ghostReadAfterSend;
         getEditor().putBoolean("ghostReadAfterSend", ghostReadAfterSend).apply();
@@ -348,7 +358,7 @@ public final class NimarkoConfig {
         ghostOnline = hiding;
         ghostReadReceipts = hiding;
         ghostStories = hiding;
-        ghostReadAfterSend = !hiding || preset != PRESET_PARANOIA;
+        ghostReadAfterSend = false;
         ghostOfflineAfterSend = preset == PRESET_PARANOIA;
         getEditor()
             .putInt("privacyPreset", preset)

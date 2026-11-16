@@ -127,7 +127,7 @@ public class BlurredBackgroundProviderImpl {
                     }
                     if (ClientTheme.glassEnabled()) {
                         // LinkiGram You + Linki Glass: the menu is a glass panel over the You surface.
-                        return ClientTheme.glassColor(ClientTheme.SURFACE_HIGH, isDark);
+                        return Theme.multAlpha(ClientTheme.color(ClientTheme.SURFACE_HIGH), isDark ? 0.30f : 0.24f);
                     }
                     if (LinkiGramYouTheme.isEnabled()) {
                         return Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground, r) | 0xFF000000;

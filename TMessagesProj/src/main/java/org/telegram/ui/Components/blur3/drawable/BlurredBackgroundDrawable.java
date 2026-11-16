@@ -899,8 +899,11 @@ public class BlurredBackgroundDrawable extends GlassDrawable implements Theme.Co
             resolvedOpaque = opaque;
 
             final Impl newImpl;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && source instanceof BlurredBackgroundDrawableViewFactory.DrawableOwner
-                    && !(unwrapped instanceof GlassSourceColor) && !(unwrapped instanceof GlassSourceBitmap)) {
+            final boolean liquidBitmap = Build.VERSION.SDK_INT >= 33
+                    && unwrapped instanceof GlassSourceBitmap && isLiquidGlassEffectEnabled();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                    && (liquidBitmap || source instanceof BlurredBackgroundDrawableViewFactory.DrawableOwner
+                    && !(unwrapped instanceof GlassSourceColor) && !(unwrapped instanceof GlassSourceBitmap))) {
                 // the source records into its drawables and tells them when to record again
                 if (renderNodeImpl == null) {
                     renderNodeImpl = createRenderNodeImpl();
@@ -1191,6 +1194,25 @@ public class BlurredBackgroundDrawable extends GlassDrawable implements Theme.Co
         private boolean invalidated = true;
         private boolean clipToOutline = true;
         private final RectF sourceBounds = new RectF();
+        private Bitmap recordedBitmap;
+        private int recordedBitmapGeneration;
+        private final Matrix recordedBitmapMatrix = new Matrix();
+
+        private void syncBitmapSource() {
+            GlassSource unwrapped = getUnwrappedSource();
+            if (unwrapped instanceof GlassSourceBitmap) {
+                GlassSourceBitmap bitmapSource = (GlassSourceBitmap) unwrapped;
+                Bitmap bitmap = bitmapSource.getBitmap();
+                int generation = bitmap == null || bitmap.isRecycled() ? -1 : bitmap.getGenerationId();
+                if (recordedBitmap != bitmap || recordedBitmapGeneration != generation
+                        || !recordedBitmapMatrix.equals(bitmapSource.getMatrix())) {
+                    recordedBitmap = bitmap;
+                    recordedBitmapGeneration = generation;
+                    recordedBitmapMatrix.set(bitmapSource.getMatrix());
+                    invalidated = true;
+                }
+            }
+        }
 
         /** How much the lens is downsampled: as the source is. */
         private int getLensDownsample() {
@@ -1375,6 +1397,7 @@ public class BlurredBackgroundDrawable extends GlassDrawable implements Theme.Co
 
         @Override
         void draw(Canvas canvas, GlassSource source) {
+            syncBitmapSource();
             if (!renderNode.hasDisplayList() || invalidated) {
                 record();
             }
