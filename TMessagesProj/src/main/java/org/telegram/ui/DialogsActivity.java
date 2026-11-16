@@ -14241,6 +14241,23 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
 
     private IBlur3Capture iBlur3Capture;
+    private Runnable onParentGlassCaptured;
+
+    @Override
+    public void setParentGlass(@Nullable RectF position, @Nullable Runnable onCaptured) {
+        // Dialogs has its own capture pipeline, not BaseFragmentSimpleGlass.
+        // Its parent must still learn when that capture becomes ready/changes.
+        Runnable next = position != null ? onCaptured : null;
+        if (onParentGlassCaptured != next) {
+            onParentGlassCaptured = next;
+            // The parent may subscribe after our first draw. Schedule one more
+            // capture, but do not restart it on every parent layout/draw.
+            glassEngine.invalidate();
+            if (fragmentView != null) {
+                fragmentView.invalidate();
+            }
+        }
+    }
 
     private final ArrayList<RectF> iBlur3Positions = new ArrayList<>();
     private final RectF iBlur3PositionActionBar = new RectF();
@@ -14297,6 +14314,9 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
             scrollableViewNoiseSuppressor.setupRenderNodes(iBlur3Positions, hasBottomBlur ? 2 : 1);
         }
         scrollableViewNoiseSuppressor.invalidateResultRenderNodes(iBlur3Capture, fragmentView.getMeasuredWidth(), fragmentView.getMeasuredHeight());
+        if (onParentGlassCaptured != null) {
+            onParentGlassCaptured.run();
+        }
     }
 
     private int calculateListViewPaddingBottom() {

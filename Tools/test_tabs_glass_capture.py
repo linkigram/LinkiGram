@@ -14,8 +14,24 @@ source = (root / "TMessagesProj/src/main/java/org/telegram/ui/MainTabsActivity.j
 start = source.index("    private void blur3_onFragmentGlassCaptured() {")
 end = source.index("\n    /**", start)
 method = source[start:end]
+dialogs = (root / "TMessagesProj/src/main/java/org/telegram/ui/DialogsActivity.java").read_text()
+start = dialogs.index("    @Override\n    public void setParentGlass(")
+end = dialogs.index("\n    private final ArrayList<RectF> iBlur3Positions", start)
+subscription = dialogs[start:end]
+capture = dialogs[dialogs.index("    private void invalidateBlurCaptures(int flags)"):]
+assert capture.index("onParentGlassCaptured.run();") > capture.index("scrollableViewNoiseSuppressor.invalidateResultRenderNodes(")
 java = r"""
 public class Check {
+    @interface Nullable {}
+    static class RectF {}
+    static class Parent { public void setParentGlass(RectF position, Runnable callback) {} }
+    static class Engine { int resets; void invalidate() { resets++; } }
+    static class DialogsProbe extends Parent {
+        Runnable onParentGlassCaptured;
+        Engine glassEngine = new Engine();
+        View fragmentView = new View();
+SUBSCRIPTION
+    }
     static class Build {
         static class VERSION { static int SDK_INT = 36; }
         static class VERSION_CODES { static final int S = 31; }
@@ -59,11 +75,24 @@ public class Check {
         Build.VERSION.SDK_INT = 24;
         c.blur3_onFragmentGlassCaptured();
         check(c.sourceUpdates == 3);
+        DialogsProbe dialogs = new DialogsProbe();
+        Runnable callback = () -> {};
+        dialogs.setParentGlass(new RectF(), callback);
+        check(dialogs.onParentGlassCaptured == callback && dialogs.glassEngine.resets == 1);
+        check(dialogs.fragmentView.redraws == 1);
+        dialogs.setParentGlass(new RectF(), callback);
+        check(dialogs.glassEngine.resets == 1); // no capture/redraw feedback loop
+        dialogs.setParentGlass(null, callback);
+        check(dialogs.onParentGlassCaptured == null && dialogs.glassEngine.resets == 2);
+        dialogs.fragmentView = null;
+        dialogs.setParentGlass(new RectF(), callback);
+        check(dialogs.glassEngine.resets == 3);
         System.out.println("PASS: capture invalidates cached bar and schedules redraw; repeat/null/old SDK");
+        System.out.println("PASS: Dialogs subscribes its custom capture pipeline once, clears callback, handles missing view");
     }
 METHOD
 }
-""".replace("METHOD", method)
+""".replace("METHOD", method).replace("SUBSCRIPTION", subscription)
 home = os.environ.get("JAVA_HOME")
 javac = str(Path(home) / "bin/javac") if home else shutil.which("javac")
 runtime = str(Path(home) / "bin/java") if home else shutil.which("java")
