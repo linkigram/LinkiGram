@@ -5467,7 +5467,7 @@ public class ChatActivityEnterView extends FrameLayout implements
             final float hintWidth = paint.measureText(mathHint);
             final int contentWidth = layout.getWidth();
             if (x + hintWidth > contentWidth) {
-                final int lineHeight = layout.getLineHeight(line);
+                final int lineHeight = layout.getLineBottom(line) - layout.getLineTop(line);
                 if (y + lineHeight <= layout.getHeight()) {
                     x = 0;
                     y += lineHeight;
