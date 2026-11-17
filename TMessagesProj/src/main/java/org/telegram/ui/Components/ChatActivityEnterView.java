@@ -90,6 +90,7 @@ import android.view.animation.DecelerateInterpolator;
 import android.view.animation.OvershootInterpolator;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputConnectionWrapper;
 import android.webkit.MimeTypeMap;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -5410,6 +5411,79 @@ public class ChatActivityEnterView extends FrameLayout implements
 
         CanvasButton canvasButton;
 
+        private String mathHint;
+        private int mathHintInsertAt = -1;
+
+        void setMathHint(String value, int insertAt) {
+            boolean changed = value == null
+                    ? mathHint != null
+                    : (!value.equals(mathHint) || insertAt != mathHintInsertAt);
+            mathHint = value;
+            mathHintInsertAt = value == null ? -1 : insertAt;
+            if (changed) {
+                invalidate();
+            }
+        }
+
+        private boolean acceptMathHint() {
+            if (mathHint == null || mathHintInsertAt < 0) {
+                return false;
+            }
+            Editable editable = getText();
+            if (editable == null || mathHintInsertAt > editable.length()) {
+                setMathHint(null, -1);
+                return false;
+            }
+            final String value = mathHint;
+            final int at = mathHintInsertAt;
+            setMathHint(null, -1);
+            editable.insert(at, value);
+            setSelection(Math.min(at + value.length(), editable.length()));
+            return true;
+        }
+
+        private boolean acceptsMathHintFor(CharSequence text) {
+            return mathHint != null && text != null && text.length() == 1 && text.charAt(0) == ' ';
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            if (mathHint == null || mathHintInsertAt < 0) {
+                return;
+            }
+            final Layout layout = getLayout();
+            if (layout == null) {
+                return;
+            }
+            final int offset = Math.min(mathHintInsertAt, length());
+            final int line = layout.getLineForOffset(offset);
+            if (line < 0 || line >= layout.getLineCount()) {
+                return;
+            }
+            final Paint paint = getPaint();
+            float x = layout.getPrimaryHorizontal(offset);
+            float y = layout.getLineBaseline(line);
+            final float hintWidth = paint.measureText(mathHint);
+            final int contentWidth = layout.getWidth();
+            if (x + hintWidth > contentWidth) {
+                final int lineHeight = layout.getLineHeight();
+                if (y + lineHeight <= layout.getHeight()) {
+                    x = 0;
+                    y += lineHeight;
+                }
+            }
+            final int oldColor = paint.getColor();
+            canvas.save();
+            canvas.clipRect(getCompoundPaddingLeft(), getExtendedPaddingTop(),
+                    getWidth() - getCompoundPaddingRight(), getHeight() - getCompoundPaddingBottom());
+            canvas.translate(getCompoundPaddingLeft(), getExtendedPaddingTop());
+            paint.setColor(ColorUtils.setAlphaComponent(getCurrentTextColor(), 0x78));
+            canvas.drawText(mathHint, x, y, paint);
+            paint.setColor(oldColor);
+            canvas.restore();
+        }
+
         @Override
         protected void onScrollChanged(int horiz, int vert, int oldHoriz, int oldVert) {
             super.onScrollChanged(horiz, vert, oldHoriz, oldVert);
@@ -5486,7 +5560,15 @@ public class ChatActivityEnterView extends FrameLayout implements
                     }
                     return true;
                 };
-                return InputConnectionCompat.createWrapper(ic, editorInfo, callback);
+                return new InputConnectionWrapper(InputConnectionCompat.createWrapper(ic, editorInfo, callback), true) {
+                    @Override
+                    public boolean commitText(CharSequence text, int newCursorPosition) {
+                        if (acceptsMathHintFor(text)) {
+                            acceptMathHint();
+                        }
+                        return super.commitText(text, newCursorPosition);
+                    }
+                };
             } catch (Throwable e) {
                 FileLog.e(e);
             }
@@ -5540,6 +5622,10 @@ public class ChatActivityEnterView extends FrameLayout implements
             if (preventInput) {
                 return false;
             }
+            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getKeyCode() == KeyEvent.KEYCODE_SPACE
+                    && mathHint != null) {
+                acceptMathHint();
+            }
             if (event.getAction() == KeyEvent.ACTION_DOWN && event.isCtrlPressed() && !event.isAltPressed() && handleFormattingShortcut(event)) {
                 return true;
             }
@@ -5583,6 +5669,9 @@ public class ChatActivityEnterView extends FrameLayout implements
         @Override
         protected void onSelectionChanged(int selStart, int selEnd) {
             super.onSelectionChanged(selStart, selEnd);
+            if (mathHint != null && (selStart != length() || selEnd != length())) {
+                setMathHint(null, -1);
+            }
             if (delegate != null) {
                 delegate.onTextSelectionChanged(selStart, selEnd);
             }
@@ -6086,19 +6175,11 @@ public class ChatActivityEnterView extends FrameLayout implements
             @Override
             public void afterTextChanged(Editable editable) {
                 if (app.nimarkogram.messenger.features.ChatExtras.enabled("inlineMath") && parentFragment != null
-                        && editable.length() < 512 && innerTextChange == 0 && !ignorePrevTextChange) {
+                        && innerTextChange == 0 && !ignorePrevTextChange) {
                     String snapshot = editable.toString();
                     if (!snapshot.equals(linkiMathSnapshot)) {
                         linkiMathSnapshot = snapshot;
-                        app.exteraless.math.MathExpression.Suggestion suggestion = app.exteraless.math.MathExpression.suggestionAt(
-                                snapshot, messageEditText.getSelectionStart(), java.text.DecimalFormatSymbols.getInstance().getDecimalSeparator());
-                        if (suggestion != null) BulletinFactory.of(parentFragment).createSimpleBulletin(R.raw.copy, "= " + suggestion.value,
-                                LocaleController.getString(R.string.Paste), () -> {
-                                    if (messageEditText != null && snapshot.contentEquals(messageEditText.getText())) {
-                                        messageEditText.getText().insert(suggestion.insertAt, suggestion.insertText);
-                                        messageEditText.setSelection(suggestion.insertAt + suggestion.insertText.length());
-                                    }
-                                }).show();
+                        updateMathHint(snapshot);
                     }
                 }
                 if (ignorePrevTextChange) {
@@ -7766,6 +7847,27 @@ public class ChatActivityEnterView extends FrameLayout implements
     private static class BusinessLinkPresetMessage {
         public String text;
         public ArrayList<TLRPC.MessageEntity> entities;
+    }
+
+    private void updateMathHint(String snapshot) {
+        if (!(messageEditText instanceof ChatActivityEditTextCaption) || messageEditText == null) {
+            return;
+        }
+        final ChatActivityEditTextCaption field = (ChatActivityEditTextCaption) messageEditText;
+        final int length = snapshot.length();
+        if (length == 0 || length >= 512
+                || messageEditText.getSelectionStart() != length
+                || messageEditText.getSelectionEnd() != length) {
+            field.setMathHint(null, -1);
+            return;
+        }
+        app.exteraless.math.MathExpression.Suggestion suggestion = app.exteraless.math.MathExpression.suggestionAt(
+                snapshot, length, java.text.DecimalFormatSymbols.getInstance().getDecimalSeparator());
+        if (suggestion == null || suggestion.insertAt != length || suggestion.value == null) {
+            field.setMathHint(null, -1);
+            return;
+        }
+        field.setMathHint(suggestion.value, suggestion.insertAt);
     }
 
     private BusinessLinkPresetMessage calculateBusinessLinkPresetMessage() {

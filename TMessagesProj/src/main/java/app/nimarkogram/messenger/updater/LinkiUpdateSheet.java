@@ -4,8 +4,12 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 import static org.telegram.messenger.LocaleController.getString;
 
 import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.LinearGradient;
+import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
+import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -77,6 +81,7 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
     private final TextView statusTitle;
     private final TextView statusSubtitle;
     private final TextView versionTransition;
+    private final TextView heroPill;
     private final TextView notesView;
     private final ScrollView notesScroll;
     private final LinearLayout notesCard;
@@ -114,25 +119,52 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
         View handle = new View(context);
         handle.setBackground(Theme.createRoundRectDrawable(dp(2),
                 ColorUtils.setAlphaComponent(getThemedColor(Theme.key_dialogTextGray2), 0x66)));
-        content.addView(handle, LayoutHelper.createLinear(32, 4, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 14));
+        content.addView(handle, LayoutHelper.createLinear(32, 4, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 12));
 
-        content.addView(createLogo(context), LayoutHelper.createLinear(72, 72, Gravity.CENTER_HORIZONTAL));
+        HeroBanner hero = createHero(context);
+        LinearLayout heroInner = new LinearLayout(context);
+        heroInner.setOrientation(LinearLayout.VERTICAL);
+        heroInner.setGravity(Gravity.CENTER_HORIZONTAL);
+        heroInner.setPadding(dp(20), dp(18), dp(20), dp(16));
 
-        TextView title = new TextView(context);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 21);
-        title.setTypeface(AndroidUtilities.bold());
-        title.setTextColor(textPrimary());
-        title.setGravity(Gravity.CENTER);
-        title.setText(getString(R.string.AppName));
-        content.addView(title, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 12, 0, 0));
+        ImageView heroLogo = createLogo(context, 46);
+        heroInner.addView(heroLogo, LayoutHelper.createLinear(46, 46, Gravity.CENTER_HORIZONTAL));
 
-        TextView version = new TextView(context);
-        version.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        version.setTextColor(textSecondary());
-        version.setGravity(Gravity.CENTER);
-        version.setText(LocaleController.formatString(R.string.LUS_CurrentVersionShort,
+        TextView heroTitle = new TextView(context);
+        heroTitle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 27);
+        heroTitle.setTypeface(AndroidUtilities.bold());
+        heroTitle.setTextColor(0xFFFFFFFF);
+        heroTitle.setGravity(Gravity.CENTER);
+        heroTitle.setText(getString(R.string.AppName));
+        heroTitle.setShadowLayer(dp(6), 0, dp(1), 0x40000000);
+        heroInner.addView(heroTitle, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT, 0, 10, 0, 0));
+
+        TextView heroVersion = new TextView(context);
+        heroVersion.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        heroVersion.setTextColor(0xCCFFFFFF);
+        heroVersion.setGravity(Gravity.CENTER);
+        heroVersion.setText(LocaleController.formatString(R.string.LUS_CurrentVersionShort,
                 NimarkoUpdater.getCurrentVersionName()));
-        content.addView(version, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 3, 0, 0));
+        heroInner.addView(heroVersion, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT, 0, 2, 0, 0));
+
+        heroInner.addView(new View(context), LayoutHelper.createLinear(1, 0, 1f));
+
+        heroPill = new TextView(context);
+        heroPill.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        heroPill.setTypeface(AndroidUtilities.bold());
+        heroPill.setTextColor(0xFFFFFFFF);
+        heroPill.setGravity(Gravity.CENTER);
+        heroPill.setSingleLine(true);
+        heroPill.setEllipsize(TextUtils.TruncateAt.END);
+        heroPill.setPadding(dp(16), dp(7), dp(16), dp(7));
+        heroPill.setBackground(Theme.createRoundRectDrawable(dp(18), 0x30FFFFFF));
+        heroInner.addView(heroPill, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT,
+                LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 12, 0, 0));
+
+        hero.addView(heroInner, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        content.addView(hero, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 220, 0, 4, 0, 0));
 
         LinearLayout card = new LinearLayout(context);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -339,7 +371,7 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
         return background;
     }
 
-    private View createLogo(Context context) {
+    private ImageView createLogo(Context context, int sizeDp) {
         ImageView logo = new ImageView(context);
         logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
         try {
@@ -348,15 +380,87 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
         } catch (Exception e) {
             FileLog.e(e);
         }
+        final float radius = dp(sizeDp / 4f);
         logo.setOutlineProvider(new ViewOutlineProvider() {
             @Override
             public void getOutline(View view, android.graphics.Outline outline) {
-                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dp(18));
+                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
             }
         });
         logo.setClipToOutline(true);
         logo.setElevation(dp(2));
         return logo;
+    }
+
+    private HeroBanner createHero(Context context) {
+        final float radius = dp(28);
+        HeroBanner hero = new HeroBanner(context, accent);
+        hero.setOutlineProvider(new ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, android.graphics.Outline outline) {
+                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
+            }
+        });
+        hero.setClipToOutline(true);
+        hero.setElevation(dp(1));
+        return hero;
+    }
+
+    /**
+     * Big rounded banner at the top of the sheet, like the "About phone" cover
+     * in ColorOS: an accent gradient with soft light sweeps, the app name and
+     * version, and a translucent pill with the current update state.
+     */
+    private static class HeroBanner extends FrameLayout {
+
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final int colorTop;
+        private final int colorBottom;
+
+        HeroBanner(Context context, int accentColor) {
+            super(context);
+            colorTop = ColorUtils.blendARGB(accentColor, 0xFFFFFFFF, 0.18f);
+            colorBottom = ColorUtils.blendARGB(accentColor, 0xFF000000, 0.40f);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float w = getWidth();
+            float h = getHeight();
+            if (w <= 0 || h <= 0) {
+                return;
+            }
+
+            paint.setStyle(Paint.Style.FILL);
+            paint.setShader(new LinearGradient(0, 0, w * 0.85f, h,
+                    colorTop, colorBottom, Shader.TileMode.CLAMP));
+            canvas.drawRect(0, 0, w, h, paint);
+            paint.setShader(null);
+
+            paint.setColor(0x24FFFFFF);
+            canvas.save();
+            canvas.rotate(-22, w * 0.5f, h * 0.5f);
+            canvas.drawOval(w * 0.20f, -h * 0.42f, w * 1.12f, h * 0.58f, paint);
+            canvas.restore();
+
+            paint.setColor(0x16FFFFFF);
+            canvas.save();
+            canvas.rotate(19, w * 0.5f, h * 0.5f);
+            canvas.drawOval(-w * 0.24f, h * 0.36f, w * 0.86f, h * 1.42f, paint);
+            canvas.restore();
+
+            paint.setColor(0x0DFFFFFF);
+            canvas.drawCircle(w * 0.86f, h * 0.12f, h * 0.55f, paint);
+
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dp(1));
+            paint.setColor(0x26FFFFFF);
+            canvas.drawRoundRect(dp(0.5f), dp(0.5f), w - dp(0.5f), h - dp(0.5f),
+                    dp(28), dp(28), paint);
+            paint.setStyle(Paint.Style.FILL);
+
+            super.onDraw(canvas);
+        }
     }
 
     private TextView createLink(Context context, int icon, CharSequence text, Runnable onClick) {
@@ -442,11 +546,13 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
         switch (value) {
             case STATE_CHECKING:
                 statusTitle.setText(getString(R.string.LUS_Checking));
+                heroPill.setText(getString(R.string.LUS_HeroChecking));
                 subtitle = checkedText();
                 break;
             case STATE_LATEST:
                 statusImage.setImageResource(R.drawable.msg_check_s);
                 statusTitle.setText(getString(R.string.LUS_Latest));
+                heroPill.setText(getString(R.string.LUS_HeroLatest));
                 subtitle = checkedText();
                 break;
             case STATE_AVAILABLE:
@@ -457,6 +563,8 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
                 iconBackground = accent;
                 statusTitle.setText(LocaleController.formatString(R.string.LUS_Available,
                         release != null ? release.version : ""));
+                heroPill.setText(LocaleController.formatString(R.string.LUS_HeroAvailable,
+                        release != null ? release.version : ""));
                 subtitle = releaseDetails();
                 break;
             case STATE_FAILED:
@@ -465,6 +573,7 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
                 iconColor = red;
                 iconBackground = ColorUtils.setAlphaComponent(red, 0x26);
                 statusTitle.setText(getString(R.string.LUS_CheckFailed));
+                heroPill.setText(getString(R.string.LUS_HeroFailed));
                 subtitle = getString(R.string.LUS_FailedInfo);
                 break;
         }

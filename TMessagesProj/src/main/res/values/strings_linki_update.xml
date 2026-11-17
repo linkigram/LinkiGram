@@ -3,4 +3,8 @@
     <string name="LUS_CurrentVersionShort">Current version %1$s</string>
     <string name="LUS_WhatsNew">What\'s new</string>
     <string name="LUS_VersionArrow">%1$s → %2$s</string>
+    <string name="LUS_HeroChecking">Checking for updates…</string>
+    <string name="LUS_HeroLatest">You have the latest version</string>
+    <string name="LUS_HeroAvailable">Update available · %1$s</string>
+    <string name="LUS_HeroFailed">Check failed</string>
 </resources>
