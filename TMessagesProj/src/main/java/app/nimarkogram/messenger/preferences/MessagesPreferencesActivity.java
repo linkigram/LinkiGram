@@ -44,7 +44,7 @@ public class MessagesPreferencesActivity extends NimarkoUniversalPreferencesActi
     private final int gifSpoilersRow = 18;
 
     @Override
-    protected CharSequence getTitle() {
+    public String getTitle() {
          
         return getString(R.string.MessagesSettings);
     }

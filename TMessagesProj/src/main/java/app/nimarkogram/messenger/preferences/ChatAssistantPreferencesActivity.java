@@ -21,7 +21,7 @@ import static org.telegram.messenger.LocaleController.getString;
 public class ChatAssistantPreferencesActivity extends NimarkoUniversalPreferencesActivity {
     private final long dialog;
     public ChatAssistantPreferencesActivity(int account, long dialog) { this.currentAccount = account; this.dialog = dialog; }
-    @Override protected CharSequence getTitle() { return getString(R.string.LinkiChatAssistant); }
+    @Override public String getTitle() { return getString(R.string.LinkiChatAssistant); }
     @Override public boolean onLongClick(UItem item, View view, int position, float x, float y) { return false; }
     @Override public void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
         items.add(SettingsHelper.asSwitchCG(1, getString(R.string.LinkiChatAssistantEnabled)).setChecked(ChatAssistant.enabled(currentAccount, dialog)));

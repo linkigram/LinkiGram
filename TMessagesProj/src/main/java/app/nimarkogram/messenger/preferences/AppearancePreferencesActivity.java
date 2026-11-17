@@ -106,7 +106,7 @@ public class AppearancePreferencesActivity extends NimarkoUniversalPreferencesAc
     }
 
     @Override
-    protected CharSequence getTitle() {
+    public String getTitle() {
          
         return getString(R.string.AP_Header_Appearance);
     }

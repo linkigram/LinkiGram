@@ -7,4 +7,5 @@
     <string name="LUS_HeroLatest">Установлена последняя версия</string>
     <string name="LUS_HeroAvailable">Доступно обновление · %1$s</string>
     <string name="LUS_HeroFailed">Не удалось проверить</string>
+    <string name="LUS_HeroCheck">Проверить обновления</string>
 </resources>

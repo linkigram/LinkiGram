@@ -12,7 +12,7 @@ import app.nimarkogram.messenger.preferences.helpers.SettingsHelper;
 
 public class DrawerPreferencesActivity extends NimarkoUniversalPreferencesActivity {
     private final ArrayList<Integer> ids = new ArrayList<>();
-    @Override protected CharSequence getTitle() { return LocaleController.getString(R.string.LF_Menu); }
+    @Override public String getTitle() { return LocaleController.getString(R.string.LF_Menu); }
     @Override public void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
         items.add(UItem.asShadow(LocaleController.getString(R.string.LF_MenuHelp)));
         items.add(SettingsHelper.asSwitchCG(-12, LocaleController.getString(R.string.NM_Drawer_NavigationDrawer)).setChecked(app.nimarkogram.messenger.NimarkoConfig.navigationDrawer));

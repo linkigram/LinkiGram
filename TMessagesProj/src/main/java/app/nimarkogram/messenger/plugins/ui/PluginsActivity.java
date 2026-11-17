@@ -253,8 +253,12 @@ public class PluginsActivity extends BasePreferencesActivity implements Notifica
     public void onInsets(int left, int top, int right, int bottom) {
         bottomInset = bottom;
         if (listView != null) {
-            
-            listView.setPadding(0, 0, 0, bottom + AndroidUtilities.dp(80));
+            // The glass header floats over the list, so its place comes from
+            // BaseFragmentSimpleGlass.setListViewParams. Overwriting the top
+            // padding here used to push the first card under the header pill.
+            final int topPadding = app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled()
+                    ? listView.getPaddingTop() : 0;
+            listView.setPadding(0, topPadding, 0, bottom + AndroidUtilities.dp(80));
             listView.setClipToPadding(false);
         }
         if (addPluginButton != null && addPluginButton.getLayoutParams() instanceof FrameLayout.LayoutParams) {

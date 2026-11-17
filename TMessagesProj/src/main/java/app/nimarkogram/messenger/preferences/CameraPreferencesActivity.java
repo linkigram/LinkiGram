@@ -64,7 +64,7 @@ public class CameraPreferencesActivity extends NimarkoUniversalPreferencesActivi
     private boolean cameraImprovementsExpanded = false;
 
     @Override
-    protected CharSequence getTitle() {
+    public String getTitle() {
          
         return getString(R.string.CP_Category_Camera);
     }

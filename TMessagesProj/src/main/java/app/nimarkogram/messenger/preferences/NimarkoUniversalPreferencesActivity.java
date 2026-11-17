@@ -1,31 +1,13 @@
 package app.nimarkogram.messenger.preferences;
 
-import android.content.Context;
-import android.view.View;
-
-import androidx.core.view.ViewCompat;
-
-import org.telegram.ui.Components.UniversalFragment;
-
-public abstract class NimarkoUniversalPreferencesActivity extends UniversalFragment implements app.nimarkogram.messenger.search.LinkiSettingsSearch.Target {
-    private int settingsSearchTarget;
-    @Override public void setSearchTarget(int titleResource) {
-        settingsSearchTarget = titleResource;
-        prepareSettingsSearch();
-    }
-    protected void prepareSettingsSearch() {}
-    private void focusSettingsSearch() {
-        if (settingsSearchTarget == 0 || listView == null) return;
-        int title = settingsSearchTarget;
-        settingsSearchTarget = 0;
-        app.nimarkogram.messenger.search.LinkiSettingsSearch.focus(this, listView, title);
-    }
-
-
-    @Override public void onResume() {
-        super.onResume();
-        focusSettingsSearch();
-    }
+/**
+ * LinkiGram settings screen. It used to have its own list container, which
+ * made these screens differ from the rest of the settings: no wallpaper, an
+ * overlay title and no adaptive header. Now it is the same base as the other
+ * 25 screens, so every LinkiGram preference screen shares one chrome and one
+ * section rendering path.
+ */
+public abstract class NimarkoUniversalPreferencesActivity extends BasePreferencesActivity {
 
     protected void showRestartBulletin() {
         org.telegram.ui.Components.BulletinFactory.of(this).createSimpleBulletin(
@@ -48,44 +30,6 @@ public abstract class NimarkoUniversalPreferencesActivity extends UniversalFragm
             ((org.telegram.ui.Cells.TextCheckCell) view).setChecked(checked);
         } else if (view instanceof org.telegram.ui.Cells.NotificationsCheckCell) {
             ((org.telegram.ui.Cells.NotificationsCheckCell) view).setChecked(checked);
-        }
-    }
-
-    @Override
-    public boolean isSupportEdgeToEdge() {
-        return true;
-    }
-
-    @Override
-    public boolean drawEdgeNavigationBar() {
-        return false;
-    }
-
-    @Override
-    public View createView(Context context) {
-        View view = super.createView(context);
-        org.telegram.ui.ActionBar.ThemeBind.backgroundColor(view,
-                org.telegram.ui.ActionBar.Theme.key_windowBackgroundGray, getResourceProvider());
-        if (listView != null) {
-            listView.setSections(true);
-            listView.adapter.setApplyBackground(false);
-        }
-        
-        ViewCompat.setOnApplyWindowInsetsListener(view, this::onInsetsInternal);
-        ViewCompat.requestApplyInsets(view);
-        return view;
-    }
-
-    @Override
-    public void onInsets(int left, int top, int right, int bottom) {
-        if (listView != null) {
-            if (!app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled()) {
-                // LinkiGlass on the You layer: BaseFragment.onInsetsInternal already reserved
-                // the action bar space through setListViewParams, so clearing the padding here
-                // would slide the first rows under the action bar.
-                listView.setPadding(0, 0, 0, bottom);
-            }
-            listView.setClipToPadding(false);
         }
     }
 }

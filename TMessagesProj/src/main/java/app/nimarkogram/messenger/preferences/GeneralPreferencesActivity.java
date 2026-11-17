@@ -134,7 +134,7 @@ public class GeneralPreferencesActivity extends NimarkoUniversalPreferencesActiv
     }
 
     @Override
-    protected CharSequence getTitle() {
+    public String getTitle() {
         return getString(R.string.AP_Header_General);
     }
 

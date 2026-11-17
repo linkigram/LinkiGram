@@ -71,7 +71,7 @@ public class ChatsPreferencesActivity extends NimarkoUniversalPreferencesActivit
             dialogsMenuRow = 83;
 
     @Override
-    protected CharSequence getTitle() {
+    public String getTitle() {
         return getString(R.string.FilterChats);
     }
 

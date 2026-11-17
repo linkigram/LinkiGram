@@ -11,7 +11,7 @@ import app.nimarkogram.messenger.preferences.helpers.SettingsHelper;
 public class ScreenAppearanceActivity extends NimarkoUniversalPreferencesActivity {
     private final String screen;
     public ScreenAppearanceActivity(String screen) { this.screen = screen; }
-    @Override protected CharSequence getTitle() { return LocaleController.getString(R.string.LF_DrawerStyle); }
+    @Override public String getTitle() { return LocaleController.getString(R.string.LF_DrawerStyle); }
     @Override public void fillItems(ArrayList<UItem> items, UniversalAdapter adapter) {
         items.add(SettingsHelper.asSwitchCG(1, LocaleController.getString(R.string.LF_Compact)).setChecked(CustomizationPreferences.compact(screen)));
         items.add(SettingsHelper.asSwitchCG(2, LocaleController.getString(R.string.LF_Labels)).setChecked(CustomizationPreferences.labels(screen)));

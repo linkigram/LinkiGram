@@ -4,12 +4,8 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 import static org.telegram.messenger.LocaleController.getString;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.LinearGradient;
-import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
-import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -23,7 +19,6 @@ import android.transition.TransitionManager;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewOutlineProvider;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -35,7 +30,6 @@ import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.Emoji;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.R;
 import org.telegram.messenger.browser.Browser;
@@ -49,6 +43,7 @@ import org.telegram.ui.Components.URLSpanNoUnderline;
 import org.telegram.ui.Stories.recorder.ButtonWithCounterView;
 
 import app.nimarkogram.messenger.appearance.ClientTheme;
+import app.nimarkogram.messenger.components.LinkiHeroBanner;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -121,13 +116,13 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
                 ColorUtils.setAlphaComponent(getThemedColor(Theme.key_dialogTextGray2), 0x66)));
         content.addView(handle, LayoutHelper.createLinear(32, 4, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 12));
 
-        HeroBanner hero = createHero(context);
+        LinkiHeroBanner hero = new LinkiHeroBanner(context, accent);
         LinearLayout heroInner = new LinearLayout(context);
         heroInner.setOrientation(LinearLayout.VERTICAL);
         heroInner.setGravity(Gravity.CENTER_HORIZONTAL);
         heroInner.setPadding(dp(20), dp(18), dp(20), dp(16));
 
-        ImageView heroLogo = createLogo(context, 46);
+        ImageView heroLogo = LinkiHeroBanner.createLogo(context, 46);
         heroInner.addView(heroLogo, LayoutHelper.createLinear(46, 46, Gravity.CENTER_HORIZONTAL));
 
         TextView heroTitle = new TextView(context);
@@ -372,95 +367,7 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
     }
 
     private ImageView createLogo(Context context, int sizeDp) {
-        ImageView logo = new ImageView(context);
-        logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        try {
-            Drawable icon = context.getPackageManager().getApplicationIcon(context.getPackageName());
-            logo.setImageDrawable(icon);
-        } catch (Exception e) {
-            FileLog.e(e);
-        }
-        final float radius = dp(sizeDp / 4f);
-        logo.setOutlineProvider(new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View view, android.graphics.Outline outline) {
-                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
-            }
-        });
-        logo.setClipToOutline(true);
-        logo.setElevation(dp(2));
-        return logo;
-    }
-
-    private HeroBanner createHero(Context context) {
-        final float radius = dp(28);
-        HeroBanner hero = new HeroBanner(context, accent);
-        hero.setOutlineProvider(new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View view, android.graphics.Outline outline) {
-                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
-            }
-        });
-        hero.setClipToOutline(true);
-        hero.setElevation(dp(1));
-        return hero;
-    }
-
-    /**
-     * Big rounded banner at the top of the sheet, like the "About phone" cover
-     * in ColorOS: an accent gradient with soft light sweeps, the app name and
-     * version, and a translucent pill with the current update state.
-     */
-    private static class HeroBanner extends FrameLayout {
-
-        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final int colorTop;
-        private final int colorBottom;
-
-        HeroBanner(Context context, int accentColor) {
-            super(context);
-            colorTop = ColorUtils.blendARGB(accentColor, 0xFFFFFFFF, 0.18f);
-            colorBottom = ColorUtils.blendARGB(accentColor, 0xFF000000, 0.40f);
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            float w = getWidth();
-            float h = getHeight();
-            if (w <= 0 || h <= 0) {
-                return;
-            }
-
-            paint.setStyle(Paint.Style.FILL);
-            paint.setShader(new LinearGradient(0, 0, w * 0.85f, h,
-                    colorTop, colorBottom, Shader.TileMode.CLAMP));
-            canvas.drawRect(0, 0, w, h, paint);
-            paint.setShader(null);
-
-            paint.setColor(0x24FFFFFF);
-            canvas.save();
-            canvas.rotate(-22, w * 0.5f, h * 0.5f);
-            canvas.drawOval(w * 0.20f, -h * 0.42f, w * 1.12f, h * 0.58f, paint);
-            canvas.restore();
-
-            paint.setColor(0x16FFFFFF);
-            canvas.save();
-            canvas.rotate(19, w * 0.5f, h * 0.5f);
-            canvas.drawOval(-w * 0.24f, h * 0.36f, w * 0.86f, h * 1.42f, paint);
-            canvas.restore();
-
-            paint.setColor(0x0DFFFFFF);
-            canvas.drawCircle(w * 0.86f, h * 0.12f, h * 0.55f, paint);
-
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(dp(1));
-            paint.setColor(0x26FFFFFF);
-            canvas.drawRoundRect(dp(0.5f), dp(0.5f), w - dp(0.5f), h - dp(0.5f),
-                    dp(28), dp(28), paint);
-            paint.setStyle(Paint.Style.FILL);
-
-            super.onDraw(canvas);
-        }
+        return LinkiHeroBanner.createLogo(context, sizeDp);
     }
 
     private TextView createLink(Context context, int icon, CharSequence text, Runnable onClick) {

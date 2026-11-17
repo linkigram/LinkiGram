@@ -307,6 +307,7 @@ public class UItem extends AdapterWithDiffUtils.Item {
     }
 
     public UItem setTransparent(boolean transparent) {
+        this.transparent = transparent;
         return this;
     }
 

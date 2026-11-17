@@ -100,7 +100,6 @@ final class LinkiSettingsEnglishCatalog {
         labels.put(R.string.LinkiAboutBuild, "Build");
         labels.put(R.string.LinkiAboutChannel, "Release channel · @serostgram");
         labels.put(R.string.LinkiAboutTitle, "About");
-        labels.put(R.string.LinkiAboutVersion, "Version");
         labels.put(R.string.LinkiAllowProtectedScreenshots, "Allow screenshots in protected chats");
         labels.put(R.string.LinkiDoubleTapIncoming, "Double tap incoming messages");
         labels.put(R.string.LinkiDoubleTapOutgoing, "Double tap outgoing messages");
