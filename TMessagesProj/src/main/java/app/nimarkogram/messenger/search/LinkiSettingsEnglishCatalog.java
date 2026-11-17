@@ -97,6 +97,10 @@ final class LinkiSettingsEnglishCatalog {
         labels.put(R.string.LF_Labels, "Show labels and details");
         labels.put(R.string.LF_Menu, "Side menu settings");
         labels.put(R.string.LX_Title, "Chat tools");
+        labels.put(R.string.LinkiAboutBuild, "Build");
+        labels.put(R.string.LinkiAboutChannel, "Release channel · @serostgram");
+        labels.put(R.string.LinkiAboutTitle, "About");
+        labels.put(R.string.LinkiAboutVersion, "Version");
         labels.put(R.string.LinkiAllowProtectedScreenshots, "Allow screenshots in protected chats");
         labels.put(R.string.LinkiDoubleTapIncoming, "Double tap incoming messages");
         labels.put(R.string.LinkiDoubleTapOutgoing, "Double tap outgoing messages");
@@ -262,6 +266,7 @@ final class LinkiSettingsEnglishCatalog {
         labels.put(R.string.NM_GhostRecording, "Hide recording status");
         labels.put(R.string.NM_GhostStories, "Hide story views");
         labels.put(R.string.NM_GhostTyping, "Hide typing status");
+        labels.put(R.string.NM_HUB_SourceCode, "Source code");
         labels.put(R.string.NM_HideActionBarStatus, "Hide status in chat header");
         labels.put(R.string.NM_HideBubbleTail, "Hide bubble tail");
         labels.put(R.string.NM_HideIncomingTyping, "Hide incoming typing");
@@ -428,6 +433,7 @@ final class LinkiSettingsEnglishCatalog {
         labels.put(R.string.SettingsNotifications, "Notifications");
         labels.put(R.string.ShareFile, "Share");
         labels.put(R.string.TelegramPremium, "Telegram Premium");
+        labels.put(R.string.UP_CheckForUpdates, "Check for updates");
         labels.put(R.string.VibrationDisabled, "Disabled");
         labels.put(R.string.XcfgTabToggle, "X-CFG tab in the bottom bar");
     }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="LinkiAboutTitle">О приложении</string>
+    <string name="LinkiAboutTileDescription">Информация и обновления</string>
+    <string name="LinkiAboutVersion">Версия</string>
+    <string name="LinkiAboutBuild">Сборка</string>
+    <string name="LinkiAboutDescription">Неофициальный клиент Telegram с оформлением LinkiGram You, Linki Glass, плагинами и локальными настройками приватности.</string>
+    <string name="LinkiAboutChannel">Канал релизов · @serostgram</string>
+    <string name="LinkiAboutLicense">Свободное приложение с открытым исходным кодом. Исходники и сведения о лицензии доступны в репозитории проекта.</string>
+</resources>

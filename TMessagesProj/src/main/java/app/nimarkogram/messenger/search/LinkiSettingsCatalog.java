@@ -370,6 +370,12 @@ final class LinkiSettingsCatalog {
         LinkiSettingsSearch.add(items, host, "ScreenAppearanceActivity:LF_Labels", R.string.LF_Labels, R.string.LF_DrawerStyle, account -> new ScreenAppearanceActivity("drawer"));
         LinkiSettingsSearch.add(items, host, "ScreenAppearanceActivity:LF_Accent", R.string.LF_Accent, R.string.LF_DrawerStyle, account -> new ScreenAppearanceActivity("drawer"));
         LinkiSettingsSearch.add(items, host, "ScreenAppearanceActivity:Reset", R.string.Reset, R.string.LF_DrawerStyle, account -> new ScreenAppearanceActivity("drawer"));
+        LinkiSettingsSearch.add(items, host, "LinkiAboutActivity:LinkiAboutTitle", R.string.LinkiAboutTitle, R.string.LinkiAboutTitle, account -> new app.nimarkogram.messenger.preferences.LinkiAboutActivity());
+        LinkiSettingsSearch.add(items, host, "LinkiAboutActivity:LinkiAboutVersion", R.string.LinkiAboutVersion, R.string.LinkiAboutTitle, account -> new app.nimarkogram.messenger.preferences.LinkiAboutActivity());
+        LinkiSettingsSearch.add(items, host, "LinkiAboutActivity:LinkiAboutBuild", R.string.LinkiAboutBuild, R.string.LinkiAboutTitle, account -> new app.nimarkogram.messenger.preferences.LinkiAboutActivity());
+        LinkiSettingsSearch.add(items, host, "LinkiAboutActivity:UP_CheckForUpdates", R.string.UP_CheckForUpdates, R.string.LinkiAboutTitle, account -> new app.nimarkogram.messenger.preferences.LinkiAboutActivity());
+        LinkiSettingsSearch.add(items, host, "LinkiAboutActivity:NM_HUB_SourceCode", R.string.NM_HUB_SourceCode, R.string.LinkiAboutTitle, account -> new app.nimarkogram.messenger.preferences.LinkiAboutActivity());
+        LinkiSettingsSearch.add(items, host, "LinkiAboutActivity:LinkiAboutChannel", R.string.LinkiAboutChannel, R.string.LinkiAboutTitle, account -> new app.nimarkogram.messenger.preferences.LinkiAboutActivity());
         LinkiSettingsSearch.add(items, host, "AiSettingsActivity:OEAiTitle", R.string.OEAiTitle, R.string.OEAiTitle, account -> new app.exteraless.ai.ui.AiSettingsActivity());
         LinkiSettingsSearch.add(items, host, "AiSettingsActivity:OEAiUrl", R.string.OEAiUrl, R.string.OEAiTitle, account -> new app.exteraless.ai.ui.AiSettingsActivity());
         LinkiSettingsSearch.add(items, host, "AiSettingsActivity:OEAiKey", R.string.OEAiKey, R.string.OEAiTitle, account -> new app.exteraless.ai.ui.AiSettingsActivity());

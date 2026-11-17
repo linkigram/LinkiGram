@@ -66,6 +66,7 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
     public static final int ID_AYUMOMENTS     = 32;
     public static final int ID_LINKI_SHARE    = 35;
     public static final int ID_MESSAGES       = 36;
+    public static final int ID_ABOUT          = 37;
 
     private static final int ID_DRAWER_MENU   = 2002;
 
@@ -399,7 +400,7 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
         LinearLayout header = new LinearLayout(context);
         header.setOrientation(LinearLayout.VERTICAL);
         header.setGravity(Gravity.CENTER_HORIZONTAL);
-        header.setPadding(AndroidUtilities.dp(16), AndroidUtilities.dp(10), AndroidUtilities.dp(16), AndroidUtilities.dp(12));
+        header.setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(10), AndroidUtilities.dp(8), AndroidUtilities.dp(12));
 
         ImageView icon = new ImageView(context);
         // Draw the plate and plane separately so the logo follows the same
@@ -507,7 +508,17 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
         versionParams.topMargin = AndroidUtilities.dp(2);
         header.addView(version, versionParams);
 
-        return header;
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setBaselineAligned(false);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(AndroidUtilities.dp(8), AndroidUtilities.dp(8), AndroidUtilities.dp(8), AndroidUtilities.dp(8));
+        row.addView(header, cardParams(true, true));
+        row.addView(LinkiHubCard.create(context, ID_ABOUT, IconBackgroundColors.BLUE,
+                R.drawable.msg_info_solar, LocaleController.getString(R.string.LinkiAboutTitle),
+                LocaleController.getString(R.string.LinkiAboutTileDescription), this::handleItemClick),
+                cardParams(false, false));
+        return row;
     }
 
     @Override
@@ -517,6 +528,9 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
 
     private void handleItemClick(int id) {
         switch (id) {
+            case ID_ABOUT:
+                presentFragment(new LinkiAboutActivity());
+                break;
             case ID_DRAWER_MENU:
                 presentFragment(new DrawerPreferencesActivity());
                 break;

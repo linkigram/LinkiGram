@@ -14,6 +14,7 @@ names=['Main','General','Appearance','Chats','Camera','Privacy','AyuMoments','Me
        'Experimental','NimarkoTextAnim','Background','MessageMenuItems','DialogsMenuItems','Drawer']
 specs=[(PREF+n+'PreferencesActivity.java',None,None) for n in names]
 specs += [(PREF+'ScreenAppearanceActivity.java','LF_DrawerStyle','new ScreenAppearanceActivity("drawer")'),
+          (PREF+'LinkiAboutActivity.java',None,None),
           ('app/exteraless/ai/ui/AiSettingsActivity.java','OEAiTitle','new app.exteraless.ai.ui.AiSettingsActivity()'),
           ('app/nimarkogram/messenger/infocards/preferences/InfoCardsPreferencesActivity.java',None,None),
           ('app/nimarkogram/messenger/wsbypass/preferences/WsBypassPreferencesActivity.java',None,None)]
