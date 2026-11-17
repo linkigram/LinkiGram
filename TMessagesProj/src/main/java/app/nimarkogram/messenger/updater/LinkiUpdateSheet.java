@@ -44,6 +44,8 @@ import org.telegram.ui.Components.RadialProgressView;
 import org.telegram.ui.Components.URLSpanNoUnderline;
 import org.telegram.ui.Stories.recorder.ButtonWithCounterView;
 
+import app.nimarkogram.messenger.appearance.ClientTheme;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -74,8 +76,10 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
     private final RadialProgressView statusProgress;
     private final TextView statusTitle;
     private final TextView statusSubtitle;
+    private final TextView versionTransition;
     private final TextView notesView;
     private final ScrollView notesScroll;
+    private final LinearLayout notesCard;
     private final LineProgressView progressView;
     private final ButtonWithCounterView actionButton;
     private final TextView channelInfo;
@@ -99,38 +103,41 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
         this.release = update;
         fixNavigationBar();
         Context context = getContext();
-        accent = getThemedColor(Theme.key_featuredStickers_addButton);
+        accent = ClientTheme.isEnabled()
+                ? ClientTheme.color(ClientTheme.PRIMARY)
+                : getThemedColor(Theme.key_featuredStickers_addButton);
 
         content = new LinearLayout(context);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(20), dp(8), dp(20), dp(16));
+        content.setPadding(dp(20), dp(8), dp(20), dp(20));
 
         View handle = new View(context);
         handle.setBackground(Theme.createRoundRectDrawable(dp(2),
                 ColorUtils.setAlphaComponent(getThemedColor(Theme.key_dialogTextGray2), 0x66)));
-        content.addView(handle, LayoutHelper.createLinear(32, 4, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 16));
+        content.addView(handle, LayoutHelper.createLinear(32, 4, Gravity.CENTER_HORIZONTAL, 0, 0, 0, 14));
 
-        content.addView(createLogo(context), LayoutHelper.createLinear(64, 64, Gravity.CENTER_HORIZONTAL));
+        content.addView(createLogo(context), LayoutHelper.createLinear(72, 72, Gravity.CENTER_HORIZONTAL));
 
         TextView title = new TextView(context);
-        title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 21);
         title.setTypeface(AndroidUtilities.bold());
-        title.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
+        title.setTextColor(textPrimary());
         title.setGravity(Gravity.CENTER);
         title.setText(getString(R.string.AppName));
         content.addView(title, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 12, 0, 0));
 
         TextView version = new TextView(context);
         version.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        version.setTextColor(getThemedColor(Theme.key_dialogTextGray2));
+        version.setTextColor(textSecondary());
         version.setGravity(Gravity.CENTER);
-        version.setText(NimarkoUpdater.getCurrentVersionName());
-        content.addView(version, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 2, 0, 0));
+        version.setText(LocaleController.formatString(R.string.LUS_CurrentVersionShort,
+                NimarkoUpdater.getCurrentVersionName()));
+        content.addView(version, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 3, 0, 0));
 
         LinearLayout card = new LinearLayout(context);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setBackground(Theme.createRoundRectDrawable(dp(20), getThemedColor(Theme.key_graySection)));
-        card.setPadding(dp(16), dp(14), dp(16), dp(14));
+        card.setBackground(cardBackground(22));
+        card.setPadding(dp(16), dp(16), dp(16), dp(16));
 
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -151,58 +158,93 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
         statusTitle = new TextView(context);
         statusTitle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         statusTitle.setTypeface(AndroidUtilities.bold());
-        statusTitle.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
+        statusTitle.setTextColor(textPrimary());
         texts.addView(statusTitle, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         statusSubtitle = new TextView(context);
-        statusSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        statusSubtitle.setTextColor(getThemedColor(Theme.key_dialogTextGray2));
+        statusSubtitle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        statusSubtitle.setTextColor(textSecondary());
         texts.addView(statusSubtitle, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 2, 0, 0));
         row.addView(texts, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f, Gravity.CENTER_VERTICAL));
         card.addView(row, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
+        versionTransition = new TextView(context);
+        versionTransition.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        versionTransition.setTypeface(AndroidUtilities.bold());
+        versionTransition.setTextColor(accent);
+        versionTransition.setGravity(Gravity.CENTER);
+        versionTransition.setSingleLine(true);
+        versionTransition.setEllipsize(TextUtils.TruncateAt.END);
+        versionTransition.setBackground(Theme.createRoundRectDrawable(dp(11),
+                ColorUtils.setAlphaComponent(accent, 0x1F)));
+        versionTransition.setPadding(dp(12), dp(5), dp(12), dp(5));
+        versionTransition.setVisibility(View.GONE);
+        card.addView(versionTransition, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT,
+                LayoutHelper.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL, 0, 14, 0, 0));
+
         notesView = new TextView(context);
         notesView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        notesView.setLineSpacing(dp(2), 1f);
-        notesView.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
+        notesView.setLineSpacing(dp(3), 1f);
+        notesView.setTextColor(textPrimary());
         notesView.setLinkTextColor(getThemedColor(Theme.key_dialogTextLink));
         notesView.setMovementMethod(LinkMovementMethod.getInstance());
         notesScroll = new ScrollView(context) {
             @Override
             protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
                 super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(
-                        (int) (AndroidUtilities.displaySize.y * 0.32f), MeasureSpec.AT_MOST));
+                        (int) (AndroidUtilities.displaySize.y * 0.30f), MeasureSpec.AT_MOST));
             }
         };
         notesScroll.setVerticalScrollBarEnabled(false);
-        notesScroll.setVisibility(View.GONE);
         notesScroll.addView(notesView, new FrameLayout.LayoutParams(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
-        card.addView(notesScroll, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 12, 0, 0));
+
+        notesCard = new LinearLayout(context);
+        notesCard.setOrientation(LinearLayout.VERTICAL);
+        notesCard.setBackground(cardBackground(22));
+        notesCard.setPadding(dp(16), dp(14), dp(16), dp(14));
+
+        TextView notesHeader = new TextView(context);
+        notesHeader.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
+        notesHeader.setTypeface(AndroidUtilities.bold());
+        notesHeader.setTextColor(accent);
+        notesHeader.setText(getString(R.string.LUS_WhatsNew));
+        notesCard.addView(notesHeader, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT));
+        notesCard.addView(notesScroll, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT, 0, 8, 0, 0));
+        notesCard.setVisibility(View.GONE);
+
         content.addView(card, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 20, 0, 0));
+        content.addView(notesCard, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 12, 0, 0));
 
         progressView = new LineProgressView(context);
         progressView.setProgressColor(accent);
-        progressView.setBackColor(getThemedColor(Theme.key_graySection));
+        progressView.setBackColor(ColorUtils.setAlphaComponent(accent, 0x33));
         progressView.setVisibility(View.GONE);
-        content.addView(progressView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 4, 6, 12, 6, 0));
+        content.addView(progressView, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 6, 2, 14, 2, 0));
 
         actionButton = new ButtonWithCounterView(context, resourcesProvider).setRound();
         actionButton.setFilled(true);
         actionButton.setOnClickListener(v -> onAction());
-        content.addView(actionButton, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 48, 0, 12, 0, 0));
+        content.addView(actionButton, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 50, 0, 14, 0, 0));
+
+        LinearLayout autoCard = new LinearLayout(context);
+        autoCard.setOrientation(LinearLayout.VERTICAL);
+        autoCard.setBackground(cardBackground(22));
+        autoCard.setPadding(dp(16), dp(14), dp(16), dp(6));
 
         TextView channelHeader = new TextView(context);
-        channelHeader.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
+        channelHeader.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         channelHeader.setTypeface(AndroidUtilities.bold());
         channelHeader.setTextColor(accent);
         channelHeader.setText(getString(R.string.LUS_AutoHeader));
-        content.addView(channelHeader, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 4, 24, 4, 0));
+        autoCard.addView(channelHeader, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
 
         LinearLayout segments = new LinearLayout(context);
         segments.setOrientation(LinearLayout.HORIZONTAL);
-        segments.setPadding(dp(3), dp(3), dp(3), dp(3));
+        segments.setPadding(dp(4), dp(4), dp(4), dp(4));
         GradientDrawable segmentsBg = new GradientDrawable();
         segmentsBg.setCornerRadius(dp(22));
-        segmentsBg.setStroke(dp(1), ColorUtils.setAlphaComponent(getThemedColor(Theme.key_dialogTextGray2), 0x55));
+        segmentsBg.setColor(ColorUtils.setAlphaComponent(accent, 0x14));
         segments.setBackground(segmentsBg);
         for (int i = 0; i < channelSegments.length; i++) {
             final int index = i;
@@ -216,12 +258,12 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
             channelSegments[i] = segment;
             segments.addView(segment, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1f));
         }
-        content.addView(segments, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 44, 0, 10, 0, 0));
+        autoCard.addView(segments, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 44, 0, 10, 0, 0));
 
         channelInfo = new TextView(context);
         channelInfo.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
-        channelInfo.setTextColor(getThemedColor(Theme.key_dialogTextGray2));
-        content.addView(channelInfo, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 4, 8, 4, 0));
+        channelInfo.setTextColor(textSecondary());
+        autoCard.addView(channelInfo, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 2, 8, 2, 0));
 
         betaToggle = new org.telegram.ui.Cells.TextCheckCell(context, 4, true, resourcesProvider);
         betaToggle.setTextAndValueAndCheck(getString(R.string.LUS_Beta),
@@ -238,10 +280,11 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
             downloadClicked = false;
             check();
         });
-        content.addView(betaToggle, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 12, 0, 0));
+        autoCard.addView(betaToggle, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 6, 0, 0));
+        content.addView(autoCard, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, 0, 20, 0, 0));
 
         content.addView(createLink(context, R.drawable.msg_link, getString(R.string.LUS_AllReleases), () ->
-                Browser.openUrl(getContext(), RELEASES_URL)), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 40, 0, 20, 0, 0));
+                Browser.openUrl(getContext(), RELEASES_URL)), LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 46, 0, 16, 0, 0));
 
         setCustomView(content);
         setOnDismissListener(() -> {
@@ -269,6 +312,33 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
         }
     }
 
+    private int textPrimary() {
+        return ClientTheme.isEnabled()
+                ? ClientTheme.color(ClientTheme.ON_SURFACE)
+                : getThemedColor(Theme.key_dialogTextBlack);
+    }
+
+    private int textSecondary() {
+        return ClientTheme.isEnabled()
+                ? ClientTheme.color(ClientTheme.SECONDARY)
+                : ColorUtils.blendARGB(getThemedColor(Theme.key_dialogTextBlack),
+                        getThemedColor(Theme.key_windowBackgroundWhite), 0.45f);
+    }
+
+    private int surface() {
+        if (ClientTheme.glassEnabled()) return ClientTheme.glassColor(ClientTheme.SURFACE);
+        if (ClientTheme.isEnabled()) return ClientTheme.color(ClientTheme.SURFACE_HIGH);
+        return getThemedColor(Theme.key_graySection);
+    }
+
+    private GradientDrawable cardBackground(int radiusDp) {
+        GradientDrawable background = new GradientDrawable();
+        background.setCornerRadius(dp(radiusDp));
+        background.setColor(surface());
+        background.setStroke(dp(1), ColorUtils.setAlphaComponent(textPrimary(), 0x14));
+        return background;
+    }
+
     private View createLogo(Context context) {
         ImageView logo = new ImageView(context);
         logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
@@ -281,10 +351,11 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
         logo.setOutlineProvider(new ViewOutlineProvider() {
             @Override
             public void getOutline(View view, android.graphics.Outline outline) {
-                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dp(16));
+                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), dp(18));
             }
         });
         logo.setClipToOutline(true);
+        logo.setElevation(dp(2));
         return logo;
     }
 
@@ -306,7 +377,9 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
             link.setCompoundDrawables(drawable, null, null, null);
             link.setCompoundDrawablePadding(dp(6));
         }
-        link.setBackground(Theme.AdaptiveRipple.filledRect(ColorUtils.setAlphaComponent(accent, 0x1F), 20));
+        link.setBackground(new android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(ColorUtils.setAlphaComponent(accent, 0x33)),
+                cardBackground(15), null));
         link.setOnClickListener(v -> onClick.run());
         return link;
     }
@@ -378,7 +451,9 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
                 break;
             case STATE_AVAILABLE:
                 statusImage.setImageResource(R.drawable.msg_download);
-                iconColor = getThemedColor(Theme.key_featuredStickers_buttonText);
+                iconColor = ClientTheme.isEnabled()
+                        ? ClientTheme.color(ClientTheme.ON_PRIMARY)
+                        : getThemedColor(Theme.key_featuredStickers_buttonText);
                 iconBackground = accent;
                 statusTitle.setText(LocaleController.formatString(R.string.LUS_Available,
                         release != null ? release.version : ""));
@@ -397,14 +472,22 @@ public class LinkiUpdateSheet extends BottomSheet implements NimarkoUpdater.Down
         ((View) statusImage.getParent()).setBackground(Theme.createCircleDrawable(dp(44), iconBackground));
         statusSubtitle.setText(subtitle);
         statusSubtitle.setVisibility(TextUtils.isEmpty(subtitle) ? View.GONE : View.VISIBLE);
+        boolean hasRelease = !checking && value == STATE_AVAILABLE && release != null;
+        versionTransition.setVisibility(hasRelease ? View.VISIBLE : View.GONE);
+        if (hasRelease) {
+            versionTransition.setText(LocaleController.formatString(R.string.LUS_VersionArrow,
+                    NimarkoUpdater.getCurrentVersionName(), release.version));
+        }
         if (!checking) {
-            boolean hasNotes = value == STATE_AVAILABLE && release != null && !TextUtils.isEmpty(release.changelog);
+            boolean hasNotes = hasRelease && !TextUtils.isEmpty(release.changelog);
             if (hasNotes) {
                 notesView.setText(Emoji.replaceEmoji(format(release.changelog),
                         notesView.getPaint().getFontMetricsInt(), false));
                 notesScroll.scrollTo(0, 0);
             }
-            notesScroll.setVisibility(hasNotes ? View.VISIBLE : View.GONE);
+            notesCard.setVisibility(hasNotes ? View.VISIBLE : View.GONE);
+        } else {
+            notesCard.setVisibility(View.GONE);
         }
         updateAction();
     }

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="LUS_CurrentVersionShort">Текущая версия %1$s</string>
+    <string name="LUS_WhatsNew">Что нового</string>
+    <string name="LUS_VersionArrow">%1$s → %2$s</string>
+</resources>
