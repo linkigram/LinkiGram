@@ -17,5 +17,8 @@ namespace LinkiGram {
 [[nodiscard]] bool HideStoryViews();
 [[nodiscard]] bool HideOnline();
 [[nodiscard]] bool HideOwnPhone();
+[[nodiscard]] bool HideStories();
+[[nodiscard]] bool BlockAds();
+[[nodiscard]] bool RelativeLastSeen();
 
 } // namespace LinkiGram

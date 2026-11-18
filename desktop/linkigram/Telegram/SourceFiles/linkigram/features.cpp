@@ -21,6 +21,9 @@ const auto kGhostStories = u"AyuMoments (ghost)/NM_GhostStories"_q;
 const auto kGhostOnline = u"AyuMoments (ghost)/NM_GhostOnline"_q;
 const auto kHideIncomingTyping = u"General/NM_HideIncomingTyping"_q;
 const auto kHideOwnPhone = u"General/LinkiHidePhone"_q;
+const auto kHideStories = u"General/CP_HideStories"_q;
+const auto kBlockAds = u"General/NM_GEN_BlockAds"_q;
+const auto kRelativeLastSeen = u"General/LinkiRelativeLastSeen"_q;
 
 [[nodiscard]] bool GhostOption(const QString &key) {
 	return Config::Instance().getBool(kGhostMaster)
@@ -59,6 +62,18 @@ bool HideOnline() {
 
 bool HideOwnPhone() {
 	return Config::Instance().getBool(kHideOwnPhone);
+}
+
+bool HideStories() {
+	return Config::Instance().getBool(kHideStories);
+}
+
+bool BlockAds() {
+	return Config::Instance().getBool(kBlockAds);
+}
+
+bool RelativeLastSeen() {
+	return Config::Instance().getBool(kRelativeLastSeen);
 }
 
 } // namespace LinkiGram
