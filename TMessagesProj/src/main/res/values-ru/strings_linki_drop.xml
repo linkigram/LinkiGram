@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="NM_LD_Title">Linki Drop</string>
+    <string name="NM_LD_CardDesc">Файлы и плагины по NFC</string>
+    <string name="NM_LD_Hint">Приложите телефоны друг к другу</string>
+    <string name="NM_LD_HintDetail">Выберите файл или плагин на одном телефоне. Второй получит предложение по NFC и заберёт данные по временной точке доступа Wi-Fi или по Bluetooth. Один файл за одно касание.</string>
+    <string name="NM_LD_SendFile">Отправить файл</string>
+    <string name="NM_LD_SendPlugin">Отправить плагин</string>
+    <string name="NM_LD_NoPlugins">Плагины не установлены</string>
+    <string name="NM_LD_TransportWifi">Точка доступа Wi-Fi</string>
+    <string name="NM_LD_TransportWifiInfo">Телефон создаёт временную сеть, второй к ней подключается: быстрее для больших файлов</string>
+    <string name="NM_LD_TransportBluetooth">Bluetooth</string>
+    <string name="NM_LD_TransportBluetoothInfo">Wi-Fi не нужен: телефон становится видимым, пока ждёт</string>
+    <string name="NM_LD_TransportInfo">NFC передаёт только предложение. Сам файл идёт по выбранному каналу, и канал закрывается сразу после передачи.</string>
+    <string name="NM_LD_Preparing">Подготовка…</string>
+    <string name="NM_LD_Waiting">Приложите телефоны друг к другу</string>
+    <string name="NM_LD_WaitingDetail">%1$s готов к отправке. Приложите второй телефон к метке NFC.</string>
+    <string name="NM_LD_Receiving">Получение %1$s</string>
+    <string name="NM_LD_Sent">Отправлено: %1$s</string>
+    <string name="NM_LD_SentTitle">Файл отправлен</string>
+    <string name="NM_LD_ReceivedTitle">Файл получен</string>
+    <string name="NM_LD_Received">Получено: %1$s</string>
+    <string name="NM_LD_SavedTo">Сохранено как %1$s</string>
+    <string name="NM_LD_Open">Поделиться</string>
+    <string name="NM_LD_InstallPlugin">Установить плагин</string>
+    <string name="NM_LD_Error">Передача не удалась</string>
+    <string name="NM_LD_Permission">Для создания канала нужно разрешение</string>
+    <string name="NM_LD_NoWifi">Устройство не умеет создавать точку доступа, используйте Bluetooth</string>
+    <string name="NM_LD_WifiFailed">Не удалось включить точку доступа</string>
+    <string name="NM_LD_BluetoothOff">Bluetooth выключен</string>
+    <string name="NM_LD_BluetoothFailed">Не удалось передать по Bluetooth</string>
+    <string name="NM_LD_BluetoothNotFound">Второй телефон не найден. Сопрягите телефоны один раз или отправляйте по Wi-Fi.</string>
+    <string name="NM_LD_JoinFailed">Не удалось подключиться к точке доступа</string>
+    <string name="NM_LD_ConnectFailed">Не удалось связаться со вторым телефоном</string>
+</resources>

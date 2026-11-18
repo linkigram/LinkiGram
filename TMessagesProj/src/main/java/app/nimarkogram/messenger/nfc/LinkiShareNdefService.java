@@ -46,6 +46,8 @@ public class LinkiShareNdefService extends HostApduService {
     private static volatile int sAccount;
     private static volatile long sOwner;
     private static final java.util.concurrent.atomic.AtomicLong sArmEpoch = new java.util.concurrent.atomic.AtomicLong();
+    /** Linki Drop borrows this card emulator; when set it replaces the profile payload. */
+    private static volatile String sOverrideUri;
 
     private enum SelectedFile {NONE, CAPABILITY_CONTAINER, NDEF}
 
@@ -67,6 +69,19 @@ public class LinkiShareNdefService extends HostApduService {
 
     public static boolean isArmed() {
         return sArmed;
+    }
+
+    /** Publishes another linkigram:// URI (Linki Drop) instead of the profile record. */
+    public static synchronized void setOverrideUri(String uri) {
+        if (uri == null ? sOverrideUri == null : uri.equals(sOverrideUri)) {
+            return;
+        }
+        sOverrideUri = uri;
+        sArmEpoch.incrementAndGet();
+    }
+
+    public static boolean hasOverrideUri() {
+        return sOverrideUri != null;
     }
 
     @Override
@@ -151,13 +166,17 @@ public class LinkiShareNdefService extends HostApduService {
 
     /** The NDEF file is the 2-byte length prefix followed by the NDEF message. */
     private byte[] buildNdefFile() {
-        final LinkiSharePayload payload = payload();
-        if (payload == null) {
-            // Keep the tag valid but empty until an account is available and armed.
-            return new byte[]{0x00, 0x00};
+        String uri = sOverrideUri;
+        if (uri == null) {
+            final LinkiSharePayload payload = payload();
+            if (payload == null) {
+                // Keep the tag valid but empty until an account is available and armed.
+                return new byte[]{0x00, 0x00};
+            }
+            uri = payload.toUri();
         }
         try {
-            final NdefRecord record = NdefRecord.createUri(payload.toUri());
+            final NdefRecord record = NdefRecord.createUri(uri);
             final byte[] message = new NdefMessage(new NdefRecord[]{record}).toByteArray();
             if (message.length > 4094) return new byte[]{0x00, 0x00};
             final ByteArrayOutputStream out = new ByteArrayOutputStream();

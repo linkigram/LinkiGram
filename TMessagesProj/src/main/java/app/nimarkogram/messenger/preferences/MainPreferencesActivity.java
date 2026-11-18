@@ -67,6 +67,7 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
     public static final int ID_LINKI_SHARE    = 35;
     public static final int ID_MESSAGES       = 36;
     public static final int ID_ABOUT          = 37;
+    public static final int ID_LINKI_DROP     = 38;
 
     private static final int ID_DRAWER_MENU   = 2002;
 
@@ -149,6 +150,8 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
                 R.string.Plugins, R.string.NM_HUB_Card_Plugins, "plugins плагины engine install check"));
         items.add(card(ID_LINKI_SHARE, IconBackgroundColors.GREEN, R.drawable.msg_secret_solar,
                 R.string.NM_LS_Title, R.string.NM_HUB_Card_LinkiShare, "linki share nfc profile exchange"));
+        items.add(card(ID_LINKI_DROP, IconBackgroundColors.ORANGE, R.drawable.msg_sendfile_solar,
+                R.string.NM_LD_Title, R.string.NM_LD_CardDesc, "linki drop nfc files plugins bluetooth hotspot transfer"));
         return items;
     }
 
@@ -536,6 +539,9 @@ public class MainPreferencesActivity extends BasePreferencesActivity {
                 break;
             case ID_LINKI_SHARE:
                 presentFragment(new app.nimarkogram.messenger.nfc.LinkiShareActivity());
+                break;
+            case ID_LINKI_DROP:
+                presentFragment(new app.nimarkogram.messenger.linkidrop.LinkiDropActivity());
                 break;
             case ID_GENERAL:
                 presentFragment(new GeneralPreferencesActivity());

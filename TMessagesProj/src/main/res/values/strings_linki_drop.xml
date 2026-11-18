@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="NM_LD_Title">Linki Drop</string>
+    <string name="NM_LD_CardDesc">Share files and plugins over NFC</string>
+    <string name="NM_LD_Hint">Hold the phones together</string>
+    <string name="NM_LD_HintDetail">Pick a file or a plugin on one phone. The other phone receives the offer over NFC and pulls the bytes over a temporary Wi-Fi hotspot or Bluetooth. One file per touch.</string>
+    <string name="NM_LD_SendFile">Send a file</string>
+    <string name="NM_LD_SendPlugin">Send a plugin</string>
+    <string name="NM_LD_NoPlugins">No plugins installed</string>
+    <string name="NM_LD_TransportWifi">Wi-Fi hotspot</string>
+    <string name="NM_LD_TransportWifiInfo">The phone makes a temporary network and the other one joins it: fastest for big files</string>
+    <string name="NM_LD_TransportBluetooth">Bluetooth</string>
+    <string name="NM_LD_TransportBluetoothInfo">Needs no Wi-Fi: the phone becomes discoverable while it waits</string>
+    <string name="NM_LD_TransportInfo">NFC only carries the offer. The file itself goes over the selected link, and the link is closed right after the transfer.</string>
+    <string name="NM_LD_Preparing">Getting ready…</string>
+    <string name="NM_LD_Waiting">Hold the phones together</string>
+    <string name="NM_LD_WaitingDetail">%1$s is ready to be sent. Touch the other phone to the NFC spot.</string>
+    <string name="NM_LD_Receiving">Receiving %1$s</string>
+    <string name="NM_LD_Sent">Sent: %1$s</string>
+    <string name="NM_LD_SentTitle">File sent</string>
+    <string name="NM_LD_ReceivedTitle">File received</string>
+    <string name="NM_LD_Received">%1$s received</string>
+    <string name="NM_LD_SavedTo">Saved as %1$s</string>
+    <string name="NM_LD_Open">Share</string>
+    <string name="NM_LD_InstallPlugin">Install plugin</string>
+    <string name="NM_LD_Error">Transfer failed</string>
+    <string name="NM_LD_Permission">Permission is required to create the link</string>
+    <string name="NM_LD_NoWifi">This device cannot create a hotspot, use Bluetooth</string>
+    <string name="NM_LD_WifiFailed">Could not start the hotspot</string>
+    <string name="NM_LD_BluetoothOff">Bluetooth is off</string>
+    <string name="NM_LD_BluetoothFailed">Could not transfer over Bluetooth</string>
+    <string name="NM_LD_BluetoothNotFound">The other phone was not found. Pair the phones once, or send over Wi-Fi.</string>
+    <string name="NM_LD_JoinFailed">Could not join the other phone hotspot</string>
+    <string name="NM_LD_ConnectFailed">Could not reach the other phone</string>
+</resources>

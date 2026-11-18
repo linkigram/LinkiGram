@@ -96,6 +96,7 @@ public final class LinkiShareController implements NfcAdapter.ReaderCallback {
                 scheduleLater();
                 return;
             }
+            LinkiShareNdefService.setOverrideUri(null);
             try {
                 if (System.currentTimeMillis() < cooldownUntil) {
                     if (readerOn) adapter.disableReaderMode(host);

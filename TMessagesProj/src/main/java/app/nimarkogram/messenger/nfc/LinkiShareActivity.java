@@ -172,6 +172,8 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
         sessionOwner = getUserConfig().getClientUserId();
         resumed = true;
         readHandled = false;
+        // Never leak a Linki Drop offer into the profile exchange.
+        LinkiShareNdefService.setOverrideUri(null);
         if (enableNfcView == null) {
             return;
         }
