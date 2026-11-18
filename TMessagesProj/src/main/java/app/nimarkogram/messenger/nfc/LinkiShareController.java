@@ -37,6 +37,7 @@ public final class LinkiShareController implements NfcAdapter.ReaderCallback {
     private long cooldownUntil;
     private String lastDropToken = "";
     private long lastDropAt;
+    private int cardTurn;
 
     private LinkiShareController() {}
 
@@ -103,22 +104,31 @@ public final class LinkiShareController implements NfcAdapter.ReaderCallback {
             }
             LinkiShareNdefService.setOverrideUri(null);
             try {
-                if (System.currentTimeMillis() < cooldownUntil) {
+                final boolean cooledDown = System.currentTimeMillis() < cooldownUntil;
+                // Reading needs most of the turns: a Linki Drop offer is only seen
+                // while we listen, and the sender stays a card for the whole session.
+                boolean cardTurnNow = false;
+                if (cooledDown) {
+                    cardTurnNow = true;
+                    cardTurn = 0;
+                } else if (cardPhase && NimarkoConfig.linkiShareEverywhere && ++cardTurn >= 3) {
+                    cardTurn = 0;
+                    cardTurnNow = true;
+                }
+                cardPhase = !cardPhase;
+                if (cardTurnNow) {
                     if (readerOn) adapter.disableReaderMode(host);
                     readerOn = false;
                     LinkiShareNdefService.setArmed(true, UserConfig.selectedAccount);
-                } else if (cardPhase && NimarkoConfig.linkiShareEverywhere) {
-                    if (readerOn) adapter.disableReaderMode(host);
-                    readerOn = false;
-                    LinkiShareNdefService.setArmed(true, UserConfig.selectedAccount);
+                    FileLog.d("LinkiDrop: card mode on");
                 } else {
                     LinkiShareNdefService.setArmed(false);
                     if (!readerOn) {
                         adapter.enableReaderMode(host, INSTANCE, NfcAdapter.FLAG_READER_NFC_A, null);
                         readerOn = true;
+                        FileLog.d("LinkiDrop: reader mode on");
                     }
                 }
-                cardPhase = !cardPhase;
             } catch (Exception e) {
                 FileLog.e(e);
                 stop();
