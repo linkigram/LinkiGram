@@ -106,7 +106,7 @@ public final class LinkiDropProgress implements Application.ActivityLifecycleCal
                 percentView.setText("");
             }
             if (progressLine != null) {
-                progressLine.setProgress(0f);
+                progressLine.setTargetProgress(0f);
             }
             view.setVisibility(View.VISIBLE);
             view.setAlpha(0f);
