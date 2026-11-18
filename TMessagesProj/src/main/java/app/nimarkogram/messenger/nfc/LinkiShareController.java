@@ -81,7 +81,10 @@ public final class LinkiShareController implements NfcAdapter.ReaderCallback {
 
     private void schedule() {
         handler.removeCallbacks(tick);
-        if (screenActive || !NimarkoConfig.linkiShareEverywhere || activity.get() == null) return;
+        if (screenActive || activity.get() == null) return;
+        // Reading is needed for Linki Drop even when profile exchange is off.
+        if (!NimarkoConfig.linkiShareEverywhere
+                && !app.nimarkogram.messenger.linkidrop.LinkiDropTransfer.isGlobalReceiveAllowed()) return;
         handler.post(tick);
     }
 
@@ -110,8 +113,10 @@ public final class LinkiShareController implements NfcAdapter.ReaderCallback {
                     LinkiShareNdefService.setArmed(true, UserConfig.selectedAccount);
                 } else {
                     LinkiShareNdefService.setArmed(false);
-                    adapter.enableReaderMode(host, INSTANCE, NfcAdapter.FLAG_READER_NFC_A, null);
-                    readerOn = true;
+                    if (!readerOn) {
+                        adapter.enableReaderMode(host, INSTANCE, NfcAdapter.FLAG_READER_NFC_A, null);
+                        readerOn = true;
+                    }
                 }
                 cardPhase = !cardPhase;
             } catch (Exception e) {
