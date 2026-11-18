@@ -193,8 +193,8 @@ public final class LinkiDropHost {
             if (socket == null) {
                 return;
             }
+            // BluetoothSocket has no SO_TIMEOUT; the accept timeout bounds the wait instead.
             try (BluetoothSocket closed = socket) {
-                socket.setSoTimeout(SOCKET_TIMEOUT_MS);
                 transfer(socket.getInputStream(), socket.getOutputStream(), payload);
             }
         }

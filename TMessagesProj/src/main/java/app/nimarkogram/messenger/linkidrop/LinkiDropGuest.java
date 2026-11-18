@@ -45,6 +45,7 @@ public final class LinkiDropGuest {
     public static final String DROP_FOLDER = "LinkiDrop";
 
     private static final int JOIN_TIMEOUT_MS = 45000;
+    private static final int SOCKET_TIMEOUT_MS = 60000;
     private static final int CONNECT_TIMEOUT_MS = 4000;
     private static final int DISCOVERY_TIMEOUT_MS = 20000;
 
@@ -347,7 +348,9 @@ public final class LinkiDropGuest {
                     final BluetoothDevice device = adapter.getRemoteDevice(address);
                     socket = device.createInsecureRfcommSocketToServiceRecord(LinkiDropHost.RFCOMM_UUID);
                     socket.connect();
-                    transfer(socket, payload);
+                    try (BluetoothSocket closed = socket) {
+                        transfer(socket.getInputStream(), socket.getOutputStream(), payload);
+                    }
                     return;
                 } catch (Throwable e) {
                     FileLog.e(e);
@@ -383,7 +386,10 @@ public final class LinkiDropGuest {
                 final Socket socket = newSocket();
                 try {
                     socket.connect(new InetSocketAddress(host, payload.port), CONNECT_TIMEOUT_MS);
-                    transfer(socket, payload);
+                    socket.setSoTimeout(SOCKET_TIMEOUT_MS);
+                    try (Socket closed = socket) {
+                        transfer(socket.getInputStream(), socket.getOutputStream(), payload);
+                    }
                     return;
                 } catch (IOException e) {
                     last = e;
@@ -412,46 +418,42 @@ public final class LinkiDropGuest {
         return new Socket();
     }
 
-    private void transfer(Socket socket, LinkiDropPayload payload) throws IOException {
-        try (Socket closed = socket) {
-            socket.setSoTimeout(60000);
-            final OutputStream out = socket.getOutputStream();
-            LinkiDropWire.writeMagic(out);
-            out.write((payload.token + "\n").getBytes(StandardCharsets.UTF_8));
-            out.flush();
-            final InputStream in = socket.getInputStream();
-            final JSONObject header = LinkiDropWire.readHeader(in);
-            final String name = LinkiDropWire.sanitizeName(header.optString("n", payload.name));
-            final long size = header.optLong("s", payload.size);
-            final String sha = header.optString("x", payload.sha256);
-            final boolean plugin = LinkiDropPayload.KIND_PLUGIN.equals(header.optString("g", payload.kind));
-            if (size <= 0 || size > 2L * 1024 * 1024 * 1024) {
-                throw new IOException("bad size");
-            }
-            final File target = uniqueTarget(name);
-            try (FileOutputStream fileOut = new FileOutputStream(target)) {
-                LinkiDropWire.receiveFile(in, fileOut, size, (done, total) -> main.post(() -> {
-                    if (!cancelled) {
-                        callback.onProgress(done, total);
-                    }
-                }));
-            }
-            final String actual = LinkiDropWire.sha256Of(target);
-            if (actual == null || !actual.equalsIgnoreCase(sha)) {
-                //noinspection ResultOfMethodCallIgnored
-                target.delete();
-                throw new IOException("checksum mismatch");
-            }
-            out.write("OK\n".getBytes(StandardCharsets.US_ASCII));
-            out.flush();
-            unregisterNetwork();
-            stopLegacyWifi();
-            main.post(() -> {
-                if (!cancelled) {
-                    callback.onDone(target, plugin);
-                }
-            });
+    /** Works for both a TCP socket and an RFCOMM one: only streams are used. */
+    private void transfer(InputStream in, OutputStream out, LinkiDropPayload payload) throws IOException {
+        LinkiDropWire.writeMagic(out);
+        out.write((payload.token + "\n").getBytes(StandardCharsets.UTF_8));
+        out.flush();
+        final JSONObject header = LinkiDropWire.readHeader(in);
+        final String name = LinkiDropWire.sanitizeName(header.optString("n", payload.name));
+        final long size = header.optLong("s", payload.size);
+        final String sha = header.optString("x", payload.sha256);
+        final boolean plugin = LinkiDropPayload.KIND_PLUGIN.equals(header.optString("g", payload.kind));
+        if (size <= 0 || size > 2L * 1024 * 1024 * 1024) {
+            throw new IOException("bad size");
         }
+        final File target = uniqueTarget(name);
+        try (FileOutputStream fileOut = new FileOutputStream(target)) {
+            LinkiDropWire.receiveFile(in, fileOut, size, (done, total) -> main.post(() -> {
+                if (!cancelled) {
+                    callback.onProgress(done, total);
+                }
+            }));
+        }
+        final String actual = LinkiDropWire.sha256Of(target);
+        if (actual == null || !actual.equalsIgnoreCase(sha)) {
+            //noinspection ResultOfMethodCallIgnored
+            target.delete();
+            throw new IOException("checksum mismatch");
+        }
+        out.write("OK\n".getBytes(StandardCharsets.US_ASCII));
+        out.flush();
+        unregisterNetwork();
+        stopLegacyWifi();
+        main.post(() -> {
+            if (!cancelled) {
+                callback.onDone(target, plugin);
+            }
+        });
     }
 
     private File uniqueTarget(String name) {
