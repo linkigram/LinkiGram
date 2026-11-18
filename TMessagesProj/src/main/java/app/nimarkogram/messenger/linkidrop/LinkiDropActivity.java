@@ -442,7 +442,7 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
     }
 
     /** Pulling over a link needs the same runtime grants as offering it. */
-    private static ArrayList<String> missingReceivePermissions(LinkiDropPayload payload) {
+    public static ArrayList<String> missingReceivePermissions(LinkiDropPayload payload) {
         final ArrayList<String> needed = new ArrayList<>();
         if (payload.isWifi()) {
             needed.add(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU

@@ -42,6 +42,17 @@ public final class LinkiDropTransfer {
         }
         running = true;
         final Context appContext = context.getApplicationContext();
+        if (!LinkiDropActivity.missingReceivePermissions(payload).isEmpty()) {
+            running = false;
+            LinkiDropProgress.get().cancel();
+            try {
+                BulletinFactory.global().createSimpleBulletin(R.raw.error,
+                        LocaleController.getString(R.string.NM_LD_NeedPermission)).show();
+            } catch (Throwable e) {
+                FileLog.e(e);
+            }
+            return;
+        }
         LinkiDropProgress.get().begin(payload.name, payload.size);
         final LinkiDropGuest session = new LinkiDropGuest(appContext, new LinkiDropGuest.Callback() {
             @Override

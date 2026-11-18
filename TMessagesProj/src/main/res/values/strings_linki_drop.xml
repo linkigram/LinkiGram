@@ -34,4 +34,5 @@
     <string name="NM_LD_ConnectFailed">Could not reach the other phone</string>
     <string name="NM_LD_ReceiveEverywhere">Receive from any screen</string>
     <string name="NM_LD_ReceiveEverywhereInfo">Keep listening for a sending phone outside this screen while the app is open.</string>
+    <string name="NM_LD_NeedPermission">Grant file access in Linki Drop to receive the file</string>
 </resources>

@@ -34,4 +34,5 @@
     <string name="NM_LD_ConnectFailed">Не удалось связаться со вторым телефоном</string>
     <string name="NM_LD_ReceiveEverywhere">Принимать с любого экрана</string>
     <string name="NM_LD_ReceiveEverywhereInfo">Слушать отправляющий телефон и вне этого экрана, пока приложение открыто.</string>
+    <string name="NM_LD_NeedPermission">Разрешите доступ в Linki Drop, чтобы принять файл</string>
 </resources>
