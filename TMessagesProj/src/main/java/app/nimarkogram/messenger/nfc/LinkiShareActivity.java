@@ -316,6 +316,15 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
     }
 
     static LinkiSharePayload readPayload(Tag tag) {
+        return LinkiSharePayload.fromUri(readUriString(tag));
+    }
+
+    /**
+     * Reads the first linkigram:// URI from a tag. Linki-Share and Linki Drop
+     * share the same card emulator, so the reader has to look before it knows
+     * which feature the sender published.
+     */
+    public static String readUriString(Tag tag) {
         Ndef ndef = null;
         try {
             ndef = Ndef.get(tag);
@@ -331,10 +340,12 @@ public class LinkiShareActivity extends BaseFragment implements NfcAdapter.Reade
                 return null;
             }
             for (NdefRecord record : message.getRecords()) {
-                final String uri = record.toUri() == null ? null : record.toUri().toString();
-                final LinkiSharePayload payload = LinkiSharePayload.fromUri(uri);
-                if (payload != null) {
-                    return payload;
+                final android.net.Uri uri = record.toUri();
+                if (uri != null) {
+                    final String value = uri.toString();
+                    if (value.startsWith("linkigram://")) {
+                        return value;
+                    }
                 }
             }
         } catch (Throwable e) {

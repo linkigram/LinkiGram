@@ -79,6 +79,7 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
     private TextView enableNfcView;
     private TextCheckCell wifiCell;
     private TextCheckCell bluetoothCell;
+    private TextCheckCell receiveCell;
     private TextSettingsCell receivedCell;
 
     private LinkiDropHost host;
@@ -182,6 +183,14 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
                 LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
         bluetoothCell.setOnClickListener(v -> setTransport(TRANSPORT_BLUETOOTH));
 
+        receiveCell = new TextCheckCell(context);
+        content.addView(receiveCell, LayoutHelper.createLinear(
+                LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+        receiveCell.setOnClickListener(v -> {
+            app.nimarkogram.messenger.NimarkoConfig.toggleLinkiDropReceiveEverywhere();
+            updateReceiveCell();
+        });
+
         final TextView transportInfo = new TextView(context);
         transportInfo.setText(LocaleController.getString(R.string.NM_LD_TransportInfo));
         transportInfo.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
@@ -208,6 +217,7 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
             subtitleView.setText("");
         }
         updateTransportCells();
+        updateReceiveCell();
         return fragmentView;
     }
 
@@ -217,6 +227,16 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
                 LocaleController.getString(R.string.NM_LD_TransportWifiInfo), wifi, true, true);
         bluetoothCell.setTextAndValueAndCheck(LocaleController.getString(R.string.NM_LD_TransportBluetooth),
                 LocaleController.getString(R.string.NM_LD_TransportBluetoothInfo), !wifi, false, false);
+    }
+
+    private void updateReceiveCell() {
+        if (receiveCell == null) {
+            return;
+        }
+        receiveCell.setTextAndValueAndCheck(
+                LocaleController.getString(R.string.NM_LD_ReceiveEverywhere),
+                LocaleController.getString(R.string.NM_LD_ReceiveEverywhereInfo),
+                app.nimarkogram.messenger.NimarkoConfig.linkiDropReceiveEverywhere, true, false);
     }
 
     private SharedPreferences prefs() {
@@ -339,13 +359,16 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
     @Override
     public void onTagDiscovered(Tag tag) {
         final long generation = sessionGeneration;
+        FileLog.d("LinkiDrop: tag discovered, resumed=" + resumed + " sending=" + sending);
         if (!resumed || sending) {
             return;
         }
         final LinkiDropPayload payload = readOffer(tag);
         if (payload == null) {
+            FileLog.d("LinkiDrop: tag is not a drop offer");
             return;
         }
+        FileLog.d("LinkiDrop: offer " + payload.name + " " + payload.size + " via " + payload.transport);
         AndroidUtilities.runOnUIThread(() -> {
             if (generation == sessionGeneration && resumed && !sending) {
                 onOffer(payload);
@@ -396,6 +419,7 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
         if (!isScreenAlive()) {
             return;
         }
+        FileLog.d("LinkiDrop: accepting offer " + payload.name);
         // The sender keeps its tag armed; ignore the same offer right after a transfer.
         final long now = System.currentTimeMillis();
         if (payload.token.equals(lastOfferToken) && now - lastOfferAt < 15000) {
@@ -457,6 +481,7 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
                     if (isScreenAlive()) {
                         heroView.setProgress(total <= 0 ? 0f : (float) done / total);
                         subtitleView.setText(AndroidUtilities.formatFileSize(done) + " / " + AndroidUtilities.formatFileSize(total));
+                        LinkiDropProgress.get().update(done, total);
                     }
                 });
             }
@@ -472,10 +497,12 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
             }
         });
         guest = session;
+        LinkiDropProgress.get().begin(payload.name, payload.size);
         session.start(payload);
     }
 
     private void handleReceived(File file, boolean plugin) {
+        LinkiDropProgress.get().finish(true, LocaleController.getString(R.string.NM_LD_ReceivedTitle));
         if (!isScreenAlive()) {
             return;
         }
@@ -502,6 +529,7 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
     }
 
     private void handleReceiveError(int messageRes) {
+        LinkiDropProgress.get().finish(false, LocaleController.getString(R.string.NM_LD_Error));
         if (!isScreenAlive()) {
             return;
         }
@@ -714,6 +742,7 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
         final LinkiDropHost session = new LinkiDropHost(getParentActivity(), file, name, kind, new LinkiDropHost.Callback() {
             @Override
             public void onReady(LinkiDropPayload payload) {
+                FileLog.d("LinkiDrop: host ready " + payload.toUri());
                 if (!isScreenAlive() || !sending) {
                     return;
                 }
@@ -737,6 +766,7 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
                     heroView.setTransferring(true);
                     heroView.setProgress(total <= 0 ? 0f : (float) done / total);
                     subtitleView.setText(AndroidUtilities.formatFileSize(done) + " / " + AndroidUtilities.formatFileSize(total));
+                    LinkiDropProgress.get().update(done, total);
                 });
             }
 
@@ -750,6 +780,7 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
                 AndroidUtilities.runOnUIThread(() -> handleSendError(messageRes));
             }
         });
+        LinkiDropProgress.get().begin(name, file.length());
         host = session;
         if (wifi) {
             session.startWifi();
@@ -759,6 +790,7 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
     }
 
     private void handleSent() {
+        LinkiDropProgress.get().finish(true, LocaleController.getString(R.string.NM_LD_SentTitle));
         sending = false;
         if (!isScreenAlive()) {
             return;
@@ -779,6 +811,7 @@ public class LinkiDropActivity extends BaseFragment implements NfcAdapter.Reader
     }
 
     private void handleSendError(int messageRes) {
+        LinkiDropProgress.get().finish(false, LocaleController.getString(R.string.NM_LD_Error));
         if (!isScreenAlive()) {
             return;
         }

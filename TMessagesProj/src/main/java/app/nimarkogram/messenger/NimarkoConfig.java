@@ -489,6 +489,12 @@ public final class NimarkoConfig {
         linkiShareEverywhere = !linkiShareEverywhere;
         getEditor().putBoolean("linkiShareEverywhere", linkiShareEverywhere).apply();
     }
+    /** Linki Drop listens for a sending phone from any screen, not only from its own. */
+    public static volatile boolean linkiDropReceiveEverywhere = getPreferences().getBoolean("linkiDropReceiveEverywhere", false);
+    public static void toggleLinkiDropReceiveEverywhere() {
+        linkiDropReceiveEverywhere = !linkiDropReceiveEverywhere;
+        getEditor().putBoolean("linkiDropReceiveEverywhere", linkiDropReceiveEverywhere).apply();
+    }
     public static void toggleSaveDeletedMessages() {
         saveDeletedMessages = !saveDeletedMessages;
         getEditor().putBoolean("saveDeletedMessages", saveDeletedMessages).apply();

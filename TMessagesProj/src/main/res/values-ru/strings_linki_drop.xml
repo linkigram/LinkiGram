@@ -32,4 +32,6 @@
     <string name="NM_LD_BluetoothNotFound">Второй телефон не найден. Сопрягите телефоны один раз или отправляйте по Wi-Fi.</string>
     <string name="NM_LD_JoinFailed">Не удалось подключиться к точке доступа</string>
     <string name="NM_LD_ConnectFailed">Не удалось связаться со вторым телефоном</string>
+    <string name="NM_LD_ReceiveEverywhere">Принимать с любого экрана</string>
+    <string name="NM_LD_ReceiveEverywhereInfo">Слушать отправляющий телефон и вне этого экрана, пока приложение открыто.</string>
 </resources>

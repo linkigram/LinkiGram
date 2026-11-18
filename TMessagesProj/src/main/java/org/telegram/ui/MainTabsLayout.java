@@ -10,6 +10,7 @@ import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.RadialGradient;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Shader;
@@ -464,6 +465,72 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                 || !app.nimarkogram.messenger.appearance.AppearanceConfig.newNavigationBarStyle();
     }
 
+    /**
+     * The moving tab indicator drawn as a thick glass lens: spherical shading,
+     * a chromatic fringe and a specular highlight, so the selected tab reads as
+     * a magnifying bubble rather than a flat capsule.
+     */
+    private void drawLensBubble(Canvas canvas, RectF rect, float radius, float x, boolean lightTheme) {
+        final int width = Math.round(rect.width());
+        final int height = Math.round(rect.height());
+        if (lensShading == null || lensWidth != width || lensHeight != height) {
+            lensWidth = width;
+            lensHeight = height;
+            lensShading = new RadialGradient(
+                    0, 0, Math.max(width, height) * 0.72f,
+                    lightTheme
+                            ? new int[]{0x3AFFFFFF, 0x12FFFFFF, 0x1E000000}
+                            : new int[]{0x2EFFFFFF, 0x0EFFFFFF, 0x30000000},
+                    new float[]{0f, 0.52f, 1f}, Shader.TileMode.CLAMP);
+            lensBodyPaint.setShader(lensShading);
+            lensChromaGradient = new LinearGradient(
+                    -width / 2f, -height / 2f, width / 2f, height / 2f,
+                    new int[]{0x0000D8FF, 0x5A00D8FF, 0x66FFFFFF, 0x5AFF4FA8, 0x00FF4FA8},
+                    new float[]{0f, 0.22f, 0.5f, 0.78f, 1f}, Shader.TileMode.CLAMP);
+            lensChromaPaint.setShader(lensChromaGradient);
+            lensBottomGradient = new LinearGradient(0, -height / 2f, 0, height / 2f,
+                    new int[]{0x00000000, 0x00000000, 0x24000000}, null, Shader.TileMode.CLAMP);
+            lensBottomPaint.setShader(lensBottomGradient);
+        }
+        final float cx = rect.centerX();
+        final float cy = rect.centerY();
+        canvas.save();
+        canvas.translate(cx, cy);
+
+        lensBodyPaint.setAlpha(lightTheme ? 210 : 235);
+        final RectF local = lensLocalRect;
+        local.set(-rect.width() / 2f, -rect.height() / 2f, rect.width() / 2f, rect.height() / 2f);
+        canvas.drawRoundRect(local, radius, radius, lensBodyPaint);
+        canvas.drawRoundRect(local, radius, radius, lensBottomPaint);
+
+        // Chromatic fringe: the rim separates into cool and warm bands like a real lens.
+        canvas.save();
+        canvas.scale(0.985f, 0.965f);
+        canvas.drawRoundRect(local, radius, radius, lensChromaPaint);
+        canvas.restore();
+
+        // Specular highlight on the upper left.
+        final float specW = rect.width() * 0.46f;
+        final float specH = rect.height() * 0.42f;
+        lensSpecularRect.set(-rect.width() * 0.34f, -rect.height() * 0.40f,
+                -rect.width() * 0.34f + specW, -rect.height() * 0.40f + specH);
+        lensSpecularPaint.setAlpha(lightTheme ? 96 : 120);
+        canvas.drawOval(lensSpecularRect, lensSpecularPaint);
+
+        // Bright outer edge and a soft inner shadow underneath.
+        lensEdgePaint.setStrokeWidth(Math.max(dp(0.9f), 1f));
+        lensEdgePaint.setColor(lightTheme ? 0x59FFFFFF : 0x40FFFFFF);
+        canvas.drawRoundRect(local, radius, radius, lensEdgePaint);
+        lensEdgePaint.setStrokeWidth(dp(1.4f));
+        lensEdgePaint.setColor(lightTheme ? 0x22000000 : 0x33000000);
+        canvas.save();
+        canvas.scale(0.955f, 0.90f);
+        canvas.drawRoundRect(local, radius, radius, lensEdgePaint);
+        canvas.restore();
+
+        canvas.restore();
+    }
+
     private void updateSelectorColor() {
         final int background = Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider);
         final boolean dark = androidx.core.graphics.ColorUtils.calculateLuminance(background) < 0.5;
@@ -477,9 +544,15 @@ public class MainTabsLayout extends AnimatedLinearLayout {
             final boolean stackedYou = you && getBottomNavigationMode() == BOTTOM_NAVIGATION_MODE_SHOW;
             final float x = animatedLongSelectedViewCenterX + animatedLongSelectedViewOffsetX;
             final float slotWidth = getInterpolatedWidthByX(x, this);
-            final float sWidth = stackedYou ? Math.min(dp(52), Math.max(0, slotWidth - dp(8))) : slotWidth;
-            final float sHeight = stackedYou ? dp(32) : getHeight() - getPaddingTop() - getPaddingBottom();
-            final float top = stackedYou ? getPaddingTop() + dp(2) : (getHeight() - sHeight) / 2f;
+            final float sWidth = stackedYou
+                    ? Math.min(dp(74), Math.max(0, slotWidth - dp(4)))
+                    : slotWidth;
+            final float sHeight = stackedYou
+                    ? Math.min(dp(46), getHeight() - getPaddingTop() - getPaddingBottom())
+                    : getHeight() - getPaddingTop() - getPaddingBottom();
+            final float top = stackedYou
+                    ? getPaddingTop() + (getHeight() - getPaddingTop() - getPaddingBottom() - sHeight) / 2f
+                    : (getHeight() - sHeight) / 2f;
             selectorRect.set(x - sWidth / 2f, top, x + sWidth / 2f, top + sHeight);
             final float radius = sHeight / 2f;
             canvas.save();
@@ -493,13 +566,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
             }
             canvas.drawRoundRect(selectorRect, radius, radius, selectorPaint);
             if (liquidGlass) {
-                final float lightOffset = Math.max(-sWidth * 0.35f,
-                        Math.min(sWidth * 0.35f, selectorTargetX - x));
-                selectorLightMatrix.setTranslate(x + lightOffset, 0);
-                selectorLightShader.setLocalMatrix(selectorLightMatrix);
-                canvas.drawRoundRect(selectorRect, radius, radius, selectorHighlightPaint);
-                selectorEdgePaint.setColor(Theme.isCurrentThemeDark() ? 0x48FFFFFF : 0x60FFFFFF);
-                canvas.drawRoundRect(selectorRect, radius, radius, selectorEdgePaint);
+                drawLensBubble(canvas, selectorRect, radius, x, !Theme.isCurrentThemeDark());
             }
             canvas.restore();
         }
@@ -511,6 +578,18 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     final Paint selectorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint selectorHighlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint selectorEdgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint lensBodyPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint lensChromaPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint lensSpecularPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint lensBottomPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint lensEdgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF lensLocalRect = new RectF();
+    private final RectF lensSpecularRect = new RectF();
+    private RadialGradient lensShading;
+    private LinearGradient lensChromaGradient;
+    private LinearGradient lensBottomGradient;
+    private int lensWidth = -1;
+    private int lensHeight = -1;
     private final RectF selectorRect = new RectF();
     private final Matrix selectorLightMatrix = new Matrix();
     private final LinearGradient selectorLightShader = new LinearGradient(-dp(40), 0, dp(40), 0,
@@ -591,6 +670,11 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     {
         selectorHighlightPaint.setColor(Color.WHITE);
         selectorHighlightPaint.setShader(selectorLightShader);
+        lensSpecularPaint.setShader(new RadialGradient(0, 0, dp(46),
+                new int[]{0xAAFFFFFF, 0x00FFFFFF}, null, Shader.TileMode.CLAMP));
+        lensChromaPaint.setStyle(Paint.Style.STROKE);
+        lensChromaPaint.setStrokeWidth(dp(2.2f));
+        lensEdgePaint.setStyle(Paint.Style.STROKE);
         selectorEdgePaint.setStyle(Paint.Style.STROKE);
         selectorEdgePaint.setStrokeWidth(dp(0.75f));
         selectorEdgePaint.setColor(0x10FFFFFF);

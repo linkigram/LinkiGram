@@ -35,6 +35,8 @@ public final class LinkiShareController implements NfcAdapter.ReaderCallback {
     private boolean screenActive, readerOn, cardPhase;
     private volatile long generation;
     private long cooldownUntil;
+    private String lastDropToken = "";
+    private long lastDropAt;
 
     private LinkiShareController() {}
 
@@ -86,7 +88,7 @@ public final class LinkiShareController implements NfcAdapter.ReaderCallback {
     private final Runnable tick = new Runnable() {
         @Override public void run() {
             Activity host = activity.get();
-            if (screenActive || !NimarkoConfig.linkiShareEverywhere || host == null || host.isFinishing()) {
+            if (screenActive || host == null || host.isFinishing()) {
                 stop();
                 return;
             }
@@ -102,7 +104,7 @@ public final class LinkiShareController implements NfcAdapter.ReaderCallback {
                     if (readerOn) adapter.disableReaderMode(host);
                     readerOn = false;
                     LinkiShareNdefService.setArmed(true, UserConfig.selectedAccount);
-                } else if (cardPhase) {
+                } else if (cardPhase && NimarkoConfig.linkiShareEverywhere) {
                     if (readerOn) adapter.disableReaderMode(host);
                     readerOn = false;
                     LinkiShareNdefService.setArmed(true, UserConfig.selectedAccount);
@@ -127,6 +129,34 @@ public final class LinkiShareController implements NfcAdapter.ReaderCallback {
         final int account = UserConfig.selectedAccount;
         final long owner = UserConfig.getInstance(account).getClientUserId();
         if (!reading.compareAndSet(false, true)) return;
+        final String uri = LinkiShareActivity.readUriString(tag);
+        // A Linki Drop offer is a different protocol on the same card; handle it first.
+        final app.nimarkogram.messenger.linkidrop.LinkiDropPayload drop =
+                app.nimarkogram.messenger.linkidrop.LinkiDropPayload.fromUri(uri);
+        if (drop != null) {
+            FileLog.d("LinkiDrop: global offer received");
+            handler.post(() -> {
+                reading.set(false);
+                final Activity host = activity.get();
+                if (session != generation || screenActive || host == null || host.isFinishing()
+                        || !isSharingAllowed() || !app.nimarkogram.messenger.linkidrop.LinkiDropTransfer
+                        .isGlobalReceiveAllowed()) {
+                    return;
+                }
+                final long now = System.currentTimeMillis();
+                if (drop.token.equals(lastDropToken) && now - lastDropAt < 15000) {
+                    return;
+                }
+                lastDropToken = drop.token;
+                lastDropAt = now;
+                cooldownUntil = now + 10000;
+                cardPhase = true;
+                handler.removeCallbacks(tick);
+                handler.post(tick);
+                app.nimarkogram.messenger.linkidrop.LinkiDropTransfer.get().receive(host, drop);
+            });
+            return;
+        }
         final LinkiSharePayload payload = LinkiShareActivity.readPayload(tag);
         handler.post(() -> {
             reading.set(false);
