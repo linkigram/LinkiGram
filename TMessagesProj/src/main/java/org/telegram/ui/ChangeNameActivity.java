@@ -23,6 +23,7 @@ import org.telegram.messenger.LocaleController;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.messenger.MessagesController;
+import org.telegram.messenger.MessagesStorage;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
 import org.telegram.messenger.UserConfig;
@@ -185,10 +186,23 @@ public class ChangeNameActivity extends BaseFragment {
         currentUser.first_name = req.first_name = newFirst;
         currentUser.last_name = req.last_name = newLast;
         TLRPC.User user = MessagesController.getInstance(currentAccount).getUser(UserConfig.getInstance(currentAccount).getClientUserId());
-        if (user != null) {
+        if (user == null) {
+            MessagesController.getInstance(currentAccount).putUser(currentUser, false);
+            user = currentUser;
+        } else if (user != currentUser) {
             user.first_name = req.first_name;
             user.last_name = req.last_name;
         }
+        // Профиль (userFull) держит собственный экземпляр user: без этой синхронизации
+        // база и экран профиля сохраняли старое имя.
+        TLRPC.UserFull userFull = MessagesController.getInstance(currentAccount).getUserFull(currentUser.id);
+        if (userFull != null && userFull.user != null && userFull.user != currentUser) {
+            userFull.user.first_name = req.first_name;
+            userFull.user.last_name = req.last_name;
+        }
+        ArrayList<TLRPC.User> users = new ArrayList<>();
+        users.add(currentUser);
+        MessagesStorage.getInstance(currentAccount).putUsersAndChats(users, null, false, true);
         UserConfig.getInstance(currentAccount).saveConfig(true);
         NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.mainUserInfoChanged);
         NotificationCenter.getInstance(currentAccount).postNotificationName(NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME);

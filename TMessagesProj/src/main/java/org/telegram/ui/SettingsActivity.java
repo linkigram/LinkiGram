@@ -208,11 +208,15 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             observersGroup = null;
         }
 
-        observersGroup = NotificationCenter.getGlobalInstance()
+        // updateInterfaces/starBalanceUpdated публикуются в центре аккаунта, а не в глобальном:
+        // подписка через getGlobalInstance() не получала их, и обложка настроек держала старое
+        // имя, @username, телефон и аватар после правки профиля.
+        observersGroup = getNotificationCenter()
             .createObserversGroup(this)
             .add(NotificationCenter.updateInterfaces)
             .add(NotificationCenter.starBalanceUpdated)
-            .add(NotificationCenter.newSuggestionsAvailable);
+            .add(NotificationCenter.newSuggestionsAvailable)
+            .add(NotificationCenter.mainUserInfoChanged);
 
         if (arguments != null) {
             hasMainTabs = arguments.getBoolean("hasMainTabs", false);
@@ -508,8 +512,12 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
             if (listView != null) {
                 listView.adapter.update(true);
             }
-        } else if (id == NotificationCenter.updateInterfaces) {
+        } else if (id == NotificationCenter.updateInterfaces || id == NotificationCenter.mainUserInfoChanged) {
+            // Имя/@username/телефон на обложке должны меняться сразу после правки профиля.
             setInfo();
+            if (id == NotificationCenter.mainUserInfoChanged && listView != null && listView.adapter != null) {
+                listView.adapter.update(false);
+            }
         } else if (id == NotificationCenter.newSuggestionsAvailable) {
             if (listView != null) {
                 listView.adapter.update(true);
@@ -609,6 +617,9 @@ public class SettingsActivity extends BaseFragment implements NotificationCenter
     @Override
     public void onResume() {
         super.onResume();
+        // Возврат с экрана правки профиля: обложка читает данные заново,
+        // даже если уведомление пришло, пока фрагмент был неактивен.
+        setInfo();
         if (listView.adapter != null) {
             listView.adapter.update(false);
         }

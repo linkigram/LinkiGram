@@ -780,6 +780,24 @@ public class UserInfoActivity extends UniversalFragment implements NotificationC
                 }
             }), ConnectionsManager.RequestFlagDoNotWaitFloodWait);
         }
+        // После перезагрузки профиля userFull.user может быть отдельным экземпляром,
+        // а кэш MessagesController — пустым. Без синхронизации в базу и в профиль
+        // уходило старое имя, и правка «не показывалась» локально до рестарта.
+        final long selfId = getUserConfig().getClientUserId();
+        final TLRPC.User cachedUser = getMessagesController().getUser(selfId);
+        if (cachedUser == null) {
+            getMessagesController().putUser(user, false);
+        } else if (cachedUser != user) {
+            cachedUser.first_name = user.first_name;
+            cachedUser.last_name = user.last_name;
+        }
+        if (userFull.user != null && userFull.user != user) {
+            userFull.user.first_name = user.first_name;
+            userFull.user.last_name = user.last_name;
+        }
+        final ArrayList<TLRPC.User> changedUsers = new ArrayList<>();
+        changedUsers.add(user);
+        getMessagesStorage().putUsersAndChats(changedUsers, null, false, true);
         getMessagesStorage().updateUserInfo(userFull, false);
         getUserConfig().saveConfig(true);
 
