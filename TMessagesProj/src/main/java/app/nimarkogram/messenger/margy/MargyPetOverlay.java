@@ -138,16 +138,17 @@ public class MargyPetOverlay extends FrameLayout {
 
     private boolean onPetTouch(View view, MotionEvent event) {
         switch (event.getActionMasked()) {
-            case MotionEvent.ACTION_DOWN:
+            case MotionEvent.ACTION_DOWN: {
                 dragging = true;
                 moved = false;
                 downRawX = event.getRawX();
                 downRawY = event.getRawY();
-                final FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) pet.getLayoutParams();
-                downLeft = lp.leftMargin;
-                downTop = lp.topMargin;
+                final FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) pet.getLayoutParams();
+                downLeft = params.leftMargin;
+                downTop = params.topMargin;
                 pet.animate().cancel();
                 return true;
+            }
             case MotionEvent.ACTION_MOVE: {
                 if (!dragging) {
                     return true;
