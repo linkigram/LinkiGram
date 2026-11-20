@@ -642,12 +642,23 @@ public class AvatarDrawable extends Drawable {
         canvas.save();
         canvas.translate(bounds.left, bounds.top);
 
+        final boolean margyShape = drawAvatarBackground && avatarType == AVATAR_TYPE_NORMAL
+                && app.nimarkogram.messenger.margy.MargyAvatars.shaped();
+        if (margyShape) {
+            // Форма аватарки из MargyGram: контур режет всё, что нарисуется ниже.
+            canvas.clipPath(app.nimarkogram.messenger.margy.MargyAvatars.path(0, 0, size, size));
+            app.nimarkogram.messenger.margy.MargyAvatars.drawing = true;
+        }
+
         if (drawAvatarBackground) {
             if (rotate45Background) {
                 canvas.save();
                 canvas.rotate(-45, size / 2.0f, size / 2.0f);
             }
-            if (roundRadius > 0) {
+            if (app.nimarkogram.messenger.margy.MargyAvatars.drawing) {
+                // Контур уже обрезал холст: фон заливает весь квадрат.
+                canvas.drawRect(0, 0, size, size, backgroundPaint);
+            } else if (roundRadius > 0) {
                 AndroidUtilities.rectTmp.set(0, 0, size, size);
                 canvas.drawRoundRect(AndroidUtilities.rectTmp, roundRadius, roundRadius, backgroundPaint);
             } else {
@@ -798,6 +809,9 @@ public class AvatarDrawable extends Drawable {
 
                 textLayout.draw(canvas);
             }
+        }
+        if (margyShape) {
+            app.nimarkogram.messenger.margy.MargyAvatars.drawing = false;
         }
         canvas.restore();
     }

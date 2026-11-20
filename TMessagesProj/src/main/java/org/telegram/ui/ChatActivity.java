@@ -9232,6 +9232,17 @@ public class ChatActivity extends BaseFragment implements
         ViewCompat.setOnApplyWindowInsetsListener(fragmentView, this::onApplyWindowInsets);
         Timer.finish(t);
 
+        // Серии в личке: учёт дней стартует при открытии любого чата.
+        app.nimarkogram.messenger.margy.MargyStreaks.ensure(currentAccount);
+
+        // Режим Discord: слева колонка чатов иконками, справа этот чат целиком
+        if (app.nimarkogram.messenger.margy.MargyConfig.discordRail()
+                && chatMode == MODE_DEFAULT && !inPreviewMode && !isInsideContainer
+                && threadMessageId == 0 && dialog_id != 0) {
+            fragmentView = (android.view.View) app.nimarkogram.messenger.margy.MargyDiscordRail.wrap(
+                    this, context, fragmentView, dialog_id);
+        }
+
         if (restoreVoiceRecording) {
             restoreVoiceRecording = false;
             final boolean once = restoreVoiceRecordingOnce;
@@ -12024,18 +12035,31 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void updatePagedownButtonsPosition() {
+        // Когда поле ввода наверху, снизу его больше нет — и вычитать его
+        // высоту из низа экрана не за что.
+        final boolean inputOnTop = chatInputViewsContainer != null
+                && chatInputViewsContainer.isInputOnTop();
         if (sideControlsButtonsLayout != null) {
             float baseTranslationY2 = -windowInsetsStateHolder.getAnimatedMaxBottomInset()
-                - chatInputViewsContainer.getInputBubbleHeight()
+                - (inputOnTop ? 0 : chatInputViewsContainer.getInputBubbleHeight())
                 - getTopicTabsSideSize(TopicsTabsView.Position.BOTTOM)
                 - dp(ChatInputViewsContainer.INPUT_BUBBLE_BOTTOM + 4);
             sideControlsButtonsLayout.setTranslationY(baseTranslationY2);
         }
 
         if (suggestEmojiPanel != null) {
-            float baseTranslationY2 = -windowInsetsStateHolder.getAnimatedMaxBottomInset()
-                - dp(ChatInputViewsContainer.INPUT_BUBBLE_BOTTOM + 7);
-            suggestEmojiPanel.setTranslationY(baseTranslationY2);
+            if (inputOnTop) {
+                // Подсказки эмодзи должны стоять у поля, а не у низа экрана.
+                final View parent = (View) suggestEmojiPanel.getParent();
+                final float bottom = parent == null ? 0 : parent.getHeight();
+                suggestEmojiPanel.setTranslationY(
+                    -bottom + chatListViewPaddingTop + chatInputViewsContainer.getInputBubbleHeight()
+                        + suggestEmojiPanel.getHeight() + dp(ChatInputViewsContainer.INPUT_BUBBLE_BOTTOM));
+            } else {
+                float baseTranslationY2 = -windowInsetsStateHolder.getAnimatedMaxBottomInset()
+                    - dp(ChatInputViewsContainer.INPUT_BUBBLE_BOTTOM + 7);
+                suggestEmojiPanel.setTranslationY(baseTranslationY2);
+            }
         }
     }
 
@@ -13186,13 +13210,22 @@ public class ChatActivity extends BaseFragment implements
         if (isInsideContainer && parentChatActivity == null) {
             paddingBottom = AndroidUtilities.navigationBarHeight;
         } else {
+            // Место под поле ввода: снизу, если оно снизу. Когда оно наверху,
+            // тот же запас переезжает в верхний отступ.
             paddingBottom = blurredViewBottomOffset + dp(9 + 7)
-                + inputIslandHeightCurrent
+                + (chatInputViewsContainer.isInputOnTop() ? 0 : inputIslandHeightCurrent)
                 + getTopicTabsSideSize(TopicsTabsView.Position.BOTTOM)
                 + windowInsetsStateHolder.getAnimatedMaxBottomInset();
         }
 
-        final int paddingTop = (int) chatListViewPaddingTop;
+        int paddingTop = (int) chatListViewPaddingTop;
+        // Остров с полем ввода стоит под всем, что уже занято сверху.
+        if (chatInputViewsContainer != null) {
+            chatInputViewsContainer.setChatTopInset(chatListViewPaddingTop);
+        }
+        if (chatInputViewsContainer != null && chatInputViewsContainer.isInputOnTop()) {
+            paddingTop += (int) (inputIslandHeightCurrent + dp(9 + 7));
+        }
         if (topicsTabs != null) {
             topicsTabs.setSideMenuBackgroundMarginTop(0);//Math.max(0, paddingTop - blurredViewTopOffset - dp(5)));
         }
@@ -35177,6 +35210,11 @@ public class ChatActivity extends BaseFragment implements
             if (selectedObject != null) app.nimarkogram.messenger.automation.EditHistory.show(this, currentAccount, selectedObject);
             closeMenu(); return;
         }
+        if (option == 9895) {
+            app.nimarkogram.messenger.margy.MargyPetSheet.show(this, currentAccount, dialog_id);
+            closeMenu();
+            return;
+        }
         if (option == 9877) {
             if (selectedObject != null && getParentActivity() != null) {
                 app.exteraless.ai.ui.AiResponseSheet.show(getParentActivity(), themeDelegate,
@@ -47464,6 +47502,15 @@ public class ChatActivity extends BaseFragment implements
         }
         if (message != null && (message.messageOwner.edit_date > 0 || app.nimarkogram.messenger.NimarkoConfig.enableSaveEditsHistory)) {
             items.add(getString(R.string.LinkiEditHistory)); options.add(9879); icons.add(R.drawable.msg_recent);
+        }
+        if (app.nimarkogram.messenger.margy.MargyConfig.pet()
+                && message != null && dialog_id > 0 && !org.telegram.messenger.DialogObject.isEncryptedDialog(dialog_id)) {
+            final int streak = app.nimarkogram.messenger.margy.MargyStreaks.shownStreak(currentAccount, dialog_id);
+            items.add(streak > 0
+                    ? getString(R.string.NM_MargyPetTitle) + " \u00b7 " + streak
+                    : getString(R.string.NM_MargyPetTitle));
+            options.add(9895);
+            icons.add(R.drawable.msg_recent);
         }
         if (message != null && app.exteraless.ai.AiController.canUseAI()
                 && !TextUtils.isEmpty(message.messageText)) {

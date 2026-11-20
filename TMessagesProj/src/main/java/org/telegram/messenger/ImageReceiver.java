@@ -18,6 +18,7 @@ import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.ComposeShader;
 import android.graphics.Matrix;
+import android.os.Looper;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PorterDuff;
@@ -1880,6 +1881,41 @@ public class ImageReceiver implements NotificationCenter.NotificationCenterDeleg
     }
 
     public boolean draw(Canvas canvas, BackgroundThreadDrawHolder backgroundThreadDrawHolder) {
+        // Фигурные аватарки: круглая аватарка вырезается по выбранному контуру.
+        if (backgroundThreadDrawHolder == null
+                && app.nimarkogram.messenger.margy.MargyAvatars.shaped()
+                && margyIsRoundAvatar()
+                && Looper.myLooper() == Looper.getMainLooper()) {
+            final int r0 = roundRadius[0], r1 = roundRadius[1], r2 = roundRadius[2], r3 = roundRadius[3];
+            roundRadius[0] = roundRadius[1] = roundRadius[2] = roundRadius[3] = 0;
+            final int saved = canvas.save();
+            canvas.clipPath(app.nimarkogram.messenger.margy.MargyAvatars.path(imageX, imageY, imageW, imageH));
+            app.nimarkogram.messenger.margy.MargyAvatars.drawing = true;
+            try {
+                return drawUnshaped(canvas, null);
+            } finally {
+                app.nimarkogram.messenger.margy.MargyAvatars.drawing = false;
+                canvas.restoreToCount(saved);
+                roundRadius[0] = r0; roundRadius[1] = r1; roundRadius[2] = r2; roundRadius[3] = r3;
+            }
+        }
+        return drawUnshaped(canvas, backgroundThreadDrawHolder);
+    }
+
+    /** Фото человека или обычного чата, нарисованное кругом. Формы форумов не трогаем. */
+    private boolean margyIsRoundAvatar() {
+        if (imageW <= 0 || imageH <= 0) return false;
+        final boolean avatar = currentImageLocation != null && currentImageLocation.photoPeer != null
+                || currentMediaLocation != null && currentMediaLocation.photoPeer != null
+                || staticThumbDrawable instanceof org.telegram.ui.Components.AvatarDrawable
+                || currentThumbLocation != null && currentThumbLocation.photoPeer != null;
+        if (!avatar) return false;
+        final float half = Math.min(imageW, imageH) / 2f;
+        return roundRadius[0] >= half - 1 && roundRadius[1] >= half - 1
+                && roundRadius[2] >= half - 1 && roundRadius[3] >= half - 1;
+    }
+
+    private boolean drawUnshaped(Canvas canvas, BackgroundThreadDrawHolder backgroundThreadDrawHolder) {
         boolean result = false;
         if (gradientBitmap != null && currentImageKey != null) {
             canvas.save();

@@ -149,6 +149,9 @@ public final class LinkiGramYouTheme {
      * set, otherwise the system wallpaper accent, otherwise the LinkiGram default.
      */
     public static int paletteSeed() {
+        if (margyMonet()) {
+            return systemColor(android.R.color.system_accent1_500, DEFAULT_SEED);
+        }
         int custom = getSeedColor();
         if (custom != 0) return custom;
         Context context = ApplicationLoader.applicationContext;
@@ -157,6 +160,60 @@ public final class LinkiGramYouTheme {
             catch (RuntimeException ignored) { }
         }
         return DEFAULT_SEED;
+    }
+
+    /** Цвет системной палитры Android (Monet) или запасной, если его нет. */
+    private static int systemColor(int resId, int fallback) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return fallback;
+        }
+        Context context = ApplicationLoader.applicationContext;
+        if (context != null) {
+            try { return context.getColor(resId); }
+            catch (RuntimeException ignored) { }
+        }
+        return fallback;
+    }
+
+    /** Monet: роли берутся из палитры обоев, а не строятся смешиванием seed. */
+    private static boolean margyMonet() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                && app.nimarkogram.messenger.NimarkoConfig.getPreferences()
+                        .getBoolean("margy_monet", false);
+    }
+
+    private static int monetRole(int role, boolean dark, int fallback) {
+        switch (role) {
+            case ClientTheme.PRIMARY:
+                return systemColor(dark ? android.R.color.system_accent1_200 : android.R.color.system_accent1_500, fallback);
+            case ClientTheme.ON_PRIMARY:
+                return systemColor(dark ? android.R.color.system_accent1_900 : android.R.color.system_accent1_100, fallback);
+            case ClientTheme.CONTAINER:
+                return systemColor(dark ? android.R.color.system_accent1_700 : android.R.color.system_accent1_100, fallback);
+            case ClientTheme.ON_CONTAINER:
+                return systemColor(dark ? android.R.color.system_accent1_100 : android.R.color.system_accent1_900, fallback);
+            case ClientTheme.CONTAINER_SELECTED:
+                return systemColor(dark ? android.R.color.system_neutral1_800 : android.R.color.system_neutral1_200, fallback);
+            case ClientTheme.SURFACE_SELECTED:
+                return systemColor(dark ? android.R.color.system_neutral1_700 : android.R.color.system_neutral1_200, fallback);
+            case ClientTheme.TRACK:
+                return systemColor(dark ? android.R.color.system_neutral1_800 : android.R.color.system_neutral1_200, fallback);
+            case ClientTheme.OUTLINE:
+                return systemColor(android.R.color.system_neutral2_500, fallback);
+            case ClientTheme.SECONDARY:
+                return systemColor(dark ? android.R.color.system_neutral2_200 : android.R.color.system_neutral2_700, fallback);
+            default:
+                return fallback;
+        }
+    }
+
+    private static int monetSurface(boolean dark, int role) {
+        if (role == ClientTheme.SURFACE_HIGH) {
+            return systemColor(dark ? android.R.color.system_neutral1_800 : android.R.color.system_neutral1_100,
+                    dark ? 0xFF2A2A2E : 0xFFF2F2F5);
+        }
+        return systemColor(dark ? android.R.color.system_neutral1_900 : android.R.color.system_neutral1_50,
+                dark ? 0xFF121214 : 0xFFF8F8FA);
     }
 
     public static int accentColor() { return ClientTheme.color(ClientTheme.PRIMARY); }
@@ -170,6 +227,9 @@ public final class LinkiGramYouTheme {
         final int override = getRoleOverride(role, dark);
         if (override != 0) return override;
         final int primary = primary(seed, dark);
+        if (margyMonet()) {
+            return monetRole(role, dark, primary);
+        }
         switch (role) {
             case ClientTheme.PRIMARY:
                 return primary;
@@ -221,6 +281,9 @@ public final class LinkiGramYouTheme {
     private static int surfaceRole(int seed, boolean dark, int role) {
         int override = getRoleOverride(role, dark);
         if (override != 0) return override;
+        if (margyMonet()) {
+            return monetSurface(dark, role);
+        }
         final int primary = primary(seed, dark);
         int surface = mix(dark ? 0xFF121212 : 0xFFFCFCFC, primary, dark ? 0.12f : 0.07f);
         if (dark) surface = mix(surface, Color.BLACK, SURFACE_DARKEN);

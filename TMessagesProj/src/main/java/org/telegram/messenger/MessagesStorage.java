@@ -12151,6 +12151,8 @@ public class MessagesStorage extends BaseController {
     }
 
     private void putMessagesInternal(ArrayList<TLRPC.Message> messages, boolean withTransaction, boolean doNotUpdateDialogDate, int downloadMask, boolean ifNoLastMessage, int mode, long threadMessageId) {
+        // История правок: прежний текст читается до перезаписи строк.
+        app.nimarkogram.messenger.margy.MargyEdits.capture(currentAccount, this, messages);
         if (messages != null) {
             ArrayList<TL_ephemeral.EphemeralMessage> ephemeralMessages = null;
             for (TLRPC.Message message : messages) {

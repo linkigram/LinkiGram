@@ -17,6 +17,8 @@ import android.widget.FrameLayout;
 
 import androidx.annotation.NonNull;
 
+import org.telegram.messenger.AndroidUtilities;
+import org.telegram.ui.ActionBar.ActionBar;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.LayoutHelper;
 import org.telegram.ui.Components.blur3.BlurredBackgroundWithFadeDrawable;
@@ -32,6 +34,36 @@ public class ChatInputViewsContainer extends FrameLayout implements Theme.Colora
 
     private WindowInsetsProvider windowInsetsProvider;
 
+    /**
+     * Поле ввода сверху вместо низа. Читаем один раз при создании: менять
+     * сторону у живого чата нельзя — половина размеров уже посчитана от той,
+     * что была. Настройка применяется к следующему открытому чату.
+     */
+    private final boolean inputOnTop = app.nimarkogram.messenger.margy.MargyConfig.inputOnTop();
+
+    /** Сколько занято сверху (шапка, закреплённые, вкладки тем); сообщает чат. */
+    private float chatTopInset;
+
+    public void setChatTopInset(float value) {
+        if (chatTopInset != value) {
+            chatTopInset = value;
+            checkViewsPositions();
+            invalidate();
+        }
+    }
+
+    private int topOffset() {
+        if (chatTopInset > 0) {
+            return Math.round(chatTopInset);
+        }
+        return AndroidUtilities.statusBarHeight + ActionBar.getCurrentActionBarHeight();
+    }
+
+    /** Стоит ли поле сверху — нужно снаружи, чтобы посчитать отступы списка. */
+    public boolean isInputOnTop() {
+        return inputOnTop;
+    }
+
     private final View fadeView;
     private final FrameLayout inputIslandBubbleContainer;
     private final FrameLayout inAppKeyboardBubbleContainer;
@@ -41,7 +73,8 @@ public class ChatInputViewsContainer extends FrameLayout implements Theme.Colora
 
         inputIslandBubbleContainer = new FrameLayout(context);
         addView(inputIslandBubbleContainer,
-            LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM));
+            LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT,
+                inputOnTop ? Gravity.TOP : Gravity.BOTTOM));
 
         inAppKeyboardBubbleContainer = new FrameLayout(context) {
             @Override
@@ -189,7 +222,11 @@ public class ChatInputViewsContainer extends FrameLayout implements Theme.Colora
     }
 
     private void checkViewsPositions() {
-        inputIslandBubbleContainer.setTranslationY(-maxBottomInset - dp(INPUT_BUBBLE_BOTTOM));
+        // Сверху остров стоит на месте: клавиатура растёт снизу и его не
+        // трогает. Снизу он всё это время уезжал вверх на высоту клавиатуры.
+        inputIslandBubbleContainer.setTranslationY(inputOnTop
+            ? topOffset() + dp(INPUT_BUBBLE_BOTTOM)
+            : -maxBottomInset - dp(INPUT_BUBBLE_BOTTOM));
         inAppKeyboardBubbleContainer.setTranslationY(inAppKeyboardBubbleContainer.getMeasuredHeight() - imeBottomInset);
     }
 
@@ -238,6 +275,9 @@ public class ChatInputViewsContainer extends FrameLayout implements Theme.Colora
     }
 
     public float getInputBubbleBottom() {
+        if (inputOnTop) {
+            return topOffset() + dp(INPUT_BUBBLE_BOTTOM) + inputBubbleHeight;
+        }
         return getMeasuredHeight() - maxBottomInset - dp(INPUT_BUBBLE_BOTTOM);
     }
 
@@ -265,7 +305,9 @@ public class ChatInputViewsContainer extends FrameLayout implements Theme.Colora
             Math.max(getMeasuredHeight(), getMeasuredHeight() - (int) imeBottomInset + dp(INPUT_KEYBOARD_RADIUS * 2))
         );
 
-        final int blurTop = getMeasuredHeight() - currentBlurredHeight;
+        final int blurTop = inputOnTop
+            ? topOffset() + dp(INPUT_BUBBLE_BOTTOM)
+            : getMeasuredHeight() - currentBlurredHeight;
 
         tmpRect.set(
             Math.round(inputBubbleOffsetLeft),

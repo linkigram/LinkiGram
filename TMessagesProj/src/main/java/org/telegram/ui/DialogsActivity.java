@@ -7064,6 +7064,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
 
     @Override
     public void onResume() {
+        app.nimarkogram.messenger.margy.MargyMiniPlayer.sync(this);
         if (arguments != null && arguments.containsKey("linki_folder_id")) {
             final int requestedFolder = arguments.getInt("linki_folder_id");
             arguments.remove("linki_folder_id");
@@ -7292,6 +7293,7 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
     @Override
     public void onPause() {
         super.onPause();
+        app.nimarkogram.messenger.margy.MargyMiniPlayer.detach();
         if (storiesBulletin != null) {
             storiesBulletin.hide();
             storiesBulletin = null;
@@ -13673,6 +13675,10 @@ public class DialogsActivity extends BaseFragment implements NotificationCenter.
                     }
                 }
             }
+        }
+        if (app.nimarkogram.messenger.margy.MargyConfig.musicTab()) {
+            io.add(R.drawable.ic_player, getString(R.string.NM_MargyMusicTitle), () ->
+                    presentFragment(new app.nimarkogram.messenger.margy.MargyMusicActivity()));
         }
         if (getUserConfig().showCallsTab && NimarkoConfig.dialogsMenuShowSettings) {
             io.add(R.drawable.msg_settings_old, getString(R.string.Settings), () -> {

@@ -30,6 +30,18 @@ public final class EditHistory {
                             ? LocaleController.getString(R.string.LinkiHistoryMedia) : revision.text).append("\n\n");
                 }
             } catch (Exception e) { FileLog.e(e); }
+            if (text.length() == 0) {
+                // Запасной источник: собственные сохранённые версии MargyGram,
+                // они пишутся даже когда история правок Ayu выключена.
+                try {
+                    for (var version : app.nimarkogram.messenger.margy.MargyEdits.history(message)) {
+                        if (text.length() > 50000) break;
+                        text.append(LocaleController.formatDateTime(version.date, true)).append('\n');
+                        text.append(TextUtils.isEmpty(version.text)
+                                ? LocaleController.getString(R.string.LinkiHistoryMedia) : version.text).append("\n\n");
+                    }
+                } catch (Exception e) { FileLog.e(e); }
+            }
             if (text.length() == 0) text.append(LocaleController.getString(R.string.LinkiHistoryEmpty)).append("\n\n");
             text.append(LocaleController.getString(R.string.LinkiHistoryCurrent)).append("\n").append(current == null ? "" : current);
             AndroidUtilities.runOnUIThread(() -> {
