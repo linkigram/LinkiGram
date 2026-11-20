@@ -11,7 +11,9 @@ final class LyricsWorkers {
     // Allow the old and new track to overlap while Android releases cancelled sockets.
     // Never queue a new track behind sockets which may ignore interruption. If both
     // generations are still stuck, reject promptly so the caller can report an error.
-    private static final ExecutorService PUBLIC = create(10, "lyrics-provider");
+    // The ceiling covers two full provider batches: the new track must not be
+    // rejected while the previous generation is still releasing its sockets.
+    private static final ExecutorService PUBLIC = create(26, "lyrics-provider");
 
     private static ExecutorService create(int maximum, String name) {
         return new ThreadPoolExecutor(0, maximum, 30, TimeUnit.SECONDS,

@@ -46,6 +46,11 @@ for name in ('LRC_RED_NAME', 'BINIMUM_NAME', 'UNISON_NAME', 'BETTER_LYRICS_NAME'
     if ('startsWith(%s)' % name) not in priority:
         fail('%s missing from providerPriority' % name)
 print('source contract: %d providers, latch %s, cache v%s' % (len(providers), latch.group(1), version.group(1)))
+workers = (root / 'TMessagesProj/src/main/java/app/exteraless/player/LyricsWorkers.java').read_text(encoding='utf-8')
+pool = re.search(r'create\((\d+), "lyrics-provider"\)', workers)
+if not pool or int(pool.group(1)) < len(providers):
+    fail('LyricsWorkers pool is smaller than one provider batch; tasks would be rejected')
+print('worker pool: %s threads for %d providers' % (pool.group(1), len(providers)))
 
 # --- part 2: production methods against fixtures --------------------------
 start = source.index('    private static Found requestLrcRed(')
