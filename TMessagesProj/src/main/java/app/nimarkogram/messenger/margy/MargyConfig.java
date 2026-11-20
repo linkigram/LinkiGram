@@ -42,6 +42,7 @@ public final class MargyConfig {
 
     public static void toggleAvatars() {
         prefs().edit().putBoolean(KEY_AVATARS, !avatars()).apply();
+        MargyAvatars.invalidate();
     }
 
     public static int avatarShape() {
@@ -52,6 +53,7 @@ public final class MargyConfig {
     public static void setAvatarShape(int shape) {
         prefs().edit().putInt(KEY_AVATAR_SHAPE,
                 Math.max(0, Math.min(MargyAvatars.ALL.length - 1, shape))).apply();
+        MargyAvatars.invalidate();
     }
 
     public static int inputMaxLines() {

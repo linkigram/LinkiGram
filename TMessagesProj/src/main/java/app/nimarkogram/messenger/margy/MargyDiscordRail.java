@@ -26,7 +26,6 @@ import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.NotificationCenter;
 import org.telegram.messenger.R;
-import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLObject;
 import org.telegram.tgnet.TLRPC;
 import org.telegram.ui.ActionBar.Theme;
@@ -67,7 +66,7 @@ public class MargyDiscordRail extends FrameLayout implements NotificationCenter.
         super(context);
         this.chat = chat;
         this.currentDialogId = dialogId;
-        this.account = UserConfig.selectedAccount;
+        this.account = chat.getCurrentAccount();
         setBackgroundColor(surfaceColor());
 
         list = new RecyclerView(context);

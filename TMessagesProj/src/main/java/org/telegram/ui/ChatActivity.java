@@ -13213,7 +13213,7 @@ public class ChatActivity extends BaseFragment implements
             // Место под поле ввода: снизу, если оно снизу. Когда оно наверху,
             // тот же запас переезжает в верхний отступ.
             paddingBottom = blurredViewBottomOffset + dp(9 + 7)
-                + (chatInputViewsContainer.isInputOnTop() ? 0 : inputIslandHeightCurrent)
+                + (chatInputViewsContainer != null && chatInputViewsContainer.isInputOnTop() ? 0 : inputIslandHeightCurrent)
                 + getTopicTabsSideSize(TopicsTabsView.Position.BOTTOM)
                 + windowInsetsStateHolder.getAnimatedMaxBottomInset();
         }

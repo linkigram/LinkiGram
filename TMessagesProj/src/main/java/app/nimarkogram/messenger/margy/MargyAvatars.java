@@ -31,11 +31,27 @@ public final class MargyAvatars {
 
     public static void choose(int shape) {
         MargyConfig.setAvatarShape(shape);
+        invalidate();
+    }
+
+    /**
+     * Ответ на вопрос «рисовать ли контуром» запрашивается на каждой аватарке
+     * каждый кадр, поэтому считается один раз, а не читается из настроек.
+     */
+    private static volatile int shapedState = -1;
+
+    public static void invalidate() {
+        shapedState = -1;
     }
 
     /** Выбрана форма, отличная от круга, и сама функция включена. */
     public static boolean shaped() {
-        return MargyConfig.avatars() && chosen() != 0;
+        int state = shapedState;
+        if (state < 0) {
+            state = MargyConfig.avatars() && chosen() != 0 ? 1 : 0;
+            shapedState = state;
+        }
+        return state == 1;
     }
 
     private static final Path placed = new Path();
