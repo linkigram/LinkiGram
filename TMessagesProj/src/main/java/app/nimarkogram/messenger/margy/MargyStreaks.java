@@ -468,7 +468,7 @@ public final class MargyStreaks implements NotificationCenter.NotificationCenter
         AndroidUtilities.runOnUIThread(() -> {
             if (notifyPending[account]) return;
             notifyPending[account] = true;
-            AndroidUtilities.runOnUiThread(() -> {
+            AndroidUtilities.runOnUIThread(() -> {
                 notifyPending[account] = false;
                 NotificationCenter.getInstance(account).postNotificationName(
                         NotificationCenter.updateInterfaces, MessagesController.UPDATE_MASK_NAME);

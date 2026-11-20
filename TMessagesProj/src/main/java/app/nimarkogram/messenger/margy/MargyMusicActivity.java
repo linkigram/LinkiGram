@@ -18,6 +18,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.NotificationCenter;
@@ -42,10 +43,13 @@ public class MargyMusicActivity extends BaseFragment implements NotificationCent
     public View createView(Context context) {
         actionBar.setBackButtonImage(R.drawable.ic_ab_back);
         actionBar.setAllowOverlayTitle(true);
-        actionBar.setTitle(getString(R.string.NM_MargyMusicTitle));
-        actionBar.setActionBarMenuOnItemClick(item -> {
-            if (item.getId() == -1) {
-                finishFragment();
+        actionBar.setTitle(LocaleController.getString(R.string.NM_MargyMusicTitle));
+        actionBar.setActionBarMenuOnItemClick(new ActionBar.ActionBarMenuOnItemClick() {
+            @Override
+            public void onItemClick(int id) {
+                if (id == -1) {
+                    finishFragment();
+                }
             }
         });
 
@@ -83,7 +87,7 @@ public class MargyMusicActivity extends BaseFragment implements NotificationCent
             if (controller.isPlayingMessage(playing)) {
                 controller.pauseMessage(playing);
             } else {
-                controller.playMessage(playing, 0);
+                controller.playMessage(playing);
             }
         });
         controls.addView(play, LayoutHelper.createLinear(64, 64, 6, 0, 6, 0));
@@ -137,13 +141,13 @@ public class MargyMusicActivity extends BaseFragment implements NotificationCent
         final MediaController controller = MediaController.getInstance();
         final MessageObject playing = controller.getPlayingMessageObject();
         nowPlaying.setText(playing == null
-                ? getString(R.string.NM_MargyMusicNothing)
+                ? LocaleController.getString(R.string.NM_MargyMusicNothing)
                 : (playing.getMusicAuthor() == null ? "" : playing.getMusicAuthor() + " \u2014 ")
                     + (playing.getMusicTitle() == null ? "" : playing.getMusicTitle()));
         final ArrayList<MessageObject> playlist = controller.getPlaylist();
         if (playlist == null || playlist.isEmpty()) {
             final TextView empty = new TextView(getParentActivity());
-            empty.setText(getString(R.string.NM_MargyMusicEmpty));
+            empty.setText(LocaleController.getString(R.string.NM_MargyMusicEmpty));
             empty.setGravity(Gravity.CENTER);
             empty.setPadding(dp(16), dp(24), dp(16), dp(24));
             empty.setTextColor(surface(ClientTheme.SECONDARY, Theme.key_windowBackgroundWhiteGrayText));

@@ -56,10 +56,10 @@ public final class MargyMiniPlayer {
         }
         if (!observing) {
             observing = true;
-            NotificationCenter.getInstance(fragment.getCurrentAccount()).addObserver(
-                    delegate, NotificationCenter.messagePlayingDidStart,
-                    NotificationCenter.messagePlayingPlayStateChanged,
-                    NotificationCenter.messagePlayingDidReset);
+            final NotificationCenter center = NotificationCenter.getInstance(fragment.getCurrentAccount());
+            center.addObserver(delegate, NotificationCenter.messagePlayingDidStart);
+            center.addObserver(delegate, NotificationCenter.messagePlayingPlayStateChanged);
+            center.addObserver(delegate, NotificationCenter.messagePlayingDidReset);
         }
         refresh();
     }
@@ -69,7 +69,10 @@ public final class MargyMiniPlayer {
         remove();
         if (observing && currentFragment != null) {
             observing = false;
-            NotificationCenter.getInstance(currentFragment.getCurrentAccount()).removeObserver(delegate);
+            final NotificationCenter center = NotificationCenter.getInstance(currentFragment.getCurrentAccount());
+            center.removeObserver(delegate, NotificationCenter.messagePlayingDidStart);
+            center.removeObserver(delegate, NotificationCenter.messagePlayingPlayStateChanged);
+            center.removeObserver(delegate, NotificationCenter.messagePlayingDidReset);
         }
     }
 
@@ -144,7 +147,7 @@ public final class MargyMiniPlayer {
             if (MediaController.getInstance().isPlayingMessage(object)) {
                 MediaController.getInstance().pauseMessage(object);
             } else {
-                MediaController.getInstance().playMessage(object, 0);
+                MediaController.getInstance().playMessage(object);
             }
         });
         bar.addView(play, LayoutHelper.createLinear(40, 40, 8, 0, 0, 0));
