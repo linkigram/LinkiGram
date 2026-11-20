@@ -318,6 +318,7 @@ final class LinkiSettingsEnglishCatalog {
         labels.put(R.string.NM_MargyAvatarShape, "Avatar shape");
         labels.put(R.string.NM_MargyAvatars, "Shaped avatars");
         labels.put(R.string.NM_MargyEditHistory, "Edit history");
+        labels.put(R.string.NM_MargyGhostExclusions, "Excluded chats");
         labels.put(R.string.NM_MargyInputLines, "Input lines");
         labels.put(R.string.NM_MargyInputTextSize, "Input text size");
         labels.put(R.string.NM_MargyInputTop, "Input on top");

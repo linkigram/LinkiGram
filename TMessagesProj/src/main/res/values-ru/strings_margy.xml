@@ -54,4 +54,9 @@
     <string name="NM_MargyPetNoStreak">Серии пока нет. Напишите друг другу сегодня, чтобы начать.</string>
     <string name="NM_MargyPetStreak">Серия: %1$d дней</string>
     <string name="NM_MargyPetNext">%1$d дней до следующей стадии (%2$d)</string>
+    <string name="NM_MargyGhostExclusions">Исключённые чаты</string>
+    <string name="NM_MargyGhostExclusionsEmpty">Нет</string>
+    <string name="NM_MargyGhostExclusionsAdd">Добавить чат</string>
+    <string name="NM_MargyGhostExclusionsClear">Очистить всё</string>
+    <string name="NM_MargyGhostExclusionsInfo">В перечисленных чатах призрак не действует: «печатает» и прочтения уходят как обычно.</string>
 </resources>

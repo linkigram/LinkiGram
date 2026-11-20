@@ -5,12 +5,17 @@ import android.view.View;
 import java.util.ArrayList;
 
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
+import org.telegram.tgnet.TLRPC;
+import org.telegram.ui.ActionBar.AlertDialog;
 import org.telegram.ui.Components.UItem;
 import org.telegram.ui.Components.UniversalAdapter;
 
+import app.nimarkogram.messenger.NimarkoConfig;
 import app.nimarkogram.messenger.margy.MargyAvatars;
 import app.nimarkogram.messenger.margy.MargyConfig;
+import app.nimarkogram.messenger.margy.MargyGhost;
 import app.nimarkogram.messenger.preferences.helpers.PopupHelper;
 import app.nimarkogram.messenger.preferences.helpers.SettingsHelper;
 
@@ -32,6 +37,26 @@ public class MargyPreferencesActivity extends BasePreferencesActivity {
     private static final int ROW_INPUT_ON_TOP = 10;
     private static final int ROW_INPUT_LINES = 11;
     private static final int ROW_INPUT_TEXT_SIZE = 12;
+
+    private static final int ROW_GHOST_MASTER = 13;
+    private static final int ROW_GHOST_TYPING = 14;
+    private static final int ROW_GHOST_RECORDING = 15;
+    private static final int ROW_GHOST_ONLINE = 16;
+    private static final int ROW_GHOST_READ = 17;
+    private static final int ROW_GHOST_STORIES = 18;
+    private static final int ROW_GHOST_OFFLINE_AFTER = 19;
+    private static final int ROW_GHOST_READ_AFTER = 20;
+    private static final int ROW_GHOST_EXCLUSIONS = 21;
+
+    private static final int ROW_DELETED_MASTER = 22;
+    private static final int ROW_DELETED_PRIVATE = 23;
+    private static final int ROW_DELETED_GROUPS = 24;
+    private static final int ROW_DELETED_CHANNELS = 25;
+    private static final int ROW_DELETED_BOT = 26;
+    private static final int ROW_DELETED_BOT_USER = 27;
+    private static final int ROW_DELETED_ARCHIVED = 28;
+    private static final int ROW_DELETED_MEDIA = 29;
+    private static final int ROW_DELETED_TRANSLUCENT = 30;
 
     @Override
     public String getTitle() {
@@ -99,6 +124,81 @@ public class MargyPreferencesActivity extends BasePreferencesActivity {
                         LocaleController.getString(R.string.NM_MargyPet_Desc))
                 .setChecked(MargyConfig.pet()));
         items.add(UItem.asShadow(LocaleController.getString(R.string.NM_MargyPetInfo)));
+
+        // ===== Призрак: те же флаги, что и в AyuMoments, плюс исключения по чатам
+        items.add(UItem.asHeader(LocaleController.getString(R.string.NM_GhostMode)));
+        items.add(SettingsHelper.asSwitchCG(ROW_GHOST_MASTER,
+                        LocaleController.getString(R.string.NM_GhostMaster),
+                        LocaleController.getString(R.string.NM_GhostMaster_Desc))
+                .setChecked(MargyGhost.isOn()));
+        items.add(SettingsHelper.asSwitchCG(ROW_GHOST_TYPING,
+                        LocaleController.getString(R.string.NM_GhostTyping),
+                        LocaleController.getString(R.string.NM_GhostTyping_Desc))
+                .setChecked(NimarkoConfig.ghostTyping));
+        items.add(SettingsHelper.asSwitchCG(ROW_GHOST_RECORDING,
+                        LocaleController.getString(R.string.NM_GhostRecording),
+                        LocaleController.getString(R.string.NM_GhostRecording_Desc))
+                .setChecked(NimarkoConfig.ghostRecording));
+        items.add(SettingsHelper.asSwitchCG(ROW_GHOST_ONLINE,
+                        LocaleController.getString(R.string.NM_GhostOnline),
+                        LocaleController.getString(R.string.NM_GhostOnline_Desc))
+                .setChecked(NimarkoConfig.ghostOnline));
+        items.add(SettingsHelper.asSwitchCG(ROW_GHOST_READ,
+                        LocaleController.getString(R.string.NM_GhostReadReceipts),
+                        LocaleController.getString(R.string.NM_GhostReadReceipts_Desc))
+                .setChecked(NimarkoConfig.ghostReadReceipts));
+        items.add(SettingsHelper.asSwitchCG(ROW_GHOST_STORIES,
+                        LocaleController.getString(R.string.NM_GhostStories),
+                        LocaleController.getString(R.string.NM_GhostStories_Desc))
+                .setChecked(NimarkoConfig.ghostStories));
+        items.add(SettingsHelper.asSwitchCG(ROW_GHOST_OFFLINE_AFTER,
+                        LocaleController.getString(R.string.NM_GhostOfflineAfterSend),
+                        LocaleController.getString(R.string.NM_GhostOfflineAfterSend_Desc))
+                .setChecked(NimarkoConfig.ghostOfflineAfterSend));
+        items.add(SettingsHelper.asSwitchCG(ROW_GHOST_READ_AFTER,
+                        LocaleController.getString(R.string.NM_GhostReadAfterSend),
+                        LocaleController.getString(R.string.NM_GhostReadAfterSend_Desc))
+                .setChecked(NimarkoConfig.ghostReadAfterSend));
+        items.add(UItem.asButton(ROW_GHOST_EXCLUSIONS,
+                LocaleController.getString(R.string.NM_MargyGhostExclusions),
+                MargyGhost.countLabel(getCurrentAccount())));
+        items.add(UItem.asShadow(LocaleController.getString(R.string.NM_MargyGhostExclusionsInfo)));
+
+        // ===== Удалённые сообщения: сохранение и восстановление из своей базы
+        items.add(UItem.asHeader(LocaleController.getString(R.string.NM_Ayu_HeaderSaving)));
+        items.add(SettingsHelper.asSwitchCG(ROW_DELETED_MASTER,
+                        LocaleController.getString(R.string.NM_SaveDeletedMessages),
+                        LocaleController.getString(R.string.NM_SaveDeletedMessages_Desc))
+                .setChecked(NimarkoConfig.saveDeletedMessages));
+        if (NimarkoConfig.saveDeletedMessages) {
+            items.add(SettingsHelper.asSwitchCG(ROW_DELETED_PRIVATE,
+                            LocaleController.getString(R.string.NM_Ayu_SaveDeleted_Private))
+                    .setChecked(NimarkoConfig.saveDeletedInPrivateChats));
+            items.add(SettingsHelper.asSwitchCG(ROW_DELETED_GROUPS,
+                            LocaleController.getString(R.string.NM_Ayu_SaveDeleted_Groups))
+                    .setChecked(NimarkoConfig.saveDeletedInGroups));
+            items.add(SettingsHelper.asSwitchCG(ROW_DELETED_CHANNELS,
+                            LocaleController.getString(R.string.NM_Ayu_SaveDeleted_Channels))
+                    .setChecked(NimarkoConfig.saveDeletedInChannels));
+            items.add(SettingsHelper.asSwitchCG(ROW_DELETED_BOT_USER,
+                            LocaleController.getString(R.string.NM_Ayu_SaveDeleted_BotUser))
+                    .setChecked(NimarkoConfig.saveDeletedMessageForBotUser));
+            items.add(SettingsHelper.asSwitchCG(ROW_DELETED_BOT,
+                            LocaleController.getString(R.string.NM_Ayu_SaveDeleted_BotChat))
+                    .setChecked(NimarkoConfig.saveDeletedMessageForBot));
+            items.add(SettingsHelper.asSwitchCG(ROW_DELETED_ARCHIVED,
+                            LocaleController.getString(R.string.NM_Ayu_SaveInArchived))
+                    .setChecked(NimarkoConfig.saveInArchivedChats));
+            items.add(SettingsHelper.asSwitchCG(ROW_DELETED_MEDIA,
+                            LocaleController.getString(R.string.NM_Ayu_SaveMedia),
+                            LocaleController.getString(R.string.NM_Ayu_SaveMedia_Desc))
+                    .setChecked(NimarkoConfig.saveMediaFiles));
+            items.add(SettingsHelper.asSwitchCG(ROW_DELETED_TRANSLUCENT,
+                            LocaleController.getString(R.string.NM_Ayu_Translucent),
+                            LocaleController.getString(R.string.NM_Ayu_Translucent_Desc))
+                    .setChecked(NimarkoConfig.translucentDeletedMessages));
+        }
+        items.add(UItem.asShadow(LocaleController.getString(R.string.NM_Ayu_ShadowSaving)));
     }
 
     @Override
@@ -178,7 +278,123 @@ public class MargyPreferencesActivity extends BasePreferencesActivity {
                         SettingsHelper.updateButtonValue(view,
                                 String.valueOf(MargyConfig.INPUT_TEXT_SIZES[index]));
                     });
+        } else if (item.id == ROW_GHOST_MASTER) {
+            MargyGhost.setOn(!MargyGhost.isOn());
+            listView.adapter.update(false);
+        } else if (item.id == ROW_GHOST_TYPING) {
+            NimarkoConfig.toggleGhostTyping();
+            listView.adapter.update(false);
+        } else if (item.id == ROW_GHOST_RECORDING) {
+            NimarkoConfig.toggleGhostRecording();
+            listView.adapter.update(false);
+        } else if (item.id == ROW_GHOST_ONLINE) {
+            NimarkoConfig.toggleGhostOnline();
+            listView.adapter.update(false);
+        } else if (item.id == ROW_GHOST_READ) {
+            NimarkoConfig.toggleGhostReadReceipts();
+            listView.adapter.update(false);
+        } else if (item.id == ROW_GHOST_STORIES) {
+            NimarkoConfig.toggleGhostStories();
+            listView.adapter.update(false);
+        } else if (item.id == ROW_GHOST_OFFLINE_AFTER) {
+            NimarkoConfig.toggleGhostOfflineAfterSend();
+            listView.adapter.update(false);
+        } else if (item.id == ROW_GHOST_READ_AFTER) {
+            NimarkoConfig.toggleGhostReadAfterSend();
+            listView.adapter.update(false);
+        } else if (item.id == ROW_GHOST_EXCLUSIONS) {
+            showGhostExclusions();
+        } else if (item.id == ROW_DELETED_MASTER) {
+            NimarkoConfig.toggleSaveDeletedMessages();
+            listView.adapter.update(false);
+        } else if (item.id == ROW_DELETED_PRIVATE) {
+            NimarkoConfig.toggleSaveDeletedInPrivateChats();
+            view.invalidate();
+        } else if (item.id == ROW_DELETED_GROUPS) {
+            NimarkoConfig.toggleSaveDeletedInGroups();
+            view.invalidate();
+        } else if (item.id == ROW_DELETED_CHANNELS) {
+            NimarkoConfig.toggleSaveDeletedInChannels();
+            view.invalidate();
+        } else if (item.id == ROW_DELETED_BOT) {
+            NimarkoConfig.toggleSaveDeletedMessageForBot();
+            view.invalidate();
+        } else if (item.id == ROW_DELETED_BOT_USER) {
+            NimarkoConfig.toggleSaveDeletedMessageForBotUser();
+            view.invalidate();
+        } else if (item.id == ROW_DELETED_ARCHIVED) {
+            NimarkoConfig.toggleSaveInArchivedChats();
+            view.invalidate();
+        } else if (item.id == ROW_DELETED_MEDIA) {
+            NimarkoConfig.toggleSaveMediaFiles();
+            view.invalidate();
+        } else if (item.id == ROW_DELETED_TRANSLUCENT) {
+            NimarkoConfig.toggleTranslucentDeletedMessages();
+            view.invalidate();
         }
+    }
+
+    /** Исключения призрака: список чатов, где статусы отправляются как обычно. */
+    private void showGhostExclusions() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final ArrayList<Long> ids = new ArrayList<>(MargyGhost.excludedDialogIds(getCurrentAccount()));
+        final CharSequence[] entries = new CharSequence[ids.size() + 2];
+        entries[0] = LocaleController.getString(R.string.NM_MargyGhostExclusionsAdd);
+        entries[1] = LocaleController.getString(R.string.NM_MargyGhostExclusionsClear);
+        for (int i = 0; i < ids.size(); i++) {
+            entries[i + 2] = MargyGhost.titleFor(getCurrentAccount(), ids.get(i));
+        }
+        new AlertDialog.Builder(getParentActivity())
+                .setTitle(LocaleController.getString(R.string.NM_MargyGhostExclusions))
+                .setItems(entries, (dialog, which) -> {
+                    if (which == 0) {
+                        showAddGhostExclusion();
+                    } else if (which == 1) {
+                        MargyGhost.clearExclusions(getCurrentAccount());
+                        listView.adapter.update(false);
+                    } else {
+                        MargyGhost.setExcluded(getCurrentAccount(), ids.get(which - 2), false);
+                        listView.adapter.update(false);
+                    }
+                })
+                .setNegativeButton(LocaleController.getString(R.string.Close), null)
+                .show();
+    }
+
+    /** Добавление исключения: первые диалоги списка чатов и контакты. */
+    private void showAddGhostExclusion() {
+        if (getParentActivity() == null) {
+            return;
+        }
+        final ArrayList<Long> ids = new ArrayList<>();
+        final ArrayList<CharSequence> titles = new ArrayList<>();
+        final MessagesController controller = MessagesController.getInstance(getCurrentAccount());
+        final ArrayList<TLRPC.Dialog> dialogs = controller.getDialogs(0);
+        for (int i = 0; i < dialogs.size() && ids.size() < 60; i++) {
+            final long id = dialogs.get(i).id;
+            if (id == 0 || org.telegram.messenger.DialogObject.isFolderDialogId(id)) {
+                continue;
+            }
+            final CharSequence title = MargyGhost.titleFor(getCurrentAccount(), Math.abs(id));
+            if (title == null || title.length() == 0) {
+                continue;
+            }
+            ids.add(id);
+            titles.add(title);
+        }
+        if (ids.isEmpty()) {
+            return;
+        }
+        new AlertDialog.Builder(getParentActivity())
+                .setTitle(LocaleController.getString(R.string.NM_MargyGhostExclusionsAdd))
+                .setItems(titles.toArray(new CharSequence[0]), (dialog, which) -> {
+                    MargyGhost.setExcluded(getCurrentAccount(), ids.get(which), true);
+                    listView.adapter.update(false);
+                })
+                .setNegativeButton(LocaleController.getString(R.string.Cancel), null)
+                .show();
     }
 
     private static CharSequence shapeName(int shape) {

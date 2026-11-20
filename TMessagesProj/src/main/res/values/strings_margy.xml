@@ -54,4 +54,9 @@
     <string name="NM_MargyPetNoStreak">No streak yet. Write to each other today to start one.</string>
     <string name="NM_MargyPetStreak">Streak: %1$d days</string>
     <string name="NM_MargyPetNext">%1$d days to the next stage (%2$d)</string>
+    <string name="NM_MargyGhostExclusions">Excluded chats</string>
+    <string name="NM_MargyGhostExclusionsEmpty">None</string>
+    <string name="NM_MargyGhostExclusionsAdd">Add chat</string>
+    <string name="NM_MargyGhostExclusionsClear">Clear all</string>
+    <string name="NM_MargyGhostExclusionsInfo">In the chats listed here ghost mode is off: typing and read receipts are sent as usual.</string>
 </resources>
