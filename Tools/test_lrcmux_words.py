@@ -50,4 +50,5 @@ class LrcmuxCheck {
 with tempfile.TemporaryDirectory() as tmp:
     path = Path(tmp) / 'LrcmuxCheck.java'
     path.write_text(code, encoding='utf-8')
-    subprocess.run([java, '-cp', str(jar), str(path)], check=True)
+    subprocess.run([javac, '-cp', str(jar), '-d', tmp, str(path)], check=True)
+    subprocess.run([java, '-cp', os.pathsep.join([str(jar), tmp]), 'LrcmuxCheck'], check=True)

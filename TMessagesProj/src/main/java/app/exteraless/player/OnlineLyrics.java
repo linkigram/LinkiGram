@@ -96,13 +96,24 @@ public final class OnlineLyrics {
     private static final String QQ_LYRIC = "https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg";
     private static final String KUGOU_SEARCH = "https://krcs.kugou.com/search";
     private static final String KUGOU_DOWNLOAD = "https://lyrics.kugou.com/download";
+    private static final String LRC_RED_SEARCH = "https://lrc.red/search.json?q=";
+    private static final String LRC_RED_TRACK = "https://lrc.red/s/";
+    private static final String BINIMUM = "https://lyrics-api.binimum.org/getLyrics";
+    private static final String UNISON = "https://unison.betterlyrics.org/lyrics";
+    private static final String BETTER_LYRICS = "https://api.betterlyrics.org/getLyrics";
     private static final String LRCLIB_NAME = "LRCLIB";
     private static final String LRCMUX_NAME = "lrcmux";
     private static final String NETEASE_NAME = "NetEase";
     private static final String QQ_NAME = "QQ Music";
     private static final String KUGOU_NAME = "Kugou";
+    private static final String LRC_RED_NAME = "LRC.RED";
+    private static final String BINIMUM_NAME = "Binimum";
+    private static final String UNISON_NAME = "Unison";
+    private static final String BETTER_LYRICS_NAME = "BetterLyrics";
     private static final String BROWSER_UA = "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36";
-    private static final int CACHE_VERSION = 11;
+    /** lrc.red asks clients to identify themselves, so the newer providers do not use the exteraless UA. */
+    private static final String LINKIGRAM_UA = "LinkiGram/" + BuildVars.BUILD_VERSION_STRING + " (+https://github.com/linkigram/LinkiGram)";
+    private static final int CACHE_VERSION = 12;
     private static final int MAX_DURATION_DIFF = 3;
     private static final int MAX_FALLBACK_DURATION_DIFF = 5;
     private static final int ALIGN_WINDOW = 4;
@@ -271,7 +282,7 @@ public final class OnlineLyrics {
     private static FetchOutcome fetchAllSources(Query query, Callback callback) {
         ArrayList<Lyrics> list = new ArrayList<>();
         AtomicInteger failures = new AtomicInteger(0);
-        CountDownLatch latch = new CountDownLatch(9);
+        CountDownLatch latch = new CountDownLatch(13);
         LyricsDeadline deadline = new LyricsDeadline(REQUEST_TIMEOUT_MS / 1000);
         String batchKey = query.key();
         activeBatches.put(batchKey, deadline);
@@ -285,6 +296,10 @@ public final class OnlineLyrics {
         tasks.add(collectProvider(() -> requestNetease(query), list, failures, latch, callback, deadline));
         tasks.add(collectProvider(() -> requestQq(query), list, failures, latch, callback, deadline));
         tasks.add(collectProvider(() -> requestKugou(query), list, failures, latch, callback, deadline));
+        tasks.add(collectProvider(() -> requestLrcRed(query), list, failures, latch, callback, deadline));
+        tasks.add(collectProvider(() -> requestBinimum(query), list, failures, latch, callback, deadline));
+        tasks.add(collectProvider(() -> requestUnison(query), list, failures, latch, callback, deadline));
+        tasks.add(collectProvider(() -> requestBetterLyrics(query), list, failures, latch, callback, deadline));
         for (java.util.concurrent.Future<?> task : tasks) deadline.add(task);
         boolean completed = false;
         try {
@@ -307,6 +322,7 @@ public final class OnlineLyrics {
         }
         mergePunctuation(finished);
         sortSources(finished);
+        dedupeIdentical(finished);
         return new FetchOutcome(finished, failed);
     }
 
@@ -328,6 +344,7 @@ public final class OnlineLyrics {
                         snapshot = new ArrayList<>(list);
                     }
                     sortSources(snapshot);
+                    dedupeIdentical(snapshot);
                     AndroidUtilities.runOnUIThread(() -> { if (deadline.active) callback.onResult(snapshot, OK); });
                 }
             } catch (Throwable e) {
@@ -402,7 +419,24 @@ public final class OnlineLyrics {
         if (p.startsWith(NETEASE_NAME)) return 2;
         if (p.startsWith(QQ_NAME)) return 3;
         if (p.startsWith(KUGOU_NAME)) return 4;
+        if (p.startsWith(LRC_RED_NAME)) return 5;
+        if (p.startsWith(BINIMUM_NAME)) return 5;
+        if (p.startsWith(UNISON_NAME)) return 6;
+        if (p.startsWith(BETTER_LYRICS_NAME)) return 7;
         return 9;
+    }
+
+    /** Binimum and LRC.RED share a backend, so identical bodies would otherwise show twice. */
+    private static void dedupeIdentical(ArrayList<Lyrics> list) {
+        HashSet<String> seen = new HashSet<>();
+        for (int i = 0; i < list.size(); i++) {
+            Lyrics lyrics = list.get(i);
+            String key = lyrics.instrumental ? "\u0001instrumental" : lyrics.toText();
+            if (!seen.add(key)) {
+                list.remove(i);
+                i--;
+            }
+        }
     }
 
     private static Found requestLrclib(Query q) throws Exception {
@@ -718,6 +752,198 @@ public final class OnlineLyrics {
         }
         Lyrics lyrics = Lyrics.parse(text, Lyrics.SOURCE_ONLINE, KUGOU_NAME);
         return lyrics != null ? new Found(lyrics) : null;
+    }
+
+    private static Found requestLrcRed(Query q) throws Exception {
+        if (TextUtils.isEmpty(q.title)) {
+            return null;
+        }
+        String keyword = TextUtils.isEmpty(q.artist) ? q.title : q.artist + " " + q.title;
+        String body = getOptional(LRC_RED_SEARCH + enc(keyword), "https://lrc.red/", LINKIGRAM_UA);
+        if (body == null) {
+            return null;
+        }
+        JSONArray hits = new JSONObject(body).optJSONArray("hits");
+        if (hits == null || hits.length() == 0) {
+            return null;
+        }
+        String isrc = null;
+        int bestScore = -1;
+        for (int i = 0; i < hits.length(); i++) {
+            JSONObject hit = hits.optJSONObject(i);
+            if (hit == null) {
+                continue;
+            }
+            int score = candidateScore(optString(hit, "title"), optString(hit, "artist"), hit.optDouble("duration", 0), q);
+            if (score > bestScore) {
+                bestScore = score;
+                isrc = optString(hit, "isrc");
+            }
+        }
+        if (isrc == null) {
+            return null;
+        }
+        String ttml = getOptional(LRC_RED_TRACK + enc(isrc) + ".ttml", "https://lrc.red/", LINKIGRAM_UA);
+        if (ttml == null) {
+            return null;
+        }
+        Lyrics lyrics = Lyrics.parse(ttml, Lyrics.SOURCE_ONLINE, LRC_RED_NAME);
+        return lyrics != null ? new Found(lyrics) : null;
+    }
+
+    private static Found requestBinimum(Query q) throws Exception {
+        if (TextUtils.isEmpty(q.title) || TextUtils.isEmpty(q.artist)) {
+            return null;
+        }
+        String body = getOptional(BINIMUM + "?track=" + enc(q.title) + "&artist=" + enc(q.artist),
+                "https://lyrics.binimum.org/", LINKIGRAM_UA);
+        if (body == null) {
+            return null;
+        }
+        JSONArray results = new JSONObject(body).optJSONArray("results");
+        if (results == null || results.length() == 0) {
+            return null;
+        }
+        String lyricsUrl = null;
+        int bestScore = -1;
+        for (int i = 0; i < results.length(); i++) {
+            JSONObject result = results.optJSONObject(i);
+            if (result == null) {
+                continue;
+            }
+            int score = candidateScore(optString(result, "track_name"), optString(result, "artist_name"),
+                    result.optDouble("duration", 0), q);
+            if (score > bestScore) {
+                bestScore = score;
+                lyricsUrl = optString(result, "lyricsUrl");
+            }
+        }
+        if (lyricsUrl == null) {
+            return null;
+        }
+        String ttml = getOptional(lyricsUrl, "https://lyrics.binimum.org/", LINKIGRAM_UA);
+        if (ttml == null) {
+            return null;
+        }
+        Lyrics lyrics = Lyrics.parse(ttml, Lyrics.SOURCE_ONLINE, BINIMUM_NAME);
+        return lyrics != null ? new Found(lyrics) : null;
+    }
+
+    private static Found requestUnison(Query q) throws Exception {
+        if (TextUtils.isEmpty(q.title) || TextUtils.isEmpty(q.artist)) {
+            return null;
+        }
+        StringBuilder url = new StringBuilder(UNISON).append("?song=").append(enc(q.title))
+                .append("&artist=").append(enc(q.artist));
+        if (!TextUtils.isEmpty(q.album)) {
+            url.append("&album=").append(enc(q.album));
+        }
+        String body = getOptional(url.toString(), "https://unison.betterlyrics.org/", LINKIGRAM_UA);
+        if (body == null) {
+            return null;
+        }
+        JSONObject o = new JSONObject(body);
+        JSONObject data = o.optJSONObject("data");
+        if (!o.optBoolean("success", false) || data == null) {
+            return null;
+        }
+        if (candidateScore(optString(data, "song"), optString(data, "artist"), 0, q) < 0) {
+            return null;
+        }
+        String text = optString(data, "lyrics");
+        if (text == null) {
+            return null;
+        }
+        Lyrics lyrics = Lyrics.parse(text, Lyrics.SOURCE_ONLINE, UNISON_NAME);
+        return lyrics != null ? new Found(lyrics) : null;
+    }
+
+    private static Found requestBetterLyrics(Query q) throws Exception {
+        if (TextUtils.isEmpty(q.title)) {
+            return null;
+        }
+        StringBuilder url = new StringBuilder(BETTER_LYRICS).append("?s=").append(enc(q.title));
+        if (!TextUtils.isEmpty(q.artist)) {
+            url.append("&a=").append(enc(q.artist));
+        }
+        if (!TextUtils.isEmpty(q.album)) {
+            url.append("&al=").append(enc(q.album));
+        }
+        if (q.duration > 0) {
+            url.append("&d=").append(q.duration);
+        }
+        // Uncached queries answer 401 without an API key; that is not a network failure.
+        String body = getOptional(url.toString(), "https://betterlyrics.org/", LINKIGRAM_UA);
+        if (body == null) {
+            return null;
+        }
+        JSONObject o = new JSONObject(body);
+        String text = optString(o, "ttml");
+        if (text == null) {
+            text = optString(o, "lyrics");
+        }
+        if (text == null) {
+            return null;
+        }
+        Lyrics lyrics = Lyrics.parse(text, Lyrics.SOURCE_ONLINE, BETTER_LYRICS_NAME);
+        return lyrics != null ? new Found(lyrics) : null;
+    }
+
+    /** Higher is a better match; negative means the candidate is a different song. */
+    private static int candidateScore(String title, String artist, double duration, Query q) {
+        if (TextUtils.isEmpty(title)) {
+            return -1;
+        }
+        String candidateTitle = normalize(title);
+        String queryTitle = normalize(q.title);
+        if (candidateTitle.isEmpty() || queryTitle.isEmpty()) {
+            return -1;
+        }
+        int score;
+        if (candidateTitle.equals(queryTitle)) {
+            score = 40;
+        } else if (candidateTitle.contains(queryTitle) || queryTitle.contains(candidateTitle)) {
+            score = 20;
+        } else {
+            return -1;
+        }
+        if (!TextUtils.isEmpty(q.artist) && !TextUtils.isEmpty(artist)) {
+            String candidateArtist = normalize(artist);
+            String queryArtist = normalize(q.artist);
+            if (!candidateArtist.isEmpty() && !queryArtist.isEmpty()) {
+                if (candidateArtist.equals(queryArtist)) {
+                    score += 20;
+                } else if (candidateArtist.contains(queryArtist) || queryArtist.contains(candidateArtist)) {
+                    score += 10;
+                } else {
+                    return -1;
+                }
+            }
+        }
+        if (q.duration > 0 && duration > 0) {
+            int diff = (int) Math.abs(Math.round(duration) - q.duration);
+            if (diff <= MAX_DURATION_DIFF) {
+                score += 30 - diff * 5;
+            } else if (diff <= MAX_FALLBACK_DURATION_DIFF) {
+                score += 5;
+            } else {
+                return -1;
+            }
+        }
+        return score;
+    }
+
+    private static String normalize(String value) {
+        return value == null ? "" : NOT_WORD.matcher(value.toLowerCase(Locale.ROOT)).replaceAll(" ").trim();
+    }
+
+    /** Auxiliary providers answer 4xx for misses and rate limits; that must not fail the whole batch. */
+    private static String getOptional(String url, String referer, String userAgent) throws Exception {
+        try {
+            return get(url, referer, userAgent);
+        } catch (IllegalStateException e) {
+            return null;
+        }
     }
 
     private static String wordKey(String word) {
