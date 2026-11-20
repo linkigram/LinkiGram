@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="NM_MargyTitle">MargyGram</string>
-    <string name="NM_MargyCardDesc">Аватарки, история правок, колонка Discord, музыка, серии</string>
-
-    <string name="NM_MargySectionLook">Оформление</string>
     <string name="NM_MargyAvatars">Фигурные аватарки</string>
     <string name="NM_MargyAvatars_Desc">Вырезать фото профиля кругом, квадратом, сердцем и другими фигурами</string>
     <string name="NM_MargyAvatarShape">Форма аватарки</string>
+    <string name="NM_MargyShapePreviewHint">Нажмите на форму — превью и все аватарки обновятся сразу</string>
     <string name="NM_MargyShapeCircle">Круг</string>
     <string name="NM_MargyShapeRounded">Скруглённый квадрат</string>
     <string name="NM_MargyShapeSquare">Квадрат</string>
@@ -20,7 +17,7 @@
     <string name="NM_MargyMonet">Цвета обоев</string>
     <string name="NM_MargyMonet_Desc">Брать палитру LinkiGram You из системных обоев, а не из акцентного цвета</string>
 
-    <string name="NM_MargySectionChat">Чаты</string>
+    <string name="NM_MargySectionChat">Дополнительно в чатах</string>
     <string name="NM_MargyEditHistory">История правок</string>
     <string name="NM_MargyEditHistory_Desc">Сохранять прежний текст сообщения и показывать все версии в меню</string>
     <string name="NM_MargyRail">Колонка Discord</string>
@@ -30,8 +27,6 @@
     <string name="NM_MargyInputLines">Строк в поле ввода</string>
     <string name="NM_MargyInputTextSize">Размер текста в поле</string>
     <string name="NM_MargyInputInfo">Поле ввода меняется в следующем открытом чате.</string>
-
-    <string name="NM_MargySectionMusic">Музыка</string>
     <string name="NM_MargyMusic">Экран музыки</string>
     <string name="NM_MargyMusic_Desc">Добавить пункт музыки в меню списка чатов: текущий трек, управление и очередь</string>
     <string name="NM_MargyMiniPlayer">Мини-плеер</string>
@@ -39,13 +34,10 @@
     <string name="NM_MargyMusicTitle">Музыка</string>
     <string name="NM_MargyMusicNothing">Сейчас ничего не играет</string>
     <string name="NM_MargyMusicEmpty">Очередь пуста. Включите аудиофайл из любого чата.</string>
-
-    <string name="NM_MargySectionStreaks">Серии и питомец</string>
     <string name="NM_MargyStreaks">Огоньки серий</string>
     <string name="NM_MargyStreaks_Desc">Считать дни, когда вы оба писали в личном чате</string>
     <string name="NM_MargyPet">Питомец</string>
     <string name="NM_MargyPet_Desc">Яйцо в меню сообщения, которое вылупляется и растёт вместе с серией</string>
-    <string name="NM_MargyPetInfo">День серии засчитывается, когда вы оба писали в течение одних местных суток. Список строится по сообщениям, сохранённым на этом телефоне, поэтому чат, который здесь не загружался, начинает счёт с сегодняшнего дня.</string>
     <string name="NM_MargyPetTitle">Питомец</string>
     <string name="NM_MargyPetNoName">Без имени</string>
     <string name="NM_MargyPetNameHint">Имя питомца</string>
@@ -54,6 +46,11 @@
     <string name="NM_MargyPetNoStreak">Серии пока нет. Напишите друг другу сегодня, чтобы начать.</string>
     <string name="NM_MargyPetStreak">Серия: %1$d дней</string>
     <string name="NM_MargyPetNext">%1$d дней до следующей стадии (%2$d)</string>
+    <string name="NM_MargyPetInChat">Питомец в чате</string>
+    <string name="NM_MargyPetInChat_Desc">Маленький питомец плавает поверх чата. Перетащите куда угодно, тап открывает карточку</string>
+    <string name="NM_MargyPetGravity">Гравитация</string>
+    <string name="NM_MargyPetGravity_Desc">После отпускания питомец падает вниз чата</string>
+    <string name="NM_MargyPetPlaceInfo">Питомец остаётся там, где вы его оставили. С гравитацией он всегда сползает вниз, над полем ввода. Позиция запоминается отдельно для каждого чата.</string>
     <string name="NM_MargyGhostExclusions">Исключённые чаты</string>
     <string name="NM_MargyGhostExclusionsEmpty">Нет</string>
     <string name="NM_MargyGhostExclusionsAdd">Добавить чат</string>

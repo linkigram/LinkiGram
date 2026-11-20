@@ -72,6 +72,9 @@ public class AppearancePreferencesActivity extends NimarkoUniversalPreferencesAc
     private final int liquidGlassRow = 28;
     private final int linkiYouRow = 29;
     private final int colorOs17Row = 30;
+    private final int margyAvatarsRow = 31;
+    private final int margyAvatarShapeRow = 32;
+    private final int margyMonetRow = 33;
     @Override protected void prepareSettingsSearch() {
         materialExpanded = true;
         iosExpanded = true;
@@ -251,6 +254,21 @@ public class AppearancePreferencesActivity extends NimarkoUniversalPreferencesAc
                         getString(R.string.NM_ForumAvatarsLikeChats_Desc))
                 .setChecked(NimarkoConfig.forumAvatarsLikeChats)
         );
+        items.add(SettingsHelper.asSwitchCG(margyAvatarsRow,
+                        getString(R.string.NM_MargyAvatars),
+                        getString(R.string.NM_MargyAvatars_Desc))
+                .setChecked(app.nimarkogram.messenger.margy.MargyConfig.avatars())
+        );
+        if (app.nimarkogram.messenger.margy.MargyConfig.avatars()) {
+            items.add(UItem.asButton(margyAvatarShapeRow,
+                    getString(R.string.NM_MargyAvatarShape),
+                    margyShapeName(app.nimarkogram.messenger.margy.MargyConfig.avatarShape())));
+        }
+        items.add(SettingsHelper.asSwitchCG(margyMonetRow,
+                        getString(R.string.NM_MargyMonet),
+                        getString(R.string.NM_MargyMonet_Desc))
+                .setChecked(app.nimarkogram.messenger.margy.MargyConfig.monet())
+        );
         items.add(UItem.asShadow(null));
 
         items.add(UItem.asHeader(getString(R.string.NM_Stickers_Header)));
@@ -423,6 +441,20 @@ public class AppearancePreferencesActivity extends NimarkoUniversalPreferencesAc
             NimarkoConfig.toggleForumAvatarsLikeChats();
             updateCheckState(view, NimarkoConfig.forumAvatarsLikeChats);
             
+            if (getParentLayout() != null) getParentLayout().rebuildAllFragmentViews(false, false);
+        } else if (item.id == margyAvatarsRow) {
+            app.nimarkogram.messenger.margy.MargyConfig.toggleAvatars();
+            listView.adapter.update(false);
+        } else if (item.id == margyAvatarShapeRow) {
+            app.nimarkogram.messenger.margy.MargyAvatarShapeSheet.show(this, () -> {
+                if (listView != null) {
+                    listView.invalidate();
+                    listView.adapter.update(false);
+                }
+            });
+        } else if (item.id == margyMonetRow) {
+            app.nimarkogram.messenger.margy.MargyConfig.toggleMonet();
+            updateCheckState(view, app.nimarkogram.messenger.margy.MargyConfig.monet());
             if (getParentLayout() != null) getParentLayout().rebuildAllFragmentViews(false, false);
         } else if (item.id == liquidGlassRow) {
             LiteMode.toggleFlag(LiteMode.FLAG_LIQUID_GLASS);
@@ -664,6 +696,21 @@ public class AppearancePreferencesActivity extends NimarkoUniversalPreferencesAc
         });
         b.setNegativeButton(getString(R.string.Cancel), null);
         b.show();
+    }
+
+    private CharSequence margyShapeName(int shape) {
+        switch (shape) {
+            case 0: return getString(R.string.NM_MargyShapeCircle);
+            case 1: return getString(R.string.NM_MargyShapeRounded);
+            case 2: return getString(R.string.NM_MargyShapeSquare);
+            case 3: return getString(R.string.NM_MargyShapeCookie);
+            case 4: return getString(R.string.NM_MargyShapeClover);
+            case 5: return getString(R.string.NM_MargyShapeBurst);
+            case 6: return getString(R.string.NM_MargyShapeSun);
+            case 7: return getString(R.string.NM_MargyShapePentagon);
+            case 8: return getString(R.string.NM_MargyShapeHexagon);
+            default: return getString(R.string.NM_MargyShapeHeart);
+        }
     }
 
 }

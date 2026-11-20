@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="NM_MargyTitle">MargyGram</string>
-    <string name="NM_MargyCardDesc">Avatars, edit history, Discord rail, music, streaks</string>
-
-    <string name="NM_MargySectionLook">Appearance</string>
     <string name="NM_MargyAvatars">Shaped avatars</string>
     <string name="NM_MargyAvatars_Desc">Cut profile photos into circles, squares, hearts and other shapes</string>
     <string name="NM_MargyAvatarShape">Avatar shape</string>
+    <string name="NM_MargyShapePreviewHint">Tap a shape — the preview and all avatars update right away</string>
     <string name="NM_MargyShapeCircle">Circle</string>
     <string name="NM_MargyShapeRounded">Rounded square</string>
     <string name="NM_MargyShapeSquare">Square</string>
@@ -20,7 +17,7 @@
     <string name="NM_MargyMonet">Wallpaper colors</string>
     <string name="NM_MargyMonet_Desc">Take the LinkiGram You palette from the system wallpaper instead of the accent color</string>
 
-    <string name="NM_MargySectionChat">Chats</string>
+    <string name="NM_MargySectionChat">Chat extras</string>
     <string name="NM_MargyEditHistory">Edit history</string>
     <string name="NM_MargyEditHistory_Desc">Keep the text a message had before it was edited and show every version in the menu</string>
     <string name="NM_MargyRail">Discord rail</string>
@@ -30,8 +27,6 @@
     <string name="NM_MargyInputLines">Input lines</string>
     <string name="NM_MargyInputTextSize">Input text size</string>
     <string name="NM_MargyInputInfo">The input field changes on the next chat you open.</string>
-
-    <string name="NM_MargySectionMusic">Music</string>
     <string name="NM_MargyMusic">Music screen</string>
     <string name="NM_MargyMusic_Desc">Add the music item to the chat list menu: current track, controls and queue</string>
     <string name="NM_MargyMiniPlayer">Mini player</string>
@@ -39,13 +34,10 @@
     <string name="NM_MargyMusicTitle">Music</string>
     <string name="NM_MargyMusicNothing">Nothing is playing</string>
     <string name="NM_MargyMusicEmpty">The queue is empty. Play an audio file from any chat.</string>
-
-    <string name="NM_MargySectionStreaks">Streaks and pet</string>
     <string name="NM_MargyStreaks">Streak flames</string>
     <string name="NM_MargyStreaks_Desc">Count days when both of you wrote in a private chat</string>
     <string name="NM_MargyPet">Pet</string>
     <string name="NM_MargyPet_Desc">An egg in the message menu that hatches and grows with the streak</string>
-    <string name="NM_MargyPetInfo">A streak day counts when both of you wrote during the same local day. The list is built from messages this phone kept, so a chat that was never loaded here starts from today.</string>
     <string name="NM_MargyPetTitle">Pet</string>
     <string name="NM_MargyPetNoName">Unnamed</string>
     <string name="NM_MargyPetNameHint">Pet name</string>
@@ -54,6 +46,11 @@
     <string name="NM_MargyPetNoStreak">No streak yet. Write to each other today to start one.</string>
     <string name="NM_MargyPetStreak">Streak: %1$d days</string>
     <string name="NM_MargyPetNext">%1$d days to the next stage (%2$d)</string>
+    <string name="NM_MargyPetInChat">Pet in chat</string>
+    <string name="NM_MargyPetInChat_Desc">A small pet floats over the chat. Drag it anywhere, tap to open its card</string>
+    <string name="NM_MargyPetGravity">Gravity</string>
+    <string name="NM_MargyPetGravity_Desc">After you let go the pet falls to the bottom of the chat</string>
+    <string name="NM_MargyPetPlaceInfo">The pet stays where you leave it. With gravity on it always settles at the bottom, above the input field. The position is remembered per chat.</string>
     <string name="NM_MargyGhostExclusions">Excluded chats</string>
     <string name="NM_MargyGhostExclusionsEmpty">None</string>
     <string name="NM_MargyGhostExclusionsAdd">Add chat</string>

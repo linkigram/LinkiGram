@@ -11,8 +11,7 @@ JAVA=ROOT/'TMessagesProj/src/main/java'
 PREF='app/nimarkogram/messenger/preferences/'
 names=['Main','General','Appearance','Chats','Camera','Privacy','AyuMoments','Messages',
        'RecentEmojisStickers','Folders','BottomTabs','NimarkoMedia','Banner','Debug',
-       'Experimental','NimarkoTextAnim','Background','MessageMenuItems','DialogsMenuItems','Drawer',
-       'Margy']
+       'Experimental','NimarkoTextAnim','Background','MessageMenuItems','DialogsMenuItems','Drawer']
 specs=[(PREF+n+'PreferencesActivity.java',None,None) for n in names]
 specs += [(PREF+'ScreenAppearanceActivity.java','LF_DrawerStyle','new ScreenAppearanceActivity("drawer")'),
           (PREF+'LinkiAboutActivity.java',None,None),

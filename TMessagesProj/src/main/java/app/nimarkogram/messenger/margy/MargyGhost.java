@@ -137,4 +137,83 @@ public final class MargyGhost {
                         org.telegram.messenger.R.string.NM_MargyGhostExclusionsEmpty)
                 : String.valueOf(count);
     }
+
+    /**
+     * Диалог исключений: добавить чат, убрать один, очистить все. Вынесен сюда,
+     * чтобы им пользовались и AyuMoments, и меню сообщения.
+     */
+    public static void showExclusions(org.telegram.ui.ActionBar.BaseFragment fragment,
+                                      int account, Runnable onChanged) {
+        if (fragment == null || fragment.getParentActivity() == null) {
+            return;
+        }
+        final java.util.ArrayList<Long> ids = new java.util.ArrayList<>(excludedDialogIds(account));
+        final CharSequence[] entries = new CharSequence[ids.size() + 2];
+        entries[0] = org.telegram.messenger.LocaleController.getString(
+                org.telegram.messenger.R.string.NM_MargyGhostExclusionsAdd);
+        entries[1] = org.telegram.messenger.LocaleController.getString(
+                org.telegram.messenger.R.string.NM_MargyGhostExclusionsClear);
+        for (int i = 0; i < ids.size(); i++) {
+            entries[i + 2] = titleFor(account, ids.get(i));
+        }
+        new org.telegram.ui.ActionBar.AlertDialog.Builder(fragment.getParentActivity())
+                .setTitle(org.telegram.messenger.LocaleController.getString(
+                        org.telegram.messenger.R.string.NM_MargyGhostExclusions))
+                .setItems(entries, (dialog, which) -> {
+                    if (which == 0) {
+                        showAddExclusion(fragment, account, onChanged);
+                    } else if (which == 1) {
+                        clearExclusions(account);
+                        if (onChanged != null) {
+                            onChanged.run();
+                        }
+                    } else {
+                        setExcluded(account, ids.get(which - 2), false);
+                        if (onChanged != null) {
+                            onChanged.run();
+                        }
+                    }
+                })
+                .setNegativeButton(org.telegram.messenger.LocaleController.getString(
+                        org.telegram.messenger.R.string.Close), null)
+                .show();
+    }
+
+    private static void showAddExclusion(org.telegram.ui.ActionBar.BaseFragment fragment,
+                                         int account, Runnable onChanged) {
+        if (fragment == null || fragment.getParentActivity() == null) {
+            return;
+        }
+        final java.util.ArrayList<Long> ids = new java.util.ArrayList<>();
+        final java.util.ArrayList<CharSequence> titles = new java.util.ArrayList<>();
+        final java.util.ArrayList<TLRPC.Dialog> dialogs =
+                MessagesController.getInstance(account).getDialogs(0);
+        for (int i = 0; i < dialogs.size() && ids.size() < 60; i++) {
+            final long id = dialogs.get(i).id;
+            if (id == 0 || org.telegram.messenger.DialogObject.isFolderDialogId(id)) {
+                continue;
+            }
+            final CharSequence title = titleFor(account, Math.abs(id));
+            if (title == null || title.length() == 0) {
+                continue;
+            }
+            ids.add(id);
+            titles.add(title);
+        }
+        if (ids.isEmpty()) {
+            return;
+        }
+        new org.telegram.ui.ActionBar.AlertDialog.Builder(fragment.getParentActivity())
+                .setTitle(org.telegram.messenger.LocaleController.getString(
+                        org.telegram.messenger.R.string.NM_MargyGhostExclusionsAdd))
+                .setItems(titles.toArray(new CharSequence[0]), (dialog, which) -> {
+                    setExcluded(account, ids.get(which), true);
+                    if (onChanged != null) {
+                        onChanged.run();
+                    }
+                })
+                .setNegativeButton(org.telegram.messenger.LocaleController.getString(
+                        org.telegram.messenger.R.string.Cancel), null)
+                .show();
+    }
 }

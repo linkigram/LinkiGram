@@ -24,6 +24,10 @@ public final class MargyConfig {
     public static final String KEY_MINI_PLAYER = PREFIX + "mini_player";
     public static final String KEY_STREAK_FLAMES = PREFIX + "streak_flames";
     public static final String KEY_PET = PREFIX + "pet";
+    public static final String KEY_PET_IN_CHAT = PREFIX + "pet_in_chat";
+    public static final String KEY_PET_GRAVITY = PREFIX + "pet_gravity";
+    public static final String KEY_PET_X = PREFIX + "pet_x";
+    public static final String KEY_PET_Y = PREFIX + "pet_y";
 
     /** Значения по умолчанию у повторов поля ввода. */
     public static final int[] INPUT_LINES = {3, 4, 6, 8, 12, 20};
@@ -136,10 +140,48 @@ public final class MargyConfig {
     }
 
     public static boolean pet() {
-        return prefs().getBoolean(KEY_PET, false);
+        return prefs().getBoolean(KEY_PET, true);
     }
 
     public static void togglePet() {
         prefs().edit().putBoolean(KEY_PET, !pet()).apply();
+    }
+
+    /** Питомец живёт прямо в чате и его можно перетащить куда угодно. */
+    public static boolean petInChat() {
+        return prefs().getBoolean(KEY_PET_IN_CHAT, true);
+    }
+
+    public static void togglePetInChat() {
+        prefs().edit().putBoolean(KEY_PET_IN_CHAT, !petInChat()).apply();
+    }
+
+    /** Гравитация: после перетаскивания питомец падает вниз чата. */
+    public static boolean petGravity() {
+        return prefs().getBoolean(KEY_PET_GRAVITY, true);
+    }
+
+    public static void togglePetGravity() {
+        prefs().edit().putBoolean(KEY_PET_GRAVITY, !petGravity()).apply();
+        if (petGravity()) {
+            clearPetPosition();
+        }
+    }
+
+    public static float petX() {
+        return prefs().getFloat(KEY_PET_X, Float.NaN);
+    }
+
+    public static float petY() {
+        return prefs().getFloat(KEY_PET_Y, Float.NaN);
+    }
+
+    public static void setPetPosition(float x, float y) {
+        prefs().edit().putFloat(KEY_PET_X, Math.max(0f, Math.min(1f, x)))
+                .putFloat(KEY_PET_Y, Math.max(0f, Math.min(1f, y))).apply();
+    }
+
+    public static void clearPetPosition() {
+        prefs().edit().remove(KEY_PET_X).remove(KEY_PET_Y).apply();
     }
 }

@@ -326,13 +326,11 @@ final class LinkiSettingsEnglishCatalog {
         labels.put(R.string.NM_MargyMonet, "Wallpaper colors");
         labels.put(R.string.NM_MargyMusic, "Music screen");
         labels.put(R.string.NM_MargyPet, "Pet");
+        labels.put(R.string.NM_MargyPetGravity, "Gravity");
+        labels.put(R.string.NM_MargyPetInChat, "Pet in chat");
         labels.put(R.string.NM_MargyRail, "Discord rail");
-        labels.put(R.string.NM_MargySectionChat, "Chats");
-        labels.put(R.string.NM_MargySectionLook, "Appearance");
-        labels.put(R.string.NM_MargySectionMusic, "Music");
-        labels.put(R.string.NM_MargySectionStreaks, "Streaks and pet");
+        labels.put(R.string.NM_MargySectionChat, "Chat extras");
         labels.put(R.string.NM_MargyStreaks, "Streak flames");
-        labels.put(R.string.NM_MargyTitle, "MargyGram");
         labels.put(R.string.NM_Material_All, "Enable all Material 3 styles");
         labels.put(R.string.NM_Material_Dividers, "Section dividers");
         labels.put(R.string.NM_Material_Headers, "Separate section headers");

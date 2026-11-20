@@ -9235,10 +9235,14 @@ public class ChatActivity extends BaseFragment implements
         // Серии в личке: учёт дней стартует при открытии любого чата.
         app.nimarkogram.messenger.margy.MargyStreaks.ensure(currentAccount);
 
+        // Питомец живёт прямо в чате: его можно перетащить куда угодно.
+        app.nimarkogram.messenger.margy.MargyPetOverlay.attach(
+                this, contentView, currentAccount, dialog_id);
+
         // Режим Discord: слева колонка чатов иконками, справа этот чат целиком
         if (app.nimarkogram.messenger.margy.MargyConfig.discordRail()
                 && chatMode == MODE_DEFAULT && !inPreviewMode && !isInsideContainer
-                && threadMessageId == 0 && dialog_id != 0) {
+                && dialog_id != 0) {
             fragmentView = (android.view.View) app.nimarkogram.messenger.margy.MargyDiscordRail.wrap(
                     this, context, fragmentView, dialog_id);
         }
@@ -11927,7 +11931,7 @@ public class ChatActivity extends BaseFragment implements
                     scrimBlurBitmapPaint.setShader(scrimBlurBitmapShader = new BitmapShader(scrimBlurBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP));
                     scrimBlurMatrix = new Matrix();
                     scrimBlur3SourceBitmap.setBitmap(bitmapOptions);
-                    Blur3Utils.checkBitmapSourceMatrixScale(scrimBlur3SourceBitmap, fragmentView);
+                    Blur3Utils.checkBitmapSourceMatrixScale(scrimBlur3SourceBitmap, contentView);
                     scrimBlur3Factory.invalidateAllLinkedViews();
                 });
                 if (popupContent != null) {
@@ -11942,8 +11946,14 @@ public class ChatActivity extends BaseFragment implements
         scrimPaintAlphaAnimator.addUpdateListener(a -> {
             scrimPaintAlpha = (float) a.getAnimatedValue();
             scrimViewProgress = scrimPaintAlpha / max;
-            if (fragmentView != null) {
-                fragmentView.invalidate();
+            // The scrim is drawn by contentView. With the Discord rail fragmentView is the
+            // rail wrapper, so invalidating it never repainted the blur during the open
+            // animation and it only showed up once the menu was closing.
+            if (contentView != null) {
+                contentView.invalidate();
+            }
+            if (chatListView != null) {
+                chatListView.invalidate();
             }
         });
         if (!enable || hidePagedownButtons) {
@@ -13001,14 +13011,14 @@ public class ChatActivity extends BaseFragment implements
             // Keep enough scene detail for the menu's refracting edges.
             AndroidUtilities.makeGlobalBlurBitmap(bitmap -> {
                 scrimBlur3SourceBitmap.setBitmap(bitmap);
-                Blur3Utils.checkBitmapSourceMatrixScale(scrimBlur3SourceBitmap, fragmentView);
+                Blur3Utils.checkBitmapSourceMatrixScale(scrimBlur3SourceBitmap, contentView);
                 scrimBlur3Factory.invalidateAllLinkedViews();
             }, 3f, 2, null, null);
             return;
         }
         ScrimOptions.makeGlobalBlurBitmaps((bitmapBg, bitmapOptions) -> {
             scrimBlur3SourceBitmap.setBitmap(bitmapOptions);
-            Blur3Utils.checkBitmapSourceMatrixScale(scrimBlur3SourceBitmap, fragmentView);
+            Blur3Utils.checkBitmapSourceMatrixScale(scrimBlur3SourceBitmap, contentView);
             scrimBlur3Factory.invalidateAllLinkedViews();
         });
     }
@@ -19144,7 +19154,7 @@ public class ChatActivity extends BaseFragment implements
         @Override
         protected void onSizeChanged(int w, int h, int oldw, int oldh) {
             super.onSizeChanged(w, h, oldw, oldh);
-            Blur3Utils.checkBitmapSourceMatrixScale(scrimBlur3SourceBitmap, fragmentView);
+            Blur3Utils.checkBitmapSourceMatrixScale(scrimBlur3SourceBitmap, contentView);
             scrimBlur3Factory.invalidateAllLinkedViews();
         }
 

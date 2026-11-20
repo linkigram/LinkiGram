@@ -70,6 +70,11 @@ public class ChatsPreferencesActivity extends NimarkoUniversalPreferencesActivit
     private final int messageMenuRow = 80, messageFilterRow = 81, localPinsInfoRow = 82,
             dialogsMenuRow = 83;
 
+    private final int margyEditHistoryRow = 90, margyRailRow = 91, margyInputTopRow = 92,
+            margyInputLinesRow = 93, margyInputTextSizeRow = 94, margyMusicRow = 95,
+            margyMiniPlayerRow = 96, margyStreaksRow = 97, margyPetRow = 98,
+            margyPetInChatRow = 99, margyPetGravityRow = 100;
+
     @Override
     public String getTitle() {
         return getString(R.string.FilterChats);
@@ -194,6 +199,58 @@ public class ChatsPreferencesActivity extends NimarkoUniversalPreferencesActivit
         items.add(UItem.asButton(messageMenuRow, R.drawable.msg_list, getString(R.string.CP_MessageMenu)));
         items.add(UItem.asButton(dialogsMenuRow, R.drawable.msg_list, getString(R.string.NM_DM_Title)));
         items.add(UItem.asButton(messageFilterRow, R.drawable.msg_notspam, getString(R.string.CP_Message_Filtering)));
+        items.add(UItem.asShadow(null));
+
+        items.add(UItem.asHeader(getString(R.string.NM_MargySectionChat)));
+        items.add(SettingsHelper.asSwitchCG(margyEditHistoryRow,
+                        getString(R.string.NM_MargyEditHistory),
+                        getString(R.string.NM_MargyEditHistory_Desc))
+                .setChecked(app.nimarkogram.messenger.margy.MargyConfig.editHistory()));
+        items.add(SettingsHelper.asSwitchCG(margyRailRow,
+                        getString(R.string.NM_MargyRail),
+                        getString(R.string.NM_MargyRail_Desc))
+                .setChecked(app.nimarkogram.messenger.margy.MargyConfig.discordRail()));
+        items.add(SettingsHelper.asSwitchCG(margyInputTopRow,
+                        getString(R.string.NM_MargyInputTop),
+                        getString(R.string.NM_MargyInputTop_Desc))
+                .setChecked(app.nimarkogram.messenger.margy.MargyConfig.inputOnTop()));
+        items.add(UItem.asButton(margyInputLinesRow,
+                getString(R.string.NM_MargyInputLines),
+                String.valueOf(app.nimarkogram.messenger.margy.MargyConfig.inputMaxLines())));
+        items.add(UItem.asButton(margyInputTextSizeRow,
+                getString(R.string.NM_MargyInputTextSize),
+                String.valueOf(app.nimarkogram.messenger.margy.MargyConfig.inputTextSize())));
+        items.add(UItem.asShadow(getString(R.string.NM_MargyInputInfo)));
+
+        items.add(SettingsHelper.asSwitchCG(margyMusicRow,
+                        getString(R.string.NM_MargyMusic),
+                        getString(R.string.NM_MargyMusic_Desc))
+                .setChecked(app.nimarkogram.messenger.margy.MargyConfig.musicTab()));
+        items.add(SettingsHelper.asSwitchCG(margyMiniPlayerRow,
+                        getString(R.string.NM_MargyMiniPlayer),
+                        getString(R.string.NM_MargyMiniPlayer_Desc))
+                .setChecked(app.nimarkogram.messenger.margy.MargyConfig.miniPlayer()));
+        items.add(SettingsHelper.asSwitchCG(margyStreaksRow,
+                        getString(R.string.NM_MargyStreaks),
+                        getString(R.string.NM_MargyStreaks_Desc))
+                .setChecked(app.nimarkogram.messenger.margy.MargyConfig.streakFlames()));
+        items.add(SettingsHelper.asSwitchCG(margyPetRow,
+                        getString(R.string.NM_MargyPet),
+                        getString(R.string.NM_MargyPet_Desc))
+                .setChecked(app.nimarkogram.messenger.margy.MargyConfig.pet()));
+        if (app.nimarkogram.messenger.margy.MargyConfig.pet()) {
+            items.add(SettingsHelper.asSwitchCG(margyPetInChatRow,
+                            getString(R.string.NM_MargyPetInChat),
+                            getString(R.string.NM_MargyPetInChat_Desc))
+                    .setChecked(app.nimarkogram.messenger.margy.MargyConfig.petInChat()));
+            if (app.nimarkogram.messenger.margy.MargyConfig.petInChat()) {
+                items.add(SettingsHelper.asSwitchCG(margyPetGravityRow,
+                                getString(R.string.NM_MargyPetGravity),
+                                getString(R.string.NM_MargyPetGravity_Desc))
+                        .setChecked(app.nimarkogram.messenger.margy.MargyConfig.petGravity()));
+                items.add(UItem.asShadow(getString(R.string.NM_MargyPetPlaceInfo)));
+            }
+        }
         items.add(UItem.asShadow(null));
     }
 
@@ -359,6 +416,63 @@ public class ChatsPreferencesActivity extends NimarkoUniversalPreferencesActivit
             presentFragment(new DialogsMenuItemsPreferencesActivity());
         } else if (id == messageFilterRow) {
             presentFragment(new MessageFiltersPreferencesActivity());
+        } else if (id == margyEditHistoryRow) {
+            app.nimarkogram.messenger.margy.MargyConfig.toggleEditHistory();
+            updateCheckState(view, app.nimarkogram.messenger.margy.MargyConfig.editHistory());
+        } else if (id == margyRailRow) {
+            app.nimarkogram.messenger.margy.MargyConfig.toggleDiscordRail();
+            updateCheckState(view, app.nimarkogram.messenger.margy.MargyConfig.discordRail());
+        } else if (id == margyInputTopRow) {
+            app.nimarkogram.messenger.margy.MargyConfig.toggleInputOnTop();
+            updateCheckState(view, app.nimarkogram.messenger.margy.MargyConfig.inputOnTop());
+        } else if (id == margyInputLinesRow) {
+            final ArrayList<CharSequence> lines = new ArrayList<>();
+            int current = -1;
+            for (int i = 0; i < app.nimarkogram.messenger.margy.MargyConfig.INPUT_LINES.length; i++) {
+                final int value = app.nimarkogram.messenger.margy.MargyConfig.INPUT_LINES[i];
+                lines.add(String.valueOf(value));
+                if (value == app.nimarkogram.messenger.margy.MargyConfig.inputMaxLines()) {
+                    current = i;
+                }
+            }
+            PopupHelper.show(lines, getString(R.string.NM_MargyInputLines), current, getContext(), index -> {
+                final int value = app.nimarkogram.messenger.margy.MargyConfig.INPUT_LINES[index];
+                app.nimarkogram.messenger.margy.MargyConfig.setInputMaxLines(value);
+                SettingsHelper.updateButtonValue(view, String.valueOf(value));
+            });
+        } else if (id == margyInputTextSizeRow) {
+            final ArrayList<CharSequence> sizes = new ArrayList<>();
+            int current = -1;
+            for (int i = 0; i < app.nimarkogram.messenger.margy.MargyConfig.INPUT_TEXT_SIZES.length; i++) {
+                final int value = app.nimarkogram.messenger.margy.MargyConfig.INPUT_TEXT_SIZES[i];
+                sizes.add(String.valueOf(value));
+                if (value == app.nimarkogram.messenger.margy.MargyConfig.inputTextSize()) {
+                    current = i;
+                }
+            }
+            PopupHelper.show(sizes, getString(R.string.NM_MargyInputTextSize), current, getContext(), index -> {
+                final int value = app.nimarkogram.messenger.margy.MargyConfig.INPUT_TEXT_SIZES[index];
+                app.nimarkogram.messenger.margy.MargyConfig.setInputTextSize(value);
+                SettingsHelper.updateButtonValue(view, String.valueOf(value));
+            });
+        } else if (id == margyMusicRow) {
+            app.nimarkogram.messenger.margy.MargyConfig.toggleMusicTab();
+            updateCheckState(view, app.nimarkogram.messenger.margy.MargyConfig.musicTab());
+        } else if (id == margyMiniPlayerRow) {
+            app.nimarkogram.messenger.margy.MargyConfig.toggleMiniPlayer();
+            updateCheckState(view, app.nimarkogram.messenger.margy.MargyConfig.miniPlayer());
+        } else if (id == margyStreaksRow) {
+            app.nimarkogram.messenger.margy.MargyConfig.toggleStreakFlames();
+            updateCheckState(view, app.nimarkogram.messenger.margy.MargyConfig.streakFlames());
+        } else if (id == margyPetRow) {
+            app.nimarkogram.messenger.margy.MargyConfig.togglePet();
+            listView.adapter.update(false);
+        } else if (id == margyPetInChatRow) {
+            app.nimarkogram.messenger.margy.MargyConfig.togglePetInChat();
+            listView.adapter.update(false);
+        } else if (id == margyPetGravityRow) {
+            app.nimarkogram.messenger.margy.MargyConfig.togglePetGravity();
+            updateCheckState(view, app.nimarkogram.messenger.margy.MargyConfig.petGravity());
         }
     }
 
