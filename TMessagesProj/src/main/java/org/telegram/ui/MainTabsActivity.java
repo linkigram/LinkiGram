@@ -562,6 +562,11 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         iBlur3FactoryGlass.setSourceRootView(viewPositionWatcher, contentView);
         tabsLiquidGlassEnabled = useGlassTabs();
         iBlur3FactoryGlass.setLiquidGlassEffectAllowed(tabsLiquidGlassEnabled);
+        android.util.Log.i("LinkiGlass", "tabs glass=" + tabsLiquidGlassEnabled
+                + " you=" + app.nimarkogram.messenger.appearance.ClientTheme.isEnabled()
+                + " glassEnabled=" + app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled()
+                + " liteGlass=" + LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS)
+                + " docked=" + dockedTabs);
 
         tabsViewBackground = iBlur3FactoryGlass.create(tabsView, BlurredBackgroundProviderImpl.mainTabs(resourceProvider));
         tabsViewBackground.setThickness(dp(16));

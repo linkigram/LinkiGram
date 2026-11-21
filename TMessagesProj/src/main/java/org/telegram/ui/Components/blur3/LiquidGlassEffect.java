@@ -43,7 +43,9 @@ public class LiquidGlassEffect {
         if (shaderResource != R.raw.liquid_glass_shader) {
             try {
                 compiled = new RuntimeShader(AndroidUtilities.readRes(shaderResource));
+                android.util.Log.i("LinkiGlass", "rich lens compiled: " + shaderResource);
             } catch (IllegalArgumentException e) {
+                android.util.Log.e("LinkiGlass", "rich lens failed, plain fallback: " + e.getMessage());
                 FileLog.e(e);
             }
         }
