@@ -134,10 +134,10 @@ public final class AiChatPrompt {
         // ImageLoader кладёт просмотренные фото в кэш, а скачанный через
         // loadFile полный файл — в MEDIA_DIR_IMAGE. Проверяем оба пути, иначе
         // ожидание в кэше никогда не заканчивается файлом.
-        final File cacheFile = loader.getPathToAttach(size, true);
-        final File imageFile = loader.getPathToAttach(size, false);
+        final File cacheFile = pathFor(loader, size, true);
+        final File imageFile = pathFor(loader, size, false);
         Log.d(TAG, "loadPhoto: size=" + size.w + "x" + size.h
-                + " cache=" + cacheFile.exists() + " image=" + imageFile.exists());
+                + " cache=" + exists(cacheFile) + " image=" + exists(imageFile));
         final File ready = firstExisting(cacheFile, imageFile);
         if (ready != null) {
             decode(ready, done);
@@ -150,13 +150,28 @@ public final class AiChatPrompt {
         pollFile(cacheFile, imageFile, 0, done);
     }
 
+    private static File pathFor(FileLoader loader, TLRPC.PhotoSize size, boolean forceCache) {
+        try {
+            return loader.getPathToAttach(size, forceCache);
+        } catch (Exception e) {
+            Log.d(TAG, "pathFor failed: " + e);
+            return null;
+        }
+    }
+
+    private static boolean exists(File file) {
+        return file != null && file.exists();
+    }
+
     private static File localAttach(MessageObject message) {
         if (message == null || message.messageOwner == null) {
             return null;
         }
         String path = message.messageOwner.attachPath;
-        if (TextUtils.isEmpty(path)) {
-            path = message.messageOwner.localPath;
+        if (TextUtils.isEmpty(path)
+                && message.messageOwner.media != null
+                && message.messageOwner.media.document != null) {
+            path = message.messageOwner.media.document.localPath;
         }
         if (TextUtils.isEmpty(path)) {
             return null;
