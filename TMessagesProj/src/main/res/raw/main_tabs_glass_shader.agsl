@@ -10,8 +10,10 @@
  *
  * Adapted for LinkiGram from Backdrop's rounded-rect lens by Kyant:
  * https://github.com/Kyant0/AndroidLiquidGlass
- * LinkiGram changes: bell-profile edge refraction, anti-aliased silhouette,
- * chromatic dispersion and selector-driven surface light.
+ * LinkiGram changes: a thin bell-profile refraction band on a rounded inner
+ * contour, an anti-aliased silhouette, a crisp specular hairline on the edge,
+ * a soft dark underside away from the light, chromatic dispersion and a
+ * selector-driven surface light.
  */
 uniform shader img;
 uniform float2 resolution;
@@ -37,7 +39,6 @@ float sdRoundBox(float2 p, float2 halfSize, float4 r) {
 half4 main(float2 coord) {
     float2 p = coord - center;
     float sd = sdRoundBox(p, size, radius);
-    // One pixel of coverage outside the silhouette keeps the rounded corners smooth.
     float coverage = clamp(0.5 - sd, 0.0, 1.0);
     float2 grad = float2(
         sdRoundBox(p + float2(0.5, 0.0), size, radius)
@@ -48,24 +49,19 @@ half4 main(float2 coord) {
     float t = max(thickness, 1.0);
     float depth = max(-sd, 0.0);
 
-    // The lens band follows a rounded inner contour, not the raw distance field:
-    // once the band is wider than the corner radius a plain offset develops a
-    // crease at every corner, which reads as a bright wedge instead of glass.
-    float bandW = max(min(t * 1.25, min(size.x, size.y) * 0.85), 1.0);
+    float bandW = max(min(t * 0.95, min(size.x, size.y) * 0.75), 1.0);
     float2 innerSize = max(size - bandW, float2(0.0));
     float4 innerRadius = max(radius - bandW, radius * 0.45);
     float sdInner = sdRoundBox(p, innerSize, innerRadius);
     float band = clamp(sdInner / bandW, 0.0, 1.0);
 
-    // Refraction lives in that ring; the flat middle keeps the backdrop straight.
     float profile = sin(band * PI);
-    float bend = profile * bandW * 0.55 * refract_intensity * (refract_index / 1.5);
+    float bend = profile * bandW * 1.15 * refract_intensity * (refract_index / 1.5);
     float2 offset = -outward * bend;
     float2 lo = max(float2(0.5), center - size + 0.5);
     float2 hi = max(lo, min(resolution - 0.5, center + size - 0.5));
 
-    // Dispersion only where the lens actually bends, so flat glass stays neutral.
-    float spread = bend * 0.045;
+    float spread = bend * 0.030;
     float2 offsetR = -outward * (bend + spread);
     float2 offsetB = -outward * (bend - spread);
     half4 source = img.eval(clamp(coord + offset, lo, hi));
@@ -77,26 +73,31 @@ half4 main(float2 coord) {
     half4 tint = half4(foreground_color_premultiplied);
     color = color * (1.0 - tint.a) + tint.rgb;
 
-    // Surface normal: along the rim it faces sideways, in the middle it faces the viewer.
     float slope = clamp(1.0 - depth / t, 0.0, 1.0);
     float3 normal = float3(outward * slope, sqrt(max(1.0 - slope * slope, 0.0)));
     float3 light = normalize(float3(-0.35 + (light_position - 0.5) * 0.7, -0.62, 0.70));
     float lit = clamp(dot(outward, normalize(light.xy)), 0.0, 1.0);
-    float rim = smoothstep(0.35, 1.0, band);
+    float rim = smoothstep(0.40, 1.0, band);
 
-    // A soft specular along the lit edge, never a hard 1px line.
     float3 halfway = normalize(light + float3(0.0, 0.0, 1.0));
-    float specular = pow(max(dot(normal, halfway), 0.0), 48.0) * rim * 0.14;
-    float edgeGlow = rim * (0.020 + 0.10 * lit * lit);
-    // The interior shading must not read the normal: the medial axis of a
-    // rounded box makes `outward` jump across the diagonals from the corners.
-    float inner = (1.0 - rim) * (1.0 - band) * 0.04;
-    color = color * (1.0 - inner) + half(specular + edgeGlow);
+    float specular = pow(max(dot(normal, halfway), 0.0), 96.0) * rim * 0.42;
 
-    // The selector light: a wide, weak highlight that follows the active tab.
+    // A crisp hairline right on the silhouette: the edge of real glass catches
+    // the light in a line, not in a haze.
+    float hair = 1.0 - smoothstep(0.0, max(1.5, t * 0.13), depth);
+    float hairLit = hair * (0.10 + 0.62 * lit);
+    float hairDark = hair * clamp(-outward.y, 0.0, 1.0) * 0.30;
+
+    float edgeGlow = rim * (0.02 + 0.16 * lit * lit);
+    // Away from the light the lens gets a soft dark edge; the middle stays flat.
+    float underside = rim * clamp(-outward.y, 0.0, 1.0) * 0.20;
+    float inner = (1.0 - rim) * (1.0 - band) * 0.03;
+    color = color * (1.0 - inner) * (1.0 - underside) * (1.0 - hairDark);
+    color = color + half(specular + edgeGlow + hairLit);
+
     float sweep = (light_position - 0.5) * size.x * 2.0;
     float2 glowDelta = float2(p.x - sweep, p.y) / max(float2(size.y * 2.1, size.y * 1.5), float2(1.0));
-    float glow = exp(-dot(glowDelta, glowDelta) * 2.0) * (0.010 + 0.05 * press_progress);
+    float glow = exp(-dot(glowDelta, glowDelta) * 2.0) * (0.010 + 0.06 * press_progress);
     color = mix(color, half3(1.0), half(glow));
 
     return half4(clamp(color, 0.0, 1.0) * half(coverage), half(coverage));

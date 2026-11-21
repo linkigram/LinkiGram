@@ -43,8 +43,11 @@ public class BlurredBackgroundProviderImpl {
                     // Linki Glass over the You layer: the bar is a lens over the page, so its fill
                     // has to stay translucent. Solving it to the solid glass target at 0.85 alpha
                     // produced a plain slab with the blurred page hidden behind it.
+                    // 0.30/0.24 still read as a solid pill on the device: the page behind was
+                    // washed out and the lens looked like a flat rectangle, so the fill is lighter
+                    // and the glass now shows through it.
                     return Theme.multAlpha(Theme.getColor(Theme.key_glass_targetMainTabs, r),
-                            isDark ? 0.30f : 0.24f);
+                            isDark ? 0.17f : 0.13f);
                 }
                 final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
                 final int colorBg = Theme.getColor(Theme.key_windowBackgroundWhite, r);
@@ -127,7 +130,8 @@ public class BlurredBackgroundProviderImpl {
                     }
                     if (ClientTheme.glassEnabled()) {
                         // LinkiGram You + Linki Glass: the menu is a glass panel over the You surface.
-                        return Theme.multAlpha(ClientTheme.color(ClientTheme.SURFACE_HIGH), isDark ? 0.30f : 0.24f);
+                        // Same as the tab bar: a lighter fill lets the page behind show through the lens.
+                        return Theme.multAlpha(ClientTheme.color(ClientTheme.SURFACE_HIGH), isDark ? 0.22f : 0.17f);
                     }
                     if (LinkiGramYouTheme.isEnabled()) {
                         return Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground, r) | 0xFF000000;
