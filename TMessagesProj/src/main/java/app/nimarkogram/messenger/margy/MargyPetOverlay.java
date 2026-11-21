@@ -5,6 +5,7 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Rect;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -94,7 +95,9 @@ public class MargyPetOverlay extends FrameLayout {
                     + " try=" + positionTries);
             return;
         }
-        if (!placed) {
+        if (!placed || !visibleBounds()) {
+            // Первый проход после layout: здесь уже известна видимая часть
+            // слоя, поэтому позиция считается по экрану, а не по getHeight().
             placePet(true);
             placed = true;
         }
@@ -131,6 +134,18 @@ public class MargyPetOverlay extends FrameLayout {
         return dp(SIZE_DP);
     }
 
+    private final Rect visible = new Rect();
+
+    /**
+     * Видимая часть слоя в его собственных координатах. contentView в чате
+     * сдвинут вниз (status bar + action bar) и выше экрана, поэтому
+     * getHeight() — это не экран: отсчёт от него уводил питомца за нижнюю
+     * границу дисплея, и он оказывался за кадром.
+     */
+    private boolean visibleBounds() {
+        return getGlobalVisibleRect(visible) && visible.width() > 0 && visible.height() > 0;
+    }
+
     private int bottomInset() {
         final ChatActivityEnterView enterView = chat.getChatActivityEnterView();
         if (enterView != null && enterView.getHeight() > 0) {
@@ -144,11 +159,25 @@ public class MargyPetOverlay extends FrameLayout {
     }
 
     private int maxTop() {
+        if (visibleBounds()) {
+            return Math.max(visible.top, visible.bottom - size() - bottomInset());
+        }
         return Math.max(dp(8), getHeight() - size() - bottomInset());
     }
 
     private int maxLeft() {
+        if (visibleBounds()) {
+            return Math.max(visible.left, visible.right - size() - dp(6));
+        }
         return Math.max(0, getWidth() - size() - dp(6));
+    }
+
+    private int minTop() {
+        return visibleBounds() ? visible.top : 0;
+    }
+
+    private int minLeft() {
+        return visibleBounds() ? visible.left : 0;
     }
 
     private void placePet(boolean initial) {
@@ -163,19 +192,22 @@ public class MargyPetOverlay extends FrameLayout {
             left = maxLeft();
             top = maxTop();
         } else {
-            left = Math.round(savedX * maxLeft());
-            top = Math.round(savedY * maxTop());
+            left = minLeft() + Math.round(savedX * Math.max(0, maxLeft() - minLeft()));
+            top = minTop() + Math.round(savedY * Math.max(0, maxTop() - minTop()));
         }
         applyPosition(left, top);
         if (initial) {
             Log.i(TAG, "place left=" + left + " top=" + top
-                    + " w=" + getWidth() + " h=" + getHeight() + " maxTop=" + maxTop());
+                    + " visible=" + visibleBounds() + " " + visible.left + "," + visible.top
+                    + "-" + visible.right + "," + visible.bottom
+                    + " maxTop=" + maxTop() + " maxLeft=" + maxLeft()
+                    + " bottomInset=" + bottomInset());
         }
     }
 
     private void applyPosition(int left, int top) {
-        left = Math.max(0, Math.min(maxLeft(), left));
-        top = Math.max(0, Math.min(maxTop(), top));
+        left = Math.max(minLeft(), Math.min(maxLeft(), left));
+        top = Math.max(minTop(), Math.min(maxTop(), top));
         final FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) pet.getLayoutParams();
         if (lp.leftMargin == left && lp.topMargin == top) {
             return;
@@ -246,9 +278,12 @@ public class MargyPetOverlay extends FrameLayout {
     }
 
     private void savePosition(int left, int top) {
-        if (maxLeft() > 0 && maxTop() > 0) {
+        final int rangeX = Math.max(0, maxLeft() - minLeft());
+        final int rangeY = Math.max(0, maxTop() - minTop());
+        if (rangeX > 0 && rangeY > 0) {
             MargyConfig.setPetPosition(
-                    (float) left / maxLeft(), (float) top / maxTop());
+                    (float) (left - minLeft()) / rangeX,
+                    (float) (top - minTop()) / rangeY);
         }
     }
 
