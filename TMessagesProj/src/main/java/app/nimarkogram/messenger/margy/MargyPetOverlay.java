@@ -143,7 +143,28 @@ public class MargyPetOverlay extends FrameLayout {
      * границу дисплея, и он оказывался за кадром.
      */
     private boolean visibleBounds() {
-        return getGlobalVisibleRect(visible) && visible.width() > 0 && visible.height() > 0;
+        final boolean global = getGlobalVisibleRect(visible);
+        final View root = getRootView();
+        if (root != null && root != this && root.getWidth() > 0 && root.getHeight() > 0) {
+            // The window clamps the layer: contentView sits below the action bar
+            // and is taller than the display, and its clipping is off.
+            final int[] loc = new int[2];
+            getLocationInWindow(loc);
+            final int left = Math.max(0, loc[0]);
+            final int top = Math.max(0, loc[1]);
+            final int right = Math.min(root.getWidth(), loc[0] + getWidth());
+            final int bottom = Math.min(root.getHeight(), loc[1] + getHeight());
+            if (right <= left || bottom <= top) {
+                return false;
+            }
+            final Rect clip = new Rect(left - loc[0], top - loc[1], right - loc[0], bottom - loc[1]);
+            if (global) {
+                return visible.intersect(clip) && !visible.isEmpty();
+            }
+            visible.set(clip);
+            return true;
+        }
+        return global && !visible.isEmpty();
     }
 
     private int bottomInset() {
