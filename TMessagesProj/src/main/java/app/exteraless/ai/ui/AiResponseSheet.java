@@ -63,6 +63,9 @@ public class AiResponseSheet extends BottomSheet {
     private final boolean allowInsert;
     private final Utilities.Callback<String> onInsert;
     private final Utilities.Callback<String> onComplete;
+    private final Utilities.Callback<String> onReply;
+    private final byte[] imageData;
+    private final String imageMime;
 
     private final AnimatedTextView statusView;
     private final LinearLayout reasoningBlock;
@@ -76,6 +79,7 @@ public class AiResponseSheet extends BottomSheet {
     private final RadialProgressView loadingView;
     private final TextView primaryButton;
     private final ImageView copyButton;
+    private final ImageView replyButton;
     private final ScrollView scrollView;
 
     private final StringBuilder answer = new StringBuilder();
@@ -100,7 +104,7 @@ public class AiResponseSheet extends BottomSheet {
                             String prompt, boolean allowInsert,
                             Utilities.Callback<String> onInsert, Role role, boolean useHistory) {
         show(context, resourcesProvider, prompt, allowInsert, onInsert, role, useHistory,
-                null, null);
+                null, null, null);
     }
 
     public static void show(Context context, Theme.ResourcesProvider resourcesProvider,
@@ -116,6 +120,16 @@ public class AiResponseSheet extends BottomSheet {
                             Utilities.Callback<String> onInsert, Role role, boolean useHistory,
                             String cachedAnswer, Utilities.Callback<String> onComplete,
                             Client clientOverride) {
+        show(context, resourcesProvider, prompt, allowInsert, onInsert, role, useHistory,
+                cachedAnswer, onComplete, clientOverride, null, null, null);
+    }
+
+    public static void show(Context context, Theme.ResourcesProvider resourcesProvider,
+                            String prompt, boolean allowInsert,
+                            Utilities.Callback<String> onInsert, Role role, boolean useHistory,
+                            String cachedAnswer, Utilities.Callback<String> onComplete,
+                            Client clientOverride, byte[] imageData, String imageMime,
+                            Utilities.Callback<String> onReply) {
         if (context == null || TextUtils.isEmpty(prompt)) {
             return;
         }
@@ -125,20 +139,25 @@ public class AiResponseSheet extends BottomSheet {
             return;
         }
         new AiResponseSheet(context, resourcesProvider, prompt, allowInsert, onInsert,
-                role, useHistory, cachedAnswer, onComplete, clientOverride).show();
+                role, useHistory, cachedAnswer, onComplete, clientOverride,
+                imageData, imageMime, onReply).show();
     }
 
     private AiResponseSheet(Context context, Theme.ResourcesProvider resourcesProvider,
                             String prompt, boolean allowInsert,
                             Utilities.Callback<String> onInsert, Role role, boolean useHistory,
                             String cachedAnswer, Utilities.Callback<String> onComplete,
-                            Client clientOverride) {
+                            Client clientOverride, byte[] imageData, String imageMime,
+                            Utilities.Callback<String> onReply) {
         super(context, false, resourcesProvider);
         this.prompt = prompt;
         this.allowInsert = allowInsert;
         this.onInsert = onInsert;
         this.onComplete = onComplete;
         this.useHistory = useHistory;
+        this.imageData = imageData;
+        this.imageMime = imageMime;
+        this.onReply = onReply;
         this.client = clientOverride != null ? clientOverride
                 : new Client.Builder().roleOverride(role).build();
 
@@ -292,6 +311,23 @@ public class AiResponseSheet extends BottomSheet {
         LinearLayout buttons = new LinearLayout(context);
         buttons.setOrientation(LinearLayout.HORIZONTAL);
 
+        replyButton = new ImageView(context);
+        replyButton.setScaleType(ImageView.ScaleType.CENTER);
+        replyButton.setImageResource(R.drawable.menu_reply);
+        replyButton.setColorFilter(new PorterDuffColorFilter(
+                getThemedColor(Theme.key_dialogTextBlack), PorterDuff.Mode.SRC_IN));
+        replyButton.setBackground(Theme.AdaptiveRipple.filledRect(
+                getThemedColor(Theme.key_graySection), 10));
+        replyButton.setVisibility(View.GONE);
+        replyButton.setContentDescription(getString(R.string.OEAiReply));
+        replyButton.setOnClickListener(v -> {
+            if (onReply != null && answer.length() > 0) {
+                onReply.run(answer.toString());
+            }
+            dismiss();
+        });
+        buttons.addView(replyButton, LayoutHelper.createLinear(48, 46, 0, 0, 8, 0));
+
         copyButton = new ImageView(context);
         copyButton.setScaleType(ImageView.ScaleType.CENTER);
         copyButton.setImageResource(R.drawable.msg_copy);
@@ -367,7 +403,9 @@ public class AiResponseSheet extends BottomSheet {
     private void start() {
         ArrayList<Message> messages = useHistory && AiConfig.getSaveHistory()
                 ? AiConfig.getConversationHistory() : new ArrayList<>();
-        messages.add(new Message("user", prompt));
+        messages.add(imageData != null && imageData.length > 0
+                ? new Message("user", prompt, imageData, TextUtils.isEmpty(imageMime) ? "image/jpeg" : imageMime)
+                : new Message("user", prompt));
         client.generate(requestId, messages, new GenerationCallback() {
             @Override
             public void onChunk(String chunk) {
@@ -506,6 +544,8 @@ public class AiResponseSheet extends BottomSheet {
             scrollView.post(() -> scrollView.scrollTo(0, position));
         }
         copyButton.setVisibility(!failed && answer.length() > 0 ? View.VISIBLE : View.GONE);
+        replyButton.setVisibility(!failed && answer.length() > 0 && onReply != null
+                ? View.VISIBLE : View.GONE);
         primaryButton.setText(allowInsert && onInsert != null && !failed && answer.length() > 0
                 ? getString(R.string.OEAiInsert) : getString(R.string.Close));
     }

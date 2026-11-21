@@ -35215,6 +35215,18 @@ public class ChatActivity extends BaseFragment implements
         MediaController.saveFile(path, getParentActivity(), messageObject.isVideo() ? 1 : 0, null, null);
     }
 
+    /** Ответ ИИ как reply на сообщение, для которого нажали «Спросить ИИ». */
+    private void sendAiReply(String text, MessageObject replyTo) {
+        if (TextUtils.isEmpty(text) || replyTo == null || !canSendMessage()) {
+            return;
+        }
+        final String body = text.length() > 4000 ? text.substring(0, 4000) : text;
+        AlertsCreator.ensurePaidMessageConfirmation(currentAccount, dialog_id, 1, stars ->
+                getSendMessagesHelper().sendMessage(SendMessagesHelper.SendMessageParams.of(
+                        body, dialog_id, replyTo, null, (TLRPC.WebPage) null, false,
+                        (ArrayList<TLRPC.MessageEntity>) null, null, null, true, 0, 0, null, false)));
+    }
+
     public void processSelectedOption(int option) {
         if (option == 9879) {
             if (selectedObject != null) app.nimarkogram.messenger.automation.EditHistory.show(this, currentAccount, selectedObject);
@@ -35227,10 +35239,20 @@ public class ChatActivity extends BaseFragment implements
         }
         if (option == 9877) {
             if (selectedObject != null && getParentActivity() != null) {
-                app.exteraless.ai.ui.AiResponseSheet.show(getParentActivity(), themeDelegate,
-                        getMessageContent(selectedObject, 0, false).toString(), true, text -> {
-                            if (chatActivityEnterView != null) chatActivityEnterView.setFieldText(text);
-                        });
+                final MessageObject quoted = selectedObject;
+                app.nimarkogram.messenger.automation.AiChatPrompt.prepare(currentAccount, quoted, prepared -> {
+                    if (getParentActivity() == null) {
+                        return;
+                    }
+                    app.exteraless.ai.ui.AiResponseSheet.show(getParentActivity(), themeDelegate,
+                            prepared.prompt, true,
+                            text -> {
+                                if (chatActivityEnterView != null) chatActivityEnterView.setFieldText(text);
+                            },
+                            null, true, null, null, null,
+                            prepared.image, prepared.mime,
+                            text -> sendAiReply(text, quoted));
+                });
             }
             closeMenu();
             return;

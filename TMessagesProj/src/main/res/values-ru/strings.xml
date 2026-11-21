@@ -1696,6 +1696,16 @@
 <string name="LinkiRelativeLastSeen">Относительное время в сети</string>
 <string name="LinkiHidePhone">Скрывать свой номер на этом устройстве</string>
     <string name="OEAiAsk">Спросить ИИ</string>
+    <string name="OEAiReply">Ответить этим текстом</string>
+    <string name="OEAiYouWrite">Вы пишете: %1$s</string>
+    <string name="OEAiAuthorSays">%1$s пишет: %2$s</string>
+    <string name="OEAiPhotoOnly">[фото]</string>
+    <string name="OEAiSomeone">Кто-то</string>
+    <string name="LinkiChatAssistantReady">ИИ готов: %1$s</string>
+    <string name="LinkiChatAssistantNotReady">ИИ не настроен. Укажите адрес, модель и ключ.</string>
+    <string name="LinkiChatAssistantConfigure">Открыть настройки ИИ</string>
+    <string name="LinkiChatAssistantEncrypted">Секретные чаты не поддерживаются ассистентом</string>
+    <string name="LinkiChatAssistantEnabledNow">Ассистент отвечает на новые входящие сообщения в этом чате</string>
     <string name="LinkiSettingsIconColors">Цвет значков в настройках</string>
     <string name="LinkiIconsNeutral">Нейтральные</string>
     <string name="LinkiIconsAccent">Акцент темы</string>

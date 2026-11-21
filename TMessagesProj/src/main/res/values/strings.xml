@@ -13120,6 +13120,16 @@
 <string name="LinkiRelativeLastSeen">Relative last seen</string>
 <string name="LinkiHidePhone">Hide my phone number locally</string>
     <string name="OEAiAsk">Ask AI</string>
+    <string name="OEAiReply">Reply with this answer</string>
+    <string name="OEAiYouWrite">You wrote: %1$s</string>
+    <string name="OEAiAuthorSays">%1$s writes: %2$s</string>
+    <string name="OEAiPhotoOnly">[photo]</string>
+    <string name="OEAiSomeone">Someone</string>
+    <string name="LinkiChatAssistantReady">AI is ready: %1$s</string>
+    <string name="LinkiChatAssistantNotReady">AI is not configured. Set the endpoint, model and key.</string>
+    <string name="LinkiChatAssistantConfigure">Open AI settings</string>
+    <string name="LinkiChatAssistantEncrypted">Secret chats are not supported by the assistant</string>
+    <string name="LinkiChatAssistantEnabledNow">The assistant answers new incoming messages in this chat</string>
     <string name="LinkiSettingsIconColors">Settings icon colors</string>
     <string name="LinkiIconsNeutral">Neutral</string>
     <string name="LinkiIconsAccent">Theme accent</string>
