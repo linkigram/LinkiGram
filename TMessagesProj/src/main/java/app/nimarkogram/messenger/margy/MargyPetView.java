@@ -5,9 +5,11 @@ import static org.telegram.messenger.AndroidUtilities.dp;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.view.View;
 
 import org.telegram.ui.ActionBar.Theme;
@@ -28,9 +30,15 @@ public class MargyPetView extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint eye = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint cheek = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint shade = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint sheen = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint horn = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint mouth = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint specular = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path shape = new Path();
     private final RectF rect = new RectF();
 
+    private int accent = 0xFF5F9B4A;
     private int stage = STAGE_EGG;
     private float phase;
     private boolean animating;
@@ -39,7 +47,11 @@ public class MargyPetView extends View {
         super(context);
         this.stage = Math.max(STAGE_EGG, Math.min(STAGE_ADULT, stage));
         eye.setColor(Color.WHITE);
-        cheek.setColor(0x33FF5B7F);
+        cheek.setColor(0x70FFB6C4);
+        cheek.setMaskFilter(new android.graphics.BlurMaskFilter(dp(1.5f), android.graphics.BlurMaskFilter.Blur.NORMAL));
+        mouth.setStyle(Paint.Style.STROKE);
+        mouth.setStrokeCap(Paint.Cap.ROUND);
+        specular.setColor(0xE6FFFFFF);
         setLayerType(LAYER_TYPE_SOFTWARE, null);
     }
 
@@ -58,86 +70,145 @@ public class MargyPetView extends View {
         super.onDraw(canvas);
         final float w = getWidth();
         final float h = getHeight();
-        final float cx = w / 2f;
-        final float cy = h / 2f;
-        final float breathe = 1f + 0.03f * (float) Math.sin(phase);
-        final int accent = ClientTheme.isEnabled()
-                ? ClientTheme.color(ClientTheme.PRIMARY)
-                : Theme.getColor(Theme.key_chats_actionBackground);
-
-        paint.setStyle(Paint.Style.FILL);
-        paint.setShadowLayer(dp(8), 0, dp(3), 0x33000000);
-
-        if (stage == STAGE_EGG || stage == STAGE_HATCHING) {
-            // Яйцо: овал с крапинками и трещиной на стадии вылупления.
-            rect.set(cx - w * 0.24f * breathe, cy - h * 0.30f,
-                    cx + w * 0.24f * breathe, cy + h * 0.30f);
-            paint.setColor(blend(accent, Color.WHITE, 0.55f));
-            canvas.drawOval(rect, paint);
-            paint.setColor(blend(accent, Color.WHITE, 0.30f));
-            for (int i = 0; i < 5; i++) {
-                final float px = cx + (float) Math.cos(i * 2.1) * w * 0.12f;
-                final float py = cy + (float) Math.sin(i * 1.7) * h * 0.16f;
-                canvas.drawCircle(px, py, dp(2.2f), paint);
-            }
-            if (stage == STAGE_HATCHING) {
-                paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(dp(1.6f));
-                paint.setShadowLayer(0, 0, 0, 0);
-                paint.setColor(blend(accent, Color.BLACK, 0.45f));
-                shape.rewind();
-                shape.moveTo(cx - w * 0.10f, cy - h * 0.18f);
-                shape.lineTo(cx + w * 0.02f, cy - h * 0.04f);
-                shape.lineTo(cx - w * 0.06f, cy + h * 0.06f);
-                shape.lineTo(cx + w * 0.08f, cy + h * 0.20f);
-                canvas.drawPath(shape, paint);
-                paint.setStyle(Paint.Style.FILL);
-            }
+        if (w <= 0 || h <= 0) {
             return;
         }
+        final float u = Math.min(w, h);
+        final float cx = w / 2f;
+        final float cy = h * 0.545f;
+        final float breathe = 1f + 0.02f * (float) Math.sin(phase);
+        accent = ClientTheme.isEnabled()
+                ? ClientTheme.color(ClientTheme.PRIMARY)
+                : Theme.getColor(Theme.key_chats_actionBackground);
+        final int ink = Theme.isCurrentThemeDark() ? 0xFF14151A : 0xFF23242A;
 
-        // Тело: капля, сверху ушки/рожки в зависимости от стадии.
-        final float body = w * (stage == STAGE_ADULT ? 0.34f : 0.30f) * breathe;
-        paint.setColor(accent);
-        rect.set(cx - body, cy - body * 0.85f, cx + body, cy + body);
-        canvas.drawRoundRect(rect, body, body, paint);
+        if (stage == STAGE_EGG || stage == STAGE_HATCHING) {
+            drawEgg(canvas, u, cx, cy, breathe);
+            return;
+        }
+        drawCreature(canvas, u, cx, cy, breathe, ink);
+    }
 
-        paint.setColor(blend(accent, Color.WHITE, 0.10f));
-        if (stage == STAGE_ADULT) {
-            shape.rewind();
-            shape.moveTo(cx - body * 0.75f, cy - body * 0.55f);
-            shape.lineTo(cx - body * 0.55f, cy - body * 1.45f);
-            shape.lineTo(cx - body * 0.15f, cy - body * 0.75f);
-            shape.close();
-            shape.moveTo(cx + body * 0.15f, cy - body * 0.75f);
-            shape.lineTo(cx + body * 0.55f, cy - body * 1.45f);
-            shape.lineTo(cx + body * 0.75f, cy - body * 0.55f);
-            shape.close();
-            canvas.drawPath(shape, paint);
-        } else {
-            canvas.drawCircle(cx - body * 0.6f, cy - body * 0.75f, body * 0.26f, paint);
-            canvas.drawCircle(cx + body * 0.6f, cy - body * 0.75f, body * 0.26f, paint);
+    private void drawEgg(Canvas canvas, float u, float cx, float cy, float breathe) {
+        final float ex = u * 0.215f * breathe;
+        final float ey = u * 0.255f;
+
+        // мягкая тень под яйцом
+        shade.setColor(0x2E000000);
+        shade.setMaskFilter(new android.graphics.BlurMaskFilter(u * 0.05f, android.graphics.BlurMaskFilter.Blur.NORMAL));
+        rect.set(cx - ex * 0.9f, cy + ey * 0.78f, cx + ex * 0.9f, cy + ey * 1.12f);
+        canvas.drawOval(rect, shade);
+        shade.setMaskFilter(null);
+
+        // объём яйца градиентом
+        paint.setShader(new LinearGradient(cx - ex, cy - ey, cx + ex, cy + ey,
+                new int[]{blend(accent, Color.WHITE, 0.62f), blend(accent, Color.WHITE, 0.30f), blend(accent, Color.BLACK, 0.18f)},
+                new float[]{0f, 0.55f, 1f}, Shader.TileMode.CLAMP));
+        rect.set(cx - ex, cy - ey, cx + ex, cy + ey);
+        canvas.drawOval(rect, paint);
+        paint.setShader(null);
+
+        // крапинки
+        paint.setColor(0x55FFFFFF);
+        final float[] spots = {-0.35f, -0.45f, 0.075f, 0.30f, -0.25f, 0.06f, -0.05f, 0.10f, 0.05f,
+                0.38f, 0.28f, 0.045f, -0.42f, 0.30f, 0.04f};
+        for (int i = 0; i < spots.length; i += 3) {
+            canvas.drawCircle(cx + ex * spots[i], cy + ey * spots[i + 1], u * spots[i + 2], paint);
         }
 
-        // Глаза: моргают по синусу.
-        final float blink = 0.25f + 0.75f * Math.abs((float) Math.cos(phase * 0.7f));
-        final float eyeR = body * 0.20f;
-        eye.setColor(Color.WHITE);
-        canvas.drawCircle(cx - body * 0.38f, cy - body * 0.12f, eyeR, eye);
-        canvas.drawCircle(cx + body * 0.38f, cy - body * 0.12f, eyeR, eye);
-        paint.setColor(Theme.isCurrentThemeDark() ? 0xFF15161A : 0xFF1B1C20);
-        canvas.drawCircle(cx - body * 0.38f, cy - body * 0.12f, eyeR * 0.55f * blink, paint);
-        canvas.drawCircle(cx + body * 0.38f, cy - body * 0.12f, eyeR * 0.55f * blink, paint);
+        // блик сверху
+        sheen.setColor(0x40FFFFFF);
+        sheen.setMaskFilter(new android.graphics.BlurMaskFilter(u * 0.02f, android.graphics.BlurMaskFilter.Blur.NORMAL));
+        rect.set(cx - ex * 0.55f, cy - ey * 0.72f, cx + ex * 0.12f, cy - ey * 0.18f);
+        canvas.drawOval(rect, sheen);
+        sheen.setMaskFilter(null);
 
-        // Румянец и улыбка.
-        canvas.drawCircle(cx - body * 0.62f, cy + body * 0.20f, body * 0.16f, cheek);
-        canvas.drawCircle(cx + body * 0.62f, cy + body * 0.20f, body * 0.16f, cheek);
-        paint.setStyle(Paint.Style.STROKE);
-        paint.setStrokeWidth(dp(1.6f));
-        paint.setColor(Theme.isCurrentThemeDark() ? 0xFF15161A : 0xFF1B1C20);
-        rect.set(cx - body * 0.16f, cy + body * 0.10f, cx + body * 0.16f, cy + body * 0.34f);
-        canvas.drawArc(rect, 20, 140, false, paint);
-        paint.setStyle(Paint.Style.FILL);
+        if (stage == STAGE_HATCHING) {
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(u * 0.022f);
+            paint.setColor(blend(accent, Color.BLACK, 0.55f));
+            shape.rewind();
+            shape.moveTo(cx - u * 0.055f, cy - u * 0.16f);
+            shape.lineTo(cx + u * 0.028f, cy - u * 0.045f);
+            shape.lineTo(cx - u * 0.045f, cy + u * 0.035f);
+            shape.lineTo(cx + u * 0.025f, cy + u * 0.15f);
+            canvas.drawPath(shape, paint);
+            paint.setStyle(Paint.Style.FILL);
+        }
+    }
+
+    private void drawCreature(Canvas canvas, float u, float cx, float cy, float breathe, int ink) {
+        final float body = u * (stage == STAGE_ADULT ? 0.295f : 0.285f) * breathe;
+
+        // контактная тень
+        shade.setColor(0x30000000);
+        shade.setMaskFilter(new android.graphics.BlurMaskFilter(u * 0.045f, android.graphics.BlurMaskFilter.Blur.NORMAL));
+        rect.set(cx - body * 0.78f, cy + body * 0.72f, cx + body * 0.78f, cy + body * 1.12f);
+        canvas.drawOval(rect, shade);
+        shade.setMaskFilter(null);
+
+        // уши/рожки рисуются ДО тела, чтобы голова перекрыла их основание
+        horn.setColor(blend(accent, Color.BLACK, 0.22f));
+        if (stage == STAGE_ADULT) {
+            shape.rewind();
+            for (int s = -1; s <= 1; s += 2) {
+                shape.moveTo(cx + s * body * 0.72f, cy - body * 0.72f);
+                shape.lineTo(cx + s * body * 0.44f, cy - body * 1.40f);
+                shape.lineTo(cx + s * body * 0.08f, cy - body * 0.88f);
+                shape.close();
+            }
+            canvas.drawPath(shape, horn);
+        } else {
+            canvas.drawCircle(cx - body * 0.62f, cy - body * 0.78f, body * 0.27f, horn);
+            canvas.drawCircle(cx + body * 0.62f, cy - body * 0.78f, body * 0.27f, horn);
+        }
+
+        // тело с вертикальным объёмом
+        rect.set(cx - body, cy - body * 0.90f, cx + body, cy + body);
+        paint.setShader(new LinearGradient(cx, cy - body, cx, cy + body,
+                new int[]{blend(accent, Color.WHITE, 0.16f), accent, blend(accent, Color.BLACK, 0.16f)},
+                new float[]{0f, 0.55f, 1f}, Shader.TileMode.CLAMP));
+        canvas.drawRoundRect(rect, body, body, paint);
+        paint.setShader(null);
+
+        // блик по верхней кромке, обрезанный по телу
+        sheen.setColor(0x30FFFFFF);
+        sheen.setMaskFilter(new android.graphics.BlurMaskFilter(u * 0.02f, android.graphics.BlurMaskFilter.Blur.NORMAL));
+        final int save = canvas.save();
+        canvas.clipRect(rect);
+        rect.set(cx - body * 0.62f, cy - body * 0.84f, cx + body * 0.30f, cy - body * 0.30f);
+        canvas.drawOval(rect, sheen);
+        canvas.restoreToCount(save);
+        sheen.setMaskFilter(null);
+
+        // глаза
+        final float eyeR = body * 0.245f;
+        final float eyeY = cy - body * 0.13f;
+        final float eyeD = body * 0.36f;
+        final float blink = 0.30f + 0.70f * Math.abs((float) Math.cos(phase * 0.65f));
+        canvas.drawCircle(cx - eyeD, eyeY, eyeR, eye);
+        canvas.drawCircle(cx + eyeD, eyeY, eyeR, eye);
+        final float pupil = eyeR * 0.56f;
+        paint.setColor(ink);
+        for (int s = -1; s <= 1; s += 2) {
+            rect.set(cx + s * eyeD - pupil, eyeY - pupil * blink, cx + s * eyeD + pupil, eyeY + pupil * blink);
+            canvas.drawOval(rect, paint);
+        }
+        for (int s = -1; s <= 1; s += 2) {
+            canvas.drawCircle(cx + s * eyeD + eyeR * 0.18f, eyeY - eyeR * 0.22f, eyeR * 0.16f, specular);
+        }
+
+        // румянец
+        canvas.drawCircle(cx - body * 0.66f, cy + body * 0.22f, body * 0.17f, cheek);
+        canvas.drawCircle(cx + body * 0.66f, cy + body * 0.22f, body * 0.17f, cheek);
+
+        // улыбка
+        mouth.setStrokeWidth(u * 0.020f);
+        mouth.setColor(ink);
+        shape.rewind();
+        shape.moveTo(cx - body * 0.17f, cy + body * 0.16f);
+        shape.quadTo(cx, cy + body * 0.36f, cx + body * 0.17f, cy + body * 0.16f);
+        canvas.drawPath(shape, mouth);
     }
 
     @Override

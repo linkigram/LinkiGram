@@ -11,6 +11,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
+import org.telegram.messenger.FileLog;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.LayoutHelper;
@@ -59,11 +60,17 @@ public class MargyPetOverlay extends FrameLayout {
     /** Добавить питомца в готовый экран чата. Возвращает null, если он выключен. */
     public static MargyPetOverlay attach(ChatActivity chat, ViewGroup parent, int account, long dialogId) {
         if (chat == null || parent == null || !MargyConfig.pet() || !MargyConfig.petInChat()) {
+            FileLog.d("MargyPet: skipped pet=" + MargyConfig.pet() + " inChat=" + MargyConfig.petInChat()
+                    + " parent=" + (parent != null));
             return null;
         }
         final MargyPetOverlay overlay = new MargyPetOverlay(parent.getContext(), chat, account, dialogId);
         parent.addView(overlay, LayoutHelper.createFrame(
                 LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
+        FileLog.d("MargyPet: attached stage=" + MargyPetView.stageName(
+                MargyStreaks.stage(MargyStreaks.state(account, dialogId).streak))
+                + " parent=" + parent.getClass().getSimpleName()
+                + " children=" + parent.getChildCount());
         return overlay;
     }
 
@@ -122,6 +129,10 @@ public class MargyPetOverlay extends FrameLayout {
             top = Math.round(savedY * maxTop());
         }
         applyPosition(left, top);
+        if (initial) {
+            FileLog.d("MargyPet: place left=" + left + " top=" + top
+                    + " w=" + getWidth() + " h=" + getHeight() + " maxTop=" + maxTop());
+        }
     }
 
     private void applyPosition(int left, int top) {
