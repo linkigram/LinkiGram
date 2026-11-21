@@ -46,6 +46,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewConfiguration;
 import android.view.ViewTreeObserver;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.animation.DecelerateInterpolator;
@@ -1027,7 +1028,10 @@ public class ActionBarMenuItem extends FrameLayout {
         });
 
        // if (measurePopup) {
-            container.measure(MeasureSpec.makeMeasureSpec(AndroidUtilities.displaySize.x - AndroidUtilities.dp(40), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(AndroidUtilities.displaySize.y, MeasureSpec.AT_MOST));
+            // Меню может не поместиться, если открыта клавиатура. Ограничиваем
+            // высоту доступной областью: пункты начнут прокручиваться, вместо
+            // того чтобы уезжать под клавиатуру.
+            container.measure(MeasureSpec.makeMeasureSpec(AndroidUtilities.displaySize.x - AndroidUtilities.dp(40), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(getPopupAvailableHeight(), MeasureSpec.AT_MOST));
             if (setMinWidth != null && setMinWidth.getLayoutParams() != null && popupLayout.getSwipeBack() != null) {
                 View mainScrollView = popupLayout.getSwipeBack().getChildAt(0);
                 if (mainScrollView != null && mainScrollView.getMeasuredWidth() > 0) {
@@ -2059,8 +2063,46 @@ public class ActionBarMenuItem extends FrameLayout {
         if (popupWindow == null || !popupWindow.isShowing()) {
             return;
         }
-        popupLayout.measure(MeasureSpec.makeMeasureSpec(AndroidUtilities.displaySize.x - AndroidUtilities.dp(40), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(AndroidUtilities.displaySize.y, MeasureSpec.AT_MOST));
+        popupLayout.measure(MeasureSpec.makeMeasureSpec(AndroidUtilities.displaySize.x - AndroidUtilities.dp(40), MeasureSpec.AT_MOST), MeasureSpec.makeMeasureSpec(getPopupAvailableHeight(), MeasureSpec.AT_MOST));
         updateOrShowPopup(true, true);
+    }
+
+    /**
+     * Высота, в которую должен влезть popup, когда открыта клавиатура.
+     * Без клавиатуры возвращается полная высота экрана — прежнее поведение.
+     */
+    private int getPopupAvailableHeight() {
+        final int full = AndroidUtilities.displaySize.y;
+        final View anchor = parentMenu != null && parentMenu.parentActionBar != null
+                ? parentMenu.parentActionBar : this;
+        final View root = getRootView();
+        final int rootHeight = root != null ? root.getHeight() : 0;
+        if (rootHeight <= 0) {
+            return full;
+        }
+        int keyboard = 0;
+        if (Build.VERSION.SDK_INT >= 30) {
+            final WindowInsets insets = root.getRootWindowInsets();
+            if (insets != null) {
+                keyboard = insets.getInsets(WindowInsets.Type.ime()).bottom;
+            }
+        }
+        if (keyboard <= 0) {
+            // Окна без edge-to-edge реально ужимаются под клавиатуру.
+            final Rect frame = new Rect();
+            anchor.getWindowVisibleDisplayFrame(frame);
+            if (frame.bottom > 0 && frame.bottom < rootHeight) {
+                keyboard = rootHeight - frame.bottom;
+            }
+        }
+        if (keyboard <= 0) {
+            return full;
+        }
+        final int[] anchorPos = new int[2];
+        anchor.getLocationInWindow(anchorPos);
+        final int popupTop = anchorPos[1] + anchor.getHeight() + dp(6);
+        final int available = rootHeight - keyboard - popupTop - dp(8);
+        return Math.max(dp(120), available);
     }
 
     private void updateOrShowPopup(boolean show, boolean update) {
