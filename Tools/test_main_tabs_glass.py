@@ -52,7 +52,13 @@ def render(effect, scale=1, dark=True, position=0.5, press=0.0,
     output = surface.makeImageSnapshot().toarray(colorType=skia.kRGBA_F32_ColorType)
     assert np.isfinite(output).all(), "Non-finite shader output"
     assert output[..., :3].min() >= 0.0 and output[..., :3].max() <= 1.0
-    assert np.allclose(output[..., 3], 1.0), "Lens must cover the opaque page capture"
+    # The lens is a mask in the shape: opaque inside the panel, empty outside it.
+    # Only the panel is sampled, so the whole opaque page under it is covered.
+    half_w, half_h = uniforms["size"]
+    inside = output[int(height / 2) - int(half_h * 0.5):int(height / 2) + int(half_h * 0.5),
+                    int(width / 2) - int(half_w * 0.5):int(width / 2) + int(half_w * 0.5), 3]
+    assert np.allclose(inside, 1.0), "Lens must cover the opaque page capture"
+    assert output[0, 0, 3] < 0.01 and output[-1, -1, 3] < 0.01, "Lens must not paint outside the panel"
     return output
 
 

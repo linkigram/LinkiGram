@@ -8,12 +8,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Adapted for LinkiGram from Backdrop's rounded-rect lens by Kyant:
- * https://github.com/Kyant0/AndroidLiquidGlass
- * LinkiGram changes: a thin bell-profile refraction band on a rounded inner
- * contour, an anti-aliased silhouette, a crisp specular hairline on the edge,
- * a soft dark underside away from the light, chromatic dispersion and a
- * selector-driven surface light.
+ * LinkiGram liquid glass, after Backdrop's rounded-rect lens by Kyant
+ * (https://github.com/Kyant0/AndroidLiquidGlass) and the iOS-26 style slab of
+ * https://github.com/archisvaze/liquid-glass:
+ *
+ *  - the bezel is the turned-down edge of the slab: about half the short side,
+ *    never wider than the corner it has to wrap;
+ *  - a single silhouette drives the bend, the rim, the alpha and the light, so
+ *    nothing can come apart at the corners;
+ *  - the bend is strongest on the silhouette and gone at the inner edge of the
+ *    bezel, and it is bounded by the bezel itself: the bent image stays ordered
+ *    in depth instead of folding back over itself;
+ *  - a crisp lit hairline, a specular lobe on the dome and a dark underside
+ *    away from the light give the edge its thickness;
+ *  - the two surfaces split the colours, only where the glass bends.
  */
 uniform shader img;
 uniform float2 resolution;
@@ -27,8 +35,6 @@ uniform float4 foreground_color_premultiplied;
 uniform float light_position;
 uniform float press_progress;
 
-const float PI = 3.14159265;
-
 float sdRoundBox(float2 p, float2 halfSize, float4 r) {
     r.xy = (p.x > 0.0) ? r.xy : r.zw;
     r.x = (p.y > 0.0) ? r.x : r.y;
@@ -36,65 +42,90 @@ float sdRoundBox(float2 p, float2 halfSize, float4 r) {
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r.x;
 }
 
+// The dome across the bezel: t = 0 on the silhouette, t = 1 at its inner edge.
+// The slope is what bends the light, the height is what catches the highlight.
+float surfaceHeight(float t) {
+    float s = 1.0 - t;
+    return sqrt(max(1.0 - s * s, 0.0));
+}
+
 half4 main(float2 coord) {
     float2 p = coord - center;
     float sd = sdRoundBox(p, size, radius);
     float coverage = clamp(0.5 - sd, 0.0, 1.0);
-    float2 grad = float2(
-        sdRoundBox(p + float2(0.5, 0.0), size, radius)
-            - sdRoundBox(p - float2(0.5, 0.0), size, radius),
-        sdRoundBox(p + float2(0.0, 0.5), size, radius)
-            - sdRoundBox(p - float2(0.0, 0.5), size, radius));
-    float2 outward = grad / max(length(grad), 0.0001);
-    float t = max(thickness, 1.0);
+    if (coverage <= 0.001) {
+        return half4(0.0);
+    }
+
     float depth = max(-sd, 0.0);
+    float rMax = max(max(radius.r, radius.g), max(radius.b, radius.a));
+    float shortSide = min(size.x, size.y);
+    float bezel = clamp(max(thickness, min(shortSide * 0.7, rMax * 1.5)), 1.0, max(shortSide * 0.9, 1.0));
+    float t = clamp(depth / bezel, 0.0, 1.0);
 
-    float bandW = max(min(t * 0.95, min(size.x, size.y) * 0.75), 1.0);
-    float2 innerSize = max(size - bandW, float2(0.0));
-    float4 innerRadius = max(radius - bandW, radius * 0.45);
-    float sdInner = sdRoundBox(p, innerSize, innerRadius);
-    float band = clamp(sdInner / bandW, 0.0, 1.0);
+    // Outward normal of the silhouette, shared by the bend, the rim and the
+    // alpha: one silhouette cannot tear at the corners.
+    float2 grad = float2(
+        sdRoundBox(p + float2(0.5, 0.0), size, radius) - sdRoundBox(p - float2(0.5, 0.0), size, radius),
+        sdRoundBox(p + float2(0.0, 0.5), size, radius) - sdRoundBox(p - float2(0.0, 0.5), size, radius));
+    float2 outward = grad / max(length(grad), 0.0001);
 
-    float profile = sin(band * PI);
-    float bend = profile * bandW * 1.15 * refract_intensity * (refract_index / 1.5);
-    float2 offset = -outward * bend;
+    // How hard the ray is bent: the denser the glass, the further it looks.
+    // Kept under half the bezel, so the bent image stays monotonic in depth.
+    float bend = clamp(0.40 + 0.20 * (refract_index - 1.0), 0.05, 0.55) * max(refract_intensity, 0.0);
+    float fall = 1.0 - t;
+    float shift = bezel * bend * fall * fall;
+
+    // Light carries the selector along the surface: it sets where the rim is
+    // lit brightest, the press makes the whole edge bloom a touch.
+    float lightX = -0.35 + (light_position - 0.5) * 0.7;
+    float3 light = normalize(float3(lightX, -0.62, 0.70));
+    float lit = clamp(dot(outward, normalize(light.xy)), 0.0, 1.0);
+
+    // Body: the volume is deepest at the rim, clear at the centre.
+    float rimFalloff = 1.0 - smoothstep(0.0, bezel * 0.60, depth);
+    float body = rimFalloff * rimFalloff;
+
+    // The capture only reaches the edge of the shape: the bent sample is held
+    // inside it, so the rim repeats its own edge instead of eating into it.
     float2 lo = max(float2(0.5), center - size + 0.5);
-    float2 hi = max(lo, min(resolution - 0.5, center + size - 0.5));
+    float2 hi = max(lo, center + size - 0.5);
 
-    float spread = bend * 0.030;
-    float2 offsetR = -outward * (bend + spread);
-    float2 offsetB = -outward * (bend - spread);
-    half4 source = img.eval(clamp(coord + offset, lo, hi));
+    // The two surfaces split the colours, and only where the glass bends, so
+    // the flat middle of the panel stays clean.
+    float spread = shift * 0.10;
     half3 color = half3(
-        img.eval(clamp(coord + offsetR, lo, hi)).r,
-        source.g,
-        img.eval(clamp(coord + offsetB, lo, hi)).b);
+        img.eval(clamp(coord - outward * (shift + spread), lo, hi)).r,
+        img.eval(clamp(coord - outward * shift, lo, hi)).g,
+        img.eval(clamp(coord - outward * (shift - spread), lo, hi)).b);
 
     half4 tint = half4(foreground_color_premultiplied);
     color = color * (1.0 - tint.a) + tint.rgb;
 
-    float slope = clamp(1.0 - depth / t, 0.0, 1.0);
-    float3 normal = float3(outward * slope, sqrt(max(1.0 - slope * slope, 0.0)));
-    float3 light = normalize(float3(-0.35 + (light_position - 0.5) * 0.7, -0.62, 0.70));
-    float lit = clamp(dot(outward, normalize(light.xy)), 0.0, 1.0);
-    float rim = smoothstep(0.40, 1.0, band);
+    // Crisp hairline right on the silhouette, brighter on the lit side.
+    float hair = 1.0 - smoothstep(0.0, max(1.2, bezel * 0.10), depth);
+    float hairLit = hair * (0.14 + 0.60 * lit);
+    float hairDark = hair * clamp(-outward.y, 0.0, 1.0) * 0.26;
 
-    float3 halfway = normalize(light + float3(0.0, 0.0, 1.0));
-    float specular = pow(max(dot(normal, halfway), 0.0), 96.0) * rim * 0.42;
+    // A specular lobe riding the dome: strongest where the dome faces the light.
+    float dome = surfaceHeight(t);
+    float3 surfaceNormal = normalize(float3(outward * (1.0 - dome * 0.65), max(dome, 0.10)));
+    float specular = pow(max(dot(surfaceNormal, normalize(light + float3(0.0, 0.0, 1.0))), 0.0), 48.0)
+        * body * (0.26 + 0.46 * lit);
 
-    // A crisp hairline right on the silhouette: the edge of real glass catches
-    // the light in a line, not in a haze.
-    float hair = 1.0 - smoothstep(0.0, max(1.5, t * 0.13), depth);
-    float hairLit = hair * (0.10 + 0.62 * lit);
-    float hairDark = hair * clamp(-outward.y, 0.0, 1.0) * 0.30;
+    // Away from the light the rim reads as the dark underside of a slab.
+    float underside = body * clamp(-outward.y, 0.0, 1.0) * 0.20;
+    // The turned band gathers a little shadow as it approaches the edge.
+    float innerShade = smoothstep(0.0, 0.30, t) * (1.0 - smoothstep(0.30, 0.80, t)) * 0.09;
 
-    float edgeGlow = rim * (0.02 + 0.16 * lit * lit);
-    // Away from the light the lens gets a soft dark edge; the middle stays flat.
-    float underside = rim * clamp(-outward.y, 0.0, 1.0) * 0.20;
-    float inner = (1.0 - rim) * (1.0 - band) * 0.03;
-    color = color * (1.0 - inner) * (1.0 - underside) * (1.0 - hairDark);
-    color = color + half(specular + edgeGlow + hairLit);
+    // Glass is not perfectly clear: it lifts the image a touch, and more in the
+    // thick turned edge than in the thin middle.
+    color = mix(color, half3(1.0), half(0.030 + 0.045 * body));
 
+    color = color * (1.0 - underside) * (1.0 - hairDark) * (1.0 - innerShade);
+    color = color + half(specular + hairLit + body * 0.09 * lit + body * 0.02);
+
+    // The light of the surface glides across the glass and blooms under a press.
     float sweep = (light_position - 0.5) * size.x * 2.0;
     float2 glowDelta = float2(p.x - sweep, p.y) / max(float2(size.y * 2.1, size.y * 1.5), float2(1.0));
     float glow = exp(-dot(glowDelta, glowDelta) * 2.0) * (0.010 + 0.06 * press_progress);
