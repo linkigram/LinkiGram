@@ -75,6 +75,7 @@ public class AppearancePreferencesActivity extends NimarkoUniversalPreferencesAc
     private final int margyAvatarsRow = 31;
     private final int margyAvatarShapeRow = 32;
     private final int margyMonetRow = 33;
+    private final int snowEverywhereRow = 34;
     @Override protected void prepareSettingsSearch() {
         materialExpanded = true;
         iosExpanded = true;
@@ -191,6 +192,11 @@ public class AppearancePreferencesActivity extends NimarkoUniversalPreferencesAc
                 .setChecked(NimarkoConfig.hideActionBarStatus));
         items.add(SettingsHelper.asSwitchCG(snowflakesRow, getString(R.string.CP_Snowflakes_Header))
                 .setChecked(app.nimarkogram.messenger.NimarkoConfig.drawSnowInActionBar)
+        );
+        items.add(SettingsHelper.asSwitchCG(snowEverywhereRow,
+                getString(R.string.NM_SnowEverywhere),
+                getString(R.string.NM_SnowEverywhere_Desc))
+                .setChecked(NimarkoConfig.drawSnowEverywhere)
         );
         items.add(UItem.asButton(customTitleRow, getString(R.string.NM_CustomTitle), getCustomTitleValueText()));
         items.add(UItem.asShadow(null));
@@ -372,6 +378,10 @@ public class AppearancePreferencesActivity extends NimarkoUniversalPreferencesAc
             updateCheckState(view, app.nimarkogram.messenger.NimarkoConfig.drawSnowInActionBar);
 
             showRestartBulletin();
+        } else if (item.id == snowEverywhereRow) {
+            NimarkoConfig.toggleDrawSnowEverywhere();
+            updateCheckState(view, NimarkoConfig.drawSnowEverywhere);
+            app.nimarkogram.messenger.appearance.SnowOverlay.apply();
         } else if (item.id == iconPackRow) {
             presentFragment(new IconPackSelectorActivity());   
         } else if (item.id == oneUISwitchesRow) {

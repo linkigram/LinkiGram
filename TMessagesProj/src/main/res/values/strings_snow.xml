@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="NM_SnowEverywhere">Snow everywhere</string>
+    <string name="NM_SnowEverywhere_Desc">Falling snow over every screen of the app</string>
+</resources>

@@ -328,6 +328,8 @@ final class LinkiSettingsEnglishCatalog {
         labels.put(R.string.NM_MargyPet, "Pet");
         labels.put(R.string.NM_MargyPetGravity, "Gravity");
         labels.put(R.string.NM_MargyPetInChat, "Pet in chat");
+        labels.put(R.string.NM_MargyPetPhoto, "Pet photo");
+        labels.put(R.string.NM_MargyPetShake, "Pet flies on shake");
         labels.put(R.string.NM_MargyRail, "Discord rail");
         labels.put(R.string.NM_MargySectionChat, "Chat extras");
         labels.put(R.string.NM_MargyStreaks, "Streak flames");
@@ -364,6 +366,7 @@ final class LinkiSettingsEnglishCatalog {
         labels.put(R.string.NM_SaveDeletedMessages, "Save deleted messages");
         labels.put(R.string.NM_SendOriginalPhoto, "Send photos without compression");
         labels.put(R.string.NM_SettingsSectionConnection, "Connection");
+        labels.put(R.string.NM_SnowEverywhere, "Snow everywhere");
         labels.put(R.string.NM_Stickers_Header, "Stickers");
         labels.put(R.string.NM_Style_ChatHeader, "Chat header");
         labels.put(R.string.NM_Style_IOS, "iOS Design");

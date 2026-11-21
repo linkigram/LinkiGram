@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="NM_SnowEverywhere">Снег везде</string>
+    <string name="NM_SnowEverywhere_Desc">Снегопад поверх всех экранов приложения</string>
+</resources>
