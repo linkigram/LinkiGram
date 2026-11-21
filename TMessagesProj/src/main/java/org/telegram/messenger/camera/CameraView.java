@@ -117,6 +117,8 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
     private int clipTop;
     private int clipBottom;
     private boolean isFrontface;
+    /** LinkiGram: rear camera id chosen by the module switcher, or -1 for the default. */
+    private int preferredBackCameraId = -1;
     private Matrix txform = new Matrix();
     private Matrix matrix = new Matrix();
     private int focusAreaSize;
@@ -715,6 +717,7 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
         if (cameraInfos == null) {
             return;
         }
+        CameraInfo wanted = null;
         for (int a = 0; a < cameraInfos.size(); a++) {
             CameraInfo cameraInfo = cameraInfos.get(a);
             boolean cameraInfoIsFrontface = cameraInfo.frontCamera != 0;
@@ -722,10 +725,21 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
             if (i == 1) {
                 shouldBeFrontface = !shouldBeFrontface;
             }
-            if (cameraInfoIsFrontface == shouldBeFrontface) {
-                info[i] = cameraInfo;
-                break;
+            if (cameraInfoIsFrontface != shouldBeFrontface) {
+                continue;
             }
+            if (info[i] == null) {
+                info[i] = cameraInfo;
+            }
+            // LinkiGram: a rear module chosen in the lens switcher wins over the
+            // first rear camera while the preview keeps the stock fallback.
+            if (i == 0 && !shouldBeFrontface && preferredBackCameraId >= 0
+                    && cameraInfo.getCameraId() == preferredBackCameraId) {
+                wanted = cameraInfo;
+            }
+        }
+        if (wanted != null) {
+            info[i] = wanted;
         }
         if (info[i] == null) {
             return;
@@ -968,6 +982,24 @@ public class CameraView extends FrameLayout implements TextureView.SurfaceTextur
         if (cameraSession[0] != null) {
             cameraSession[0].setZoom(value);
         }
+    }
+
+    /** LinkiGram: rear camera id picked by the module switcher, or -1 when untouched. */
+    public int getPreferredBackCameraId() {
+        return preferredBackCameraId;
+    }
+
+    /**
+     * LinkiGram: reopens the preview on another physical rear camera.
+     * Ignored on the front camera, when the id is already active, and while the
+     * session is not initialised yet, so callers can fire it on any tap.
+     */
+    public void setPreferredBackCameraId(int cameraId) {
+        if (isFrontface || cameraId == preferredBackCameraId) {
+            return;
+        }
+        preferredBackCameraId = cameraId;
+        resetCamera();
     }
 
     public void setDelegate(CameraViewDelegate cameraViewDelegate) {

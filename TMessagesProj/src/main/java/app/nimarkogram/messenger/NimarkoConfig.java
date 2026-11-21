@@ -1445,6 +1445,25 @@ public final class NimarkoConfig {
         getEditor().putInt("cameraXFpsRange", cameraXFpsRange).apply();
     }
 
+    /**
+     * Frame rate requested from the stock attach camera when it records a video.
+     * 60 fps only lands in the file when the encoder accepts it; the recorder falls
+     * back to 30 when the device refuses, so this never blocks recording.
+     */
+    public static final int CameraVideoFps30 = 30;
+    public static final int CameraVideoFps60 = 60;
+
+    private static int normalizeCameraVideoFps(int value) {
+        return value == CameraVideoFps60 ? CameraVideoFps60 : CameraVideoFps30;
+    }
+
+    public static int cameraVideoFps = normalizeCameraVideoFps(
+            getPreferences().getInt("cameraVideoFps", CameraVideoFps30));
+    public static void setCameraVideoFps(int value) {
+        cameraVideoFps = normalizeCameraVideoFps(value);
+        getEditor().putInt("cameraVideoFps", cameraVideoFps).apply();
+    }
+
     public static boolean cameraStabilisation = getPreferences().getBoolean("cameraStabilisation", false);
     public static void toggleCameraStabilisation() { cameraStabilisation = !cameraStabilisation; getEditor().putBoolean("cameraStabilisation", cameraStabilisation).apply(); }
 

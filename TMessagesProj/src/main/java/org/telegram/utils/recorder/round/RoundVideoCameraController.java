@@ -361,10 +361,15 @@ final class RoundVideoCameraController {
         lensMode = true;
         zoomProgress = 0f;
         Handler handler = cameraHandler;
-        if (!active || handler == null) return false;
-        handler.removeCallbacks(applyZoomRunnable);
-        handler.post(applyZoomRunnable);
-        diagnostics.log("lens switched: ratio=" + ratio + " factor=" + lens.factor);
+        if (active && handler != null) {
+            handler.removeCallbacks(applyZoomRunnable);
+            handler.post(applyZoomRunnable);
+        }
+        // The module is remembered even before the camera is active: the repeating
+        // request is built from lensZoomBase, so a tap during STARTING now takes
+        // effect on the first frame instead of being reported as a failed switch.
+        diagnostics.log("lens switched: ratio=" + ratio + ", factor=" + lens.factor
+                + ", active=" + active);
         return true;
     }
 

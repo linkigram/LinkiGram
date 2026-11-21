@@ -181,6 +181,7 @@ final class LinkiSettingsEnglishCatalog {
         labels.put(R.string.NM_CAM_RoundCamera, "Camera for video messages");
         labels.put(R.string.NM_CAM_RoundVideoBitrate, "Round video bitrate");
         labels.put(R.string.NM_CAM_RoundVideoSize, "Round video size");
+        labels.put(R.string.NM_CAM_VideoFps, "Video frame rate");
         labels.put(R.string.NM_CAM_VideoQuality, "Video quality");
         labels.put(R.string.NM_CARDS_ActiveHeader, "Active cards");
         labels.put(R.string.NM_CARDS_AutoScroll, "Auto-scroll");

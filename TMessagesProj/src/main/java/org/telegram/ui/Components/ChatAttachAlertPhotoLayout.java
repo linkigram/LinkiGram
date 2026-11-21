@@ -185,6 +185,9 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
     private TextView counterTextView;
     private TextView tooltipTextView;
     private ImageView switchCameraButton;
+    /** LinkiGram: rear module switcher (0.6x / 1x / 2x) and the modules it found. */
+    private TextView cameraLensButton;
+    private java.util.List<app.nimarkogram.messenger.camera.CameraModuleSelector.Module> cameraModules;
     private boolean takingPhoto;
     private static boolean mediaFromExternalCamera;
     private static ArrayList<Object> cameraPhotos = new ArrayList<>();
@@ -1210,6 +1213,14 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
                 }
                 shutterButton.layout(cx - shutterButton.getMeasuredWidth() / 2, cy - shutterButton.getMeasuredHeight() / 2, cx + shutterButton.getMeasuredWidth() / 2, cy + shutterButton.getMeasuredHeight() / 2);
                 switchCameraButton.layout(cx2 - switchCameraButton.getMeasuredWidth() / 2, cy2 - switchCameraButton.getMeasuredHeight() / 2, cx2 + switchCameraButton.getMeasuredWidth() / 2, cy2 + switchCameraButton.getMeasuredHeight() / 2);
+                if (cameraLensButton != null && cameraLensButton.getVisibility() == View.VISIBLE) {
+                    int lensSize = dp(40);
+                    int cx4 = cx3 - dp(50);
+                    if (cx4 < lensSize / 2 + dp(2)) {
+                        cx4 = lensSize / 2 + dp(2);
+                    }
+                    cameraLensButton.layout(cx4 - lensSize / 2, cy3 - lensSize / 2, cx4 + lensSize / 2, cy3 + lensSize / 2);
+                }
                 for (int a = 0; a < 2; a++) {
                     flashModeButton[a].layout(cx3 - flashModeButton[a].getMeasuredWidth() / 2, cy3 - flashModeButton[a].getMeasuredHeight() / 2, cx3 + flashModeButton[a].getMeasuredWidth() / 2, cy3 + flashModeButton[a].getMeasuredHeight() / 2);
                 }
@@ -1421,6 +1432,7 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
                 @Override
                 public void onAnimationEnd(Animator animator) {
                     switchCameraButton.setImageResource(cameraView != null && cameraView.isFrontface() ? R.drawable.camera_revert1 : R.drawable.camera_revert2);
+                    updateCameraLensButton();
                     ObjectAnimator.ofFloat(switchCameraButton, View.SCALE_X, 1.0f).setDuration(100).start();
                 }
             });
@@ -1428,6 +1440,23 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
 
         });
         switchCameraButton.setContentDescription(LocaleController.getString(R.string.AccDescrSwitchCamera));
+
+        // LinkiGram: rear camera module switcher. The stock backend opens one physical
+        // camera per id, so a tap reopens the preview on the next rear module; the
+        // button hides itself when the phone has a single rear lens or the front
+        // camera is active.
+        cameraModules = app.nimarkogram.messenger.camera.CameraModuleSelector.rearModules(context);
+        cameraLensButton = new TextView(context);
+        cameraLensButton.setGravity(Gravity.CENTER);
+        cameraLensButton.setTextColor(0xffffffff);
+        cameraLensButton.setTextSize(13);
+        cameraLensButton.setTypeface(AndroidUtilities.bold());
+        cameraLensButton.setBackgroundResource(R.drawable.camera_lens_button);
+        cameraLensButton.setVisibility(View.GONE);
+        cameraLensButton.setContentDescription(LocaleController.getString(R.string.NM_CAM_LensSwitch));
+        cameraLensButton.setOnClickListener(v -> cycleCameraLens());
+        cameraPanel.addView(cameraLensButton, LayoutHelper.createFrame(40, 40));
+        updateCameraLensButton();
 
         for (int a = 0; a < 2; a++) {
             flashModeButton[a] = new ImageView(context);
@@ -2633,6 +2662,7 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
                     }
                     switchCameraButton.setImageResource(cameraView.isFrontface() ? R.drawable.camera_revert1 : R.drawable.camera_revert2);
                     switchCameraButton.setVisibility(cameraView.hasFrontFaceCamera() ? View.VISIBLE : View.INVISIBLE);
+                    updateCameraLensButton();
                     if (!cameraOpened) {
                         cameraInitAnimation = new AnimatorSet();
                         cameraInitAnimation.playTogether(
@@ -2685,6 +2715,74 @@ public class ChatAttachAlertPhotoLayout extends ChatAttachAlert.AttachAlertLayou
             cameraView.setTranslationX(cameraViewLocation[0]);
             // cameraView.setTranslationY(cameraViewLocation[1] + currentPanTranslationY);
         }
+    }
+
+    /** LinkiGram: reopens the preview on the next rear camera module. */
+    private void cycleCameraLens() {
+        java.util.List<app.nimarkogram.messenger.camera.CameraModuleSelector.Module> modules =
+                openableCameraModules();
+        if (cameraView == null || modules.size() < 2
+                || takingPhoto || !cameraView.isInited() || cameraView.isFrontface()) {
+            return;
+        }
+        app.nimarkogram.messenger.camera.CameraModuleSelector.Module next =
+                app.nimarkogram.messenger.camera.CameraModuleSelector.next(
+                        modules, cameraView.getPreferredBackCameraId());
+        canSaveCameraPreview = false;
+        cameraView.setPreferredBackCameraId(next.cameraId);
+        android.util.Log.d("LinkiCamera", "attach lens -> id=" + next.cameraId
+                + " factor=" + next.factor + " of " + modules.size());
+        updateCameraLensButton();
+    }
+
+    /**
+     * LinkiGram: the modules Camera2 advertises, narrowed to the ids the stock
+     * Camera1 backend can actually open. Without this the button could label a
+     * sensor the preview cannot switch to.
+     */
+    private java.util.List<app.nimarkogram.messenger.camera.CameraModuleSelector.Module> openableCameraModules() {
+        if (cameraModules == null || cameraModules.size() < 2) {
+            return java.util.Collections.emptyList();
+        }
+        ArrayList<org.telegram.messenger.camera.CameraInfo> infos =
+                org.telegram.messenger.camera.CameraController.getInstance().getCameras();
+        if (infos == null || infos.isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        ArrayList<app.nimarkogram.messenger.camera.CameraModuleSelector.Module> result =
+                new ArrayList<>(cameraModules.size());
+        for (int a = 0; a < cameraModules.size(); a++) {
+            app.nimarkogram.messenger.camera.CameraModuleSelector.Module module = cameraModules.get(a);
+            for (int b = 0; b < infos.size(); b++) {
+                if (infos.get(b).getCameraId() == module.cameraId) {
+                    result.add(module);
+                    break;
+                }
+            }
+        }
+        return result;
+    }
+
+    /** LinkiGram: keeps the module button hidden unless it can actually switch. */
+    private void updateCameraLensButton() {
+        if (cameraLensButton == null) {
+            return;
+        }
+        java.util.List<app.nimarkogram.messenger.camera.CameraModuleSelector.Module> modules =
+                openableCameraModules();
+        boolean show = cameraView != null
+                && modules.size() > 1
+                && cameraView.isInited()
+                && !cameraView.isFrontface();
+        cameraLensButton.setVisibility(show ? View.VISIBLE : View.GONE);
+        if (!show) {
+            return;
+        }
+        app.nimarkogram.messenger.camera.CameraModuleSelector.Module current =
+                app.nimarkogram.messenger.camera.CameraModuleSelector.current(
+                        modules, cameraView.getPreferredBackCameraId());
+        cameraLensButton.setText(
+                app.nimarkogram.messenger.camera.CameraModuleSelector.labelFor(current.factor));
     }
 
     public void hideCamera(boolean async) {

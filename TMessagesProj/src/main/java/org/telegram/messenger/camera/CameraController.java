@@ -704,15 +704,6 @@ public class CameraController implements MediaRecorder.OnInfoListener {
 //                    camera.stopPreview();
                         try {
                             mirrorRecorderVideo = mirror;
-                            recorder = new MediaRecorder();
-                            recorder.setCamera(camera);
-                            recorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
-                            recorder.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
-                            session.configureRecorder(1, recorder);
-                            recorder.setOutputFile(path.getAbsolutePath());
-                            recorder.setMaxFileSize(1024 * 1024 * 1024);
-                            recorder.setVideoFrameRate(30);
-                            recorder.setMaxDuration(0);
                             Size pictureSize;
                             pictureSize = new Size(16, 9);
                             pictureSize = CameraController.chooseOptimalSize(info.getPictureSizes(), 720, 480, pictureSize, false);
@@ -722,11 +713,23 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                             } else {
                                 bitrate = 1800000;
                             }
-                            recorder.setVideoEncodingBitRate(bitrate);
-                            recorder.setVideoSize(pictureSize.getWidth(), pictureSize.getHeight());
-                            recorder.setOnInfoListener(CameraController.this);
-                            recorder.prepare();
-                            recorder.start();
+                            // LinkiGram: honour the chosen frame rate, but never at the cost
+                            // of the recording. Camcorder high-speed capture is not available
+                            // for every size on every sensor, so a refused 60 fps request is
+                            // retried once at 30 instead of losing the whole video.
+                            int requestedFps = app.nimarkogram.messenger.NimarkoConfig.cameraVideoFps;
+                            boolean started = startMediaRecorder(session, camera, path, pictureSize, bitrate, requestedFps);
+                            android.util.Log.d("LinkiCamera", "video start fps=" + requestedFps + " ok=" + started);
+                            if (!started && requestedFps != 30) {
+                                if (BuildVars.LOGS_ENABLED) {
+                                    FileLog.d("camera video " + requestedFps + " fps refused, retrying at 30");
+                                }
+                                android.util.Log.d("LinkiCamera", "retrying at 30 fps");
+                                startMediaRecorder(session, camera, path, pictureSize, bitrate, 30);
+                            }
+                            if (recorder == null) {
+                                throw new RuntimeException("recorder start failed");
+                            }
 
                             onVideoTakeCallback = callback;
                             recordedFile = path.getAbsolutePath();
@@ -734,8 +737,13 @@ public class CameraController implements MediaRecorder.OnInfoListener {
                                 AndroidUtilities.runOnUIThread(onVideoStartRecord);
                             }
                         } catch (Exception e) {
-                            recorder.release();
-                            recorder = null;
+                            if (recorder != null) {
+                                try {
+                                    recorder.release();
+                                } catch (Exception ignore) {
+                                }
+                                recorder = null;
+                            }
                             FileLog.e(e);
                         }
                     }
@@ -745,6 +753,45 @@ public class CameraController implements MediaRecorder.OnInfoListener {
             });
         } else {
             return;
+        }
+    }
+
+    /**
+     * Configures and starts a {@link MediaRecorder} for one frame rate.
+     *
+     * @return true when the recorder actually started. On failure the handle is
+     * released and {@link #recorder} cleared, so the caller can retry with a frame
+     * rate the device does accept.
+     */
+    private boolean startMediaRecorder(CameraSession session, Camera camera, File path,
+                                       Size videoSize, int bitrate, int fps) {
+        MediaRecorder local = new MediaRecorder();
+        try {
+            local.setCamera(camera);
+            local.setVideoSource(MediaRecorder.VideoSource.CAMERA);
+            local.setAudioSource(MediaRecorder.AudioSource.CAMCORDER);
+            session.configureRecorder(1, local);
+            local.setOutputFile(path.getAbsolutePath());
+            local.setMaxFileSize(1024 * 1024 * 1024);
+            local.setVideoFrameRate(fps);
+            local.setMaxDuration(0);
+            local.setVideoEncodingBitRate(bitrate);
+            local.setVideoSize(videoSize.getWidth(), videoSize.getHeight());
+            local.setOnInfoListener(CameraController.this);
+            local.prepare();
+            local.start();
+            recorder = local;
+            return true;
+        } catch (Throwable t) {
+            if (BuildVars.LOGS_ENABLED) {
+                FileLog.d("camera recorder fps=" + fps + " failed: " + t);
+            }
+            try {
+                local.release();
+            } catch (Throwable ignored) {
+            }
+            recorder = null;
+            return false;
         }
     }
 

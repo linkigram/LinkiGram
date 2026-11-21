@@ -60,6 +60,7 @@ public class CameraPreferencesActivity extends NimarkoUniversalPreferencesActivi
 
     private final int roundVideoSizeRow = 17;
     private final int roundVideoBitrateRow = 18;
+    private final int cameraVideoFpsRow = 19;
 
     private boolean cameraImprovementsExpanded = false;
 
@@ -122,6 +123,7 @@ public class CameraPreferencesActivity extends NimarkoUniversalPreferencesActivi
         items.add(UItem.asHeader(getString(R.string.NM_CAM_VideoQuality)));
         items.add(UItem.asButton(roundVideoSizeRow, getString(R.string.NM_CAM_RoundVideoSize), getRoundVideoSizeText()));
         items.add(UItem.asButton(roundVideoBitrateRow, getString(R.string.NM_CAM_RoundVideoBitrate), getRoundVideoBitrateText()));
+        items.add(UItem.asButton(cameraVideoFpsRow, getString(R.string.NM_CAM_VideoFps), getCameraVideoFpsText()));
         
         if (advanced) {
             items.add(UItem.asButton(cameraXQualityRow, getString(R.string.CP_CameraQuality),
@@ -204,6 +206,19 @@ public class CameraPreferencesActivity extends NimarkoUniversalPreferencesActivi
             PopupHelper.showLegacy(configStringKeys, "FPS", configValues.indexOf(app.nimarkogram.messenger.NimarkoConfig.cameraXFpsRange), getContext(), i -> {
                 NimarkoConfig.setCameraXFpsRange(configValues.get(i));
                 SettingsHelper.updateButtonValue(view, getCameraXFpsRange());
+            });
+        } else if (item.id == cameraVideoFpsRow) {
+            ArrayList<CharSequence> labels = new ArrayList<>();
+            ArrayList<Integer> values = new ArrayList<>();
+            labels.add(getString(R.string.NM_CAM_VideoFps_Auto));
+            values.add(NimarkoConfig.CameraVideoFps30);
+            labels.add(getString(R.string.NM_CAM_VideoFps_High));
+            values.add(NimarkoConfig.CameraVideoFps60);
+            int current = values.indexOf(app.nimarkogram.messenger.NimarkoConfig.cameraVideoFps);
+            if (current < 0) current = 0;
+            PopupHelper.showLegacy(labels, getString(R.string.NM_CAM_VideoFps), current, getContext(), i -> {
+                NimarkoConfig.setCameraVideoFps(values.get(i));
+                SettingsHelper.updateButtonValue(view, getCameraVideoFpsText());
             });
         } else if (item.id == cameraXQualityRow) {
             ArrayList<Integer> types = getAvailableCameraQualityHeights();
@@ -358,5 +373,11 @@ public class CameraPreferencesActivity extends NimarkoUniversalPreferencesActivi
 
     private String getRoundVideoBitrateText() {
         return NimarkoConfig.videoMessagesBitrateKbps + " kbps";
+    }
+
+    private String getCameraVideoFpsText() {
+        return app.nimarkogram.messenger.NimarkoConfig.cameraVideoFps == NimarkoConfig.CameraVideoFps60
+                ? "60 fps"
+                : "30 fps";
     }
 }

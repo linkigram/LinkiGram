@@ -12042,6 +12042,10 @@
 <string name="NM_CAM_RoundCamera">Camera for video messages</string>
 <string name="NM_CAM_FrontCamera">Front camera</string>
 <string name="NM_CAM_RearCamera">Rear camera</string>
+<string name="NM_CAM_LensSwitch">Camera module</string>
+<string name="NM_CAM_VideoFps">Video frame rate</string>
+<string name="NM_CAM_VideoFps_Auto">Auto (30 fps)</string>
+<string name="NM_CAM_VideoFps_High">60 fps (if supported)</string>
 <string name="NM_CAM_AskCamera">Ask</string>
 <string name="NM_CAM_DualUnavailable">Dual camera isn\'t supported on this device</string>
 <string name="NM_CAM_RoundVideoSize_Auto">Auto</string>

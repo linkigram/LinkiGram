@@ -1250,6 +1250,10 @@
     <string name="NM_CAM_RoundCamera">Камера для кружков</string>
     <string name="NM_CAM_FrontCamera">Передняя камера</string>
     <string name="NM_CAM_RearCamera">Задняя камера</string>
+    <string name="NM_CAM_LensSwitch">Модуль камеры</string>
+    <string name="NM_CAM_VideoFps">Частота кадров видео</string>
+    <string name="NM_CAM_VideoFps_Auto">Авто (30 к/с)</string>
+    <string name="NM_CAM_VideoFps_High">60 к/с (если поддерживается)</string>
     <string name="NM_CAM_AskCamera">Спрашивать</string>
     <string name="NM_CAM_DualUnavailable">Двойная камера не поддерживается на этом устройстве</string>
     <string name="NM_CAM_RoundVideoSize_Auto">Авто</string>
