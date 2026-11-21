@@ -56,4 +56,12 @@
     <string name="NM_MargyGhostExclusionsAdd">Добавить чат</string>
     <string name="NM_MargyGhostExclusionsClear">Очистить всё</string>
     <string name="NM_MargyGhostExclusionsInfo">В перечисленных чатах призрак не действует: «печатает» и прочтения уходят как обычно.</string>
+    <string name="NM_MargyPetPhoto">Фото питомца</string>
+    <string name="NM_MargyPetPhotoSet">Своё</string>
+    <string name="NM_MargyPetPhotoNone">Рисованный</string>
+    <string name="NM_MargyPetPhotoPick">Выбрать фото</string>
+    <string name="NM_MargyPetPhotoReset">Вернуть рисованного</string>
+    <string name="NM_MargyPetPhotoFailed">Не удалось прочитать фото</string>
+    <string name="NM_MargyPetShake">Питомец летает при встряхивании</string>
+    <string name="NM_MargyPetShake_Desc">Встряхните телефон, и питомца подбросит по чату</string>
 </resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="NM_PluginAgentBackground">Агент продолжает работу в фоне — экран можно закрыть</string>
+    <string name="NM_PluginAgentDone">Агент закончил ответ</string>
+    <string name="NM_PluginAgentFailedTitle">Агент не смог ответить</string>
+    <string name="NM_PluginAgentNewChat">Новый диалог</string>
+    <string name="NM_PluginAgentStop">Остановить</string>
+    <string name="NM_PluginAgentCancelled">Остановлено</string>
+    <string name="NM_PluginAgentNotificationChannel">ИИ-агент плагинов</string>
+    <string name="NM_PluginAgentTapToOpen">Нажмите, чтобы открыть ответ</string>
+</resources>

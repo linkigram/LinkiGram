@@ -56,4 +56,12 @@
     <string name="NM_MargyGhostExclusionsAdd">Add chat</string>
     <string name="NM_MargyGhostExclusionsClear">Clear all</string>
     <string name="NM_MargyGhostExclusionsInfo">In the chats listed here ghost mode is off: typing and read receipts are sent as usual.</string>
+    <string name="NM_MargyPetPhoto">Pet photo</string>
+    <string name="NM_MargyPetPhotoSet">Custom</string>
+    <string name="NM_MargyPetPhotoNone">Drawn</string>
+    <string name="NM_MargyPetPhotoPick">Choose photo</string>
+    <string name="NM_MargyPetPhotoReset">Reset to drawn pet</string>
+    <string name="NM_MargyPetPhotoFailed">Could not read the photo</string>
+    <string name="NM_MargyPetShake">Pet flies on shake</string>
+    <string name="NM_MargyPetShake_Desc">Shake the phone and the pet bounces around the chat</string>
 </resources>

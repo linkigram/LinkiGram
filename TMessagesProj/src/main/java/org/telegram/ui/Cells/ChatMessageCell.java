@@ -358,6 +358,16 @@ public class ChatMessageCell extends BaseCell implements SeekBar.SeekBarDelegate
         if (messageObject == null) {
             return;
         }
+        if (messageObject.isAyuDeleted()) {
+            android.util.Log.d("AyuAvatar", "setAvatar visible=" + isAvatarVisible
+                    + " compact=" + hasCompactNameAvatar()
+                    + " custom=" + (messageObject.customAvatarDrawable != null)
+                    + " user=" + (currentUser == null ? "null" : currentUser.id)
+                    + " chat=" + (currentChat == null ? "null" : currentChat.id)
+                    + " fromId=" + messageObject.getFromChatId()
+                    + " dialogId=" + messageObject.getDialogId()
+                    + " out=" + messageObject.isOutOwner());
+        }
         if (isAvatarVisible || hasCompactNameAvatar()) {
             if (messageObject.customAvatarDrawable != null) {
                 avatarImage.setImageBitmap(messageObject.customAvatarDrawable);

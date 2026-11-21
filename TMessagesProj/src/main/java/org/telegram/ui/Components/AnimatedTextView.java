@@ -424,6 +424,25 @@ public class AnimatedTextView extends View {
             }
         }
 
+        /**
+         * Довести анимацию до конца. Отменённая на середине анимация оставляет
+         * кадр, где старый и новый текст рисуются одновременно, — так на кнопке
+         * появлялась «сплющенная» вторая надпись.
+         */
+        public void finishAnimation() {
+            if (animator != null) {
+                try {
+                    animator.end();
+                } catch (Throwable ignore) {
+                }
+            }
+            clearOldParts();
+            oldText = null;
+            oldWidth = 0;
+            rawT = t = 0;
+            invalidateSelf();
+        }
+
         public boolean isAnimating() {
             return animator != null && animator.isRunning();
         }
@@ -1320,6 +1339,11 @@ public class AnimatedTextView extends View {
 
     public void cancelAnimation() {
         drawable.cancelAnimation();
+    }
+
+    /** Довести анимацию текста до конца и убрать старые части. */
+    public void finishAnimation() {
+        drawable.finishAnimation();
     }
 
     public boolean isAnimating() {

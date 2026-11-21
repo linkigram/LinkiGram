@@ -328,6 +328,21 @@ public abstract class AyuHistoryHook {
     }
 
     private static MessageObject createMessageObject(int currentAccount, TLRPC.TL_message message, LongSparseArray<TLRPC.User> usersById, LongSparseArray<TLRPC.Chat> chatsById, MessagesController messagesController) {
+        // Restored rows can arrive without a sender: private chats often store no
+        // from_id on the wire, and then the cell has no avatar to draw.
+        if (message.from_id == null && message.peer_id instanceof TLRPC.TL_peerUser) {
+            long self = UserConfig.getInstance(currentAccount).getClientUserId();
+            long sender = message.out ? self : message.peer_id.user_id;
+            if (sender != 0) {
+                TLRPC.TL_peerUser peer = new TLRPC.TL_peerUser();
+                peer.user_id = sender;
+                message.from_id = peer;
+            }
+        }
+        android.util.Log.d("AyuAvatar", "restore fromId="
+                + (message.from_id == null ? "null" : MessageObject.getPeerId(message.from_id))
+                + " peer=" + MessageObject.getPeerId(message.peer_id)
+                + " out=" + message.out);
         MessageObject messageObj = new MessageObject(currentAccount, message, usersById, chatsById, false, true);
         messageObj.setIsRead();
         messageObj.setContentIsRead();

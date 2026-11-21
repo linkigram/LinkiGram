@@ -266,7 +266,7 @@ public final class ClientTheme {
                 Theme.key_picker_badgeText);
         add(CONTAINER, Theme.key_chat_outBubble, Theme.key_chat_outBubbleSelected,
                 Theme.key_windowBackgroundWhiteBlueButton, Theme.key_chat_inReactionButtonBackground,
-                Theme.key_groupcreate_spanBackground);
+                Theme.key_groupcreate_spanBackground, Theme.key_buttonNeutral);
         add(ON_CONTAINER, Theme.key_chat_messageTextOut, Theme.key_chat_outTimeText,
                 Theme.key_chat_outTimeSelectedText, Theme.key_chat_outAudioTitleText,
                 Theme.key_chat_outAudioPerformerText, Theme.key_chat_outAudioDurationText,
@@ -280,7 +280,8 @@ public final class ClientTheme {
                 Theme.key_chat_outSentCheckRead, Theme.key_chat_outSentCheckReadSelected,
                 Theme.key_chat_outSentCheck, Theme.key_chat_outSentCheckSelected,
                 Theme.key_chat_outTextSelectionCursor, Theme.key_chat_outReactionButtonText,
-                Theme.key_chat_inReactionButtonText, Theme.key_groupcreate_spanText);
+                Theme.key_chat_inReactionButtonText, Theme.key_groupcreate_spanText,
+                Theme.key_buttonNeutralText);
         add(TRACK, Theme.key_switchTrack, Theme.key_switchTrackBlue, Theme.key_switch2Track,
                 Theme.key_player_progressBackground, Theme.key_player_progressCachedBackground,
                 Theme.key_chats_unreadCounterMuted, Theme.key_dialogLineProgressBackground,

@@ -3,11 +3,13 @@ package app.nimarkogram.messenger.margy;
 import static org.telegram.messenger.AndroidUtilities.dp;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.view.View;
@@ -38,6 +40,14 @@ public class MargyPetView extends View {
     private final Path shape = new Path();
     private final RectF rect = new RectF();
 
+    private final Paint photoPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint photoRing = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path photoClip = new Path();
+    private final RectF photoRect = new RectF();
+    private final Rect photoSrc = new Rect();
+    private Bitmap photo;
+    private boolean photoChecked;
+
     private int accent = 0xFF5F9B4A;
     private int stage = STAGE_EGG;
     private float phase;
@@ -58,6 +68,13 @@ public class MargyPetView extends View {
 
     public void setStage(int stage) {
         this.stage = Math.max(STAGE_EGG, Math.min(STAGE_ADULT, stage));
+        invalidate();
+    }
+
+    /** Перечитать пользовательское фото (после выбора или сброса). */
+    public void reloadPhoto() {
+        photo = MargyPetPhoto.bitmap();
+        photoChecked = true;
         invalidate();
     }
 
@@ -89,11 +106,68 @@ public class MargyPetView extends View {
         accent = accentColor();
         final int ink = Theme.isCurrentThemeDark() ? 0xFF14151A : 0xFF23242A;
 
+        if (!photoChecked) {
+            photoChecked = true;
+            photo = MargyPetPhoto.bitmap();
+        }
+        if (photo != null && !photo.isRecycled() && photo.getWidth() > 0) {
+            drawPhoto(canvas, u, cx, cy, breathe);
+            return;
+        }
+
         if (stage == STAGE_EGG || stage == STAGE_HATCHING) {
             drawEgg(canvas, u, cx, cy, breathe);
             return;
         }
         drawCreature(canvas, u, cx, cy, breathe, ink);
+    }
+
+    /**
+     * Фото питомца: круглый портрет с мягкой тенью, светлой каймой и тем же
+     * покачиванием, что и у нарисованного зверя, — иначе он кажется наклейкой.
+     */
+    private void drawPhoto(Canvas canvas, float u, float cx, float cy, float breathe) {
+        final float radius = u * 0.325f * breathe;
+
+        // контактная тень
+        shade.setColor(0x38000000);
+        shade.setMaskFilter(new android.graphics.BlurMaskFilter(u * 0.045f, android.graphics.BlurMaskFilter.Blur.NORMAL));
+        rect.set(cx - radius * 0.86f, cy + radius * 0.74f, cx + radius * 0.86f, cy + radius * 1.16f);
+        canvas.drawOval(rect, shade);
+        shade.setMaskFilter(null);
+
+        photoClip.rewind();
+        photoClip.addCircle(cx, cy, radius, Path.Direction.CW);
+        final int save = canvas.save();
+        canvas.clipPath(photoClip);
+        photoRect.set(cx - radius, cy - radius, cx + radius, cy + radius);
+        photoSrc.set(0, 0, photo.getWidth(), photo.getHeight());
+        canvas.drawBitmap(photo, photoSrc, photoRect, photoPaint);
+        // мягкое затемнение снизу, чтобы портрет не светился на тёмном фоне
+        paint.setShader(new LinearGradient(cx, cy + radius * 0.15f, cx, cy + radius,
+                new int[]{0x00000000, 0x3A000000}, new float[]{0f, 1f}, Shader.TileMode.CLAMP));
+        canvas.drawCircle(cx, cy, radius, paint);
+        paint.setShader(null);
+        canvas.restoreToCount(save);
+
+        // кайма в акцент темы
+        photoRing.setStyle(Paint.Style.STROKE);
+        photoRing.setStrokeWidth(Math.max(1f, u * 0.022f));
+        photoRing.setColor(blend(accent, Color.WHITE, 0.35f));
+        canvas.drawCircle(cx, cy, radius - photoRing.getStrokeWidth() / 2f, photoRing);
+        photoRing.setColor(0x22000000);
+        photoRing.setStrokeWidth(Math.max(1f, u * 0.010f));
+        canvas.drawCircle(cx, cy, radius + u * 0.006f, photoRing);
+
+        // блик по верхней левой кромке
+        sheen.setColor(0x44FFFFFF);
+        sheen.setMaskFilter(new android.graphics.BlurMaskFilter(u * 0.025f, android.graphics.BlurMaskFilter.Blur.NORMAL));
+        rect.set(cx - radius * 0.72f, cy - radius * 0.78f, cx - radius * 0.06f, cy - radius * 0.28f);
+        final int sheenSave = canvas.save();
+        canvas.clipPath(photoClip);
+        canvas.drawOval(rect, sheen);
+        canvas.restoreToCount(sheenSave);
+        sheen.setMaskFilter(null);
     }
 
     private void drawEgg(Canvas canvas, float u, float cx, float cy, float breathe) {
@@ -218,9 +292,27 @@ public class MargyPetView extends View {
         canvas.drawPath(shape, mouth);
     }
 
+    /** Живые питомцы: смена фото должна дойти до открытого чата без перезапуска. */
+    private static final java.util.ArrayList<java.lang.ref.WeakReference<MargyPetView>> alive =
+            new java.util.ArrayList<>();
+
+    /** Перечитать фото у всех нарисованных питомцев. */
+    public static void notifyPhotoChanged() {
+        for (int i = alive.size() - 1; i >= 0; i--) {
+            final MargyPetView view = alive.get(i).get();
+            if (view == null) {
+                alive.remove(i);
+                continue;
+            }
+            view.reloadPhoto();
+        }
+    }
+
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        alive.add(new java.lang.ref.WeakReference<>(this));
+        reloadPhoto();
         if (animating) {
             postOnAnimation(tick);
         }
@@ -230,6 +322,12 @@ public class MargyPetView extends View {
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         removeCallbacks(tick);
+        for (int i = alive.size() - 1; i >= 0; i--) {
+            final MargyPetView view = alive.get(i).get();
+            if (view == null || view == this) {
+                alive.remove(i);
+            }
+        }
     }
 
     private final Runnable tick = new Runnable() {

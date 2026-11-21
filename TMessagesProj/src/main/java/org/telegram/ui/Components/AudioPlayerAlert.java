@@ -2980,34 +2980,46 @@ public class AudioPlayerAlert extends BottomSheet implements NotificationCenter.
         o.show();
     }
 
+    /**
+     * Показать ровно одну кнопку профиля. Раньше обе делались VISIBLE и
+     * перекрестно гасились по alpha 420 мс: повторный вызов (а он приходит на
+     * каждое обновление плеера) перезапускал анимации, кнопки оставались
+     * друг на друге и на зелёной плашке было видно две надписи сразу.
+     */
     private void setVisibleInProfile(boolean visible) {
+        final ButtonWithCounterView show = visible ? unsaveFromProfileButton : saveToProfileButton;
+        final ButtonWithCounterView hide = visible ? saveToProfileButton : unsaveFromProfileButton;
+        saveToProfileButton.animate().cancel();
+        unsaveFromProfileButton.animate().cancel();
+        // Недорисованная анимация текста оставляет старую надпись под новой.
+        saveToProfileButton.text.finishAnimation();
+        unsaveFromProfileButton.text.finishAnimation();
         if (isMyList() || noforwards) {
             saveToProfileButton.setVisibility(View.GONE);
             unsaveFromProfileButton.setVisibility(View.GONE);
             return;
         }
-        saveToProfileButton.setVisibility(View.VISIBLE);
-        unsaveFromProfileButton.setVisibility(View.VISIBLE);
-        saveToProfileButton.animate()
-            .alpha(visible ? 0.0f : 1.0f)
-            .scaleX(visible ? 0.8f : 1.0f)
-            .scaleY(visible ? 0.8f : 1.0f)
-            .setDuration(420)
-            .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT)
-            .withEndAction(() -> {
-                saveToProfileButton.setVisibility(visible ? View.GONE : View.VISIBLE);
-            })
-            .start();
-        unsaveFromProfileButton.animate()
-            .alpha(!visible ? 0.0f : 1.0f)
-            .scaleX(!visible ? 0.8f : 1.0f)
-            .scaleY(!visible ? 0.8f : 1.0f)
-            .setDuration(420)
-            .setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT)
-            .withEndAction(() -> {
-                unsaveFromProfileButton.setVisibility(visible ? View.VISIBLE : View.GONE);
-            })
-            .start();
+        hide.setVisibility(View.GONE);
+        hide.setAlpha(0f);
+        hide.setScaleX(0.8f);
+        hide.setScaleY(0.8f);
+        if (show.getVisibility() != View.VISIBLE) {
+            show.setVisibility(View.VISIBLE);
+            show.setAlpha(0f);
+            show.setScaleX(0.8f);
+            show.setScaleY(0.8f);
+            show.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .setDuration(180)
+                .setInterpolator(CubicBezierInterpolator.EASE_OUT)
+                .start();
+        } else {
+            show.setAlpha(1f);
+            show.setScaleX(1f);
+            show.setScaleY(1f);
+        }
     }
 
     private void saveToMusic(MessageObject messageObject) {

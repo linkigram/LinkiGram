@@ -411,6 +411,61 @@ public class NotificationsController extends BaseController implements Notificat
         });
     }
 
+    /**
+     * Local notification for the plugin AI agent finishing while the app is in the
+     * background. Tapping it opens the agent screen again, where the conversation
+     * and the answer are still available.
+     */
+    public void showPluginAgentNotification(String text) {
+        notificationsQueue.postRunnable(() -> {
+            if (!getUserConfig().isClientActivated()) {
+                return;
+            }
+            try {
+                String channelId = "plugin_agent_" + currentAccount;
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    systemNotificationManager.createNotificationChannel(new NotificationChannel(
+                            channelId,
+                            LocaleController.getString(R.string.NM_PluginAgentNotificationChannel),
+                            NotificationManager.IMPORTANCE_DEFAULT));
+                }
+                Intent intent = new Intent(ApplicationLoader.applicationContext, LaunchActivity.class);
+                intent.setAction("app.nimarkogram.OPEN_PLUGIN_AGENT");
+                intent.putExtra("currentAccount", currentAccount);
+                PendingIntent contentIntent = PendingIntent.getActivity(
+                        ApplicationLoader.applicationContext, currentAccount, intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                NotificationCompat.Builder builder = new NotificationCompat.Builder(
+                        ApplicationLoader.applicationContext, channelId)
+                        .setSmallIcon(R.drawable.notification)
+                        .setContentTitle(LocaleController.getString(R.string.NM_PluginAgentTitle))
+                        .setContentText(text)
+                        .setStyle(new NotificationCompat.BigTextStyle()
+                                .bigText(text + "\n"
+                                        + LocaleController.getString(R.string.NM_PluginAgentTapToOpen)))
+                        .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                        .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                        .setWhen(System.currentTimeMillis())
+                        .setAutoCancel(true)
+                        .setContentIntent(contentIntent);
+                notificationManager.notify("plugin_agent", currentAccount, builder.build());
+            } catch (Exception e) {
+                FileLog.e(e);
+            }
+        });
+    }
+
+    public void cancelPluginAgentNotification() {
+        if (notificationManager == null) {
+            return;
+        }
+        try {
+            notificationManager.cancel("plugin_agent", currentAccount);
+        } catch (Exception e) {
+            FileLog.e(e);
+        }
+    }
+
     private String getGramTransferNotification(MessageObject messageObject, String name) {
         TLRPC.TL_messageActionGramTransfer action = (TLRPC.TL_messageActionGramTransfer) messageObject.messageOwner.action;
         boolean unknown = UserObject.isService(messageObject.getDialogId());

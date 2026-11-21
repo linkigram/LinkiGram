@@ -1618,6 +1618,7 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
         boolean showPlayer = false;
         boolean showLocations = false;
         boolean showGroupVoip = false;
+        boolean openPluginAgent = false;
         boolean showCallLog = false;
         boolean audioCallUser = false;
         boolean videoCallUser = false;
@@ -2958,6 +2959,8 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                             }
                         }
                     }
+                } else if (intent.getAction().equals("app.nimarkogram.OPEN_PLUGIN_AGENT")) {
+                    openPluginAgent = true;
                 } else if (intent.getAction().equals("org.telegram.messenger.OPEN_ACCOUNT")) {
                     open_settings = 1;
                 } else if (intent.getAction().equals("new_dialog")) {
@@ -3196,6 +3199,9 @@ public class LaunchActivity extends BasePermissionsActivity implements INavigati
                     dids.add(MessagesStorage.TopicKey.of(dialogId, 0));
                     didSelectDialogs(null, dids, null, false, true, 0, 0, null);
                 }
+            } else if (openPluginAgent) {
+                AndroidUtilities.runOnUIThread(() -> presentFragment(
+                        new app.nimarkogram.messenger.plugins.ui.PluginAgentActivity()));
             } else if (open_settings == 7 || open_settings == 8 || open_settings == 9) {
                 CharSequence bulletinText = null;
                 boolean can = BuildVars.DEBUG_PRIVATE_VERSION; // TODO: check source

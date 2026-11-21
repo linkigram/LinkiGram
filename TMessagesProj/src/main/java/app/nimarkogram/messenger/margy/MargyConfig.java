@@ -26,6 +26,8 @@ public final class MargyConfig {
     public static final String KEY_PET = PREFIX + "pet";
     public static final String KEY_PET_IN_CHAT = PREFIX + "pet_in_chat";
     public static final String KEY_PET_GRAVITY = PREFIX + "pet_gravity";
+    public static final String KEY_PET_SHAKE = PREFIX + "pet_shake";
+    public static final String KEY_PET_PHOTO = PREFIX + "pet_photo";
     public static final String KEY_PET_X = PREFIX + "pet_x";
     public static final String KEY_PET_Y = PREFIX + "pet_y";
 
@@ -166,6 +168,38 @@ public final class MargyConfig {
         if (petGravity()) {
             clearPetPosition();
         }
+    }
+
+    /** Встряхивание телефона подбрасывает питомца по чату. */
+    public static boolean petShake() {
+        return prefs().getBoolean(KEY_PET_SHAKE, true);
+    }
+
+    public static void togglePetShake() {
+        prefs().edit().putBoolean(KEY_PET_SHAKE, !petShake()).apply();
+    }
+
+    /** Своё фото вместо нарисованного зверя; пусто — рисованный питомец. */
+    public static String petPhoto() {
+        return prefs().getString(KEY_PET_PHOTO, null);
+    }
+
+    public static void setPetPhoto(String path) {
+        if (path == null || path.isEmpty()) {
+            prefs().edit().remove(KEY_PET_PHOTO).apply();
+        } else {
+            prefs().edit().putString(KEY_PET_PHOTO, path).apply();
+        }
+        MargyPetPhoto.invalidate();
+    }
+
+    public static boolean hasPetPhoto() {
+        return MargyPetPhoto.hasPhoto();
+    }
+
+    public static void clearPetPhoto() {
+        setPetPhoto(null);
+        MargyPetPhoto.clear();
     }
 
     public static float petX() {

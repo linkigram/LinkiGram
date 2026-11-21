@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="NM_PluginAgentBackground">The agent keeps working in the background — you can close this screen</string>
+    <string name="NM_PluginAgentDone">The agent has finished the answer</string>
+    <string name="NM_PluginAgentFailedTitle">The agent could not answer</string>
+    <string name="NM_PluginAgentNewChat">New chat</string>
+    <string name="NM_PluginAgentStop">Stop</string>
+    <string name="NM_PluginAgentCancelled">Stopped</string>
+    <string name="NM_PluginAgentNotificationChannel">Plugin AI agent</string>
+    <string name="NM_PluginAgentTapToOpen">Tap to open the answer</string>
+</resources>

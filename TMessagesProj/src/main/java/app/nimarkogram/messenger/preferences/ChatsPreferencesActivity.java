@@ -73,7 +73,10 @@ public class ChatsPreferencesActivity extends NimarkoUniversalPreferencesActivit
     private final int margyEditHistoryRow = 90, margyRailRow = 91, margyInputTopRow = 92,
             margyInputLinesRow = 93, margyInputTextSizeRow = 94, margyMusicRow = 95,
             margyMiniPlayerRow = 96, margyStreaksRow = 97, margyPetRow = 98,
-            margyPetInChatRow = 99, margyPetGravityRow = 100;
+            margyPetInChatRow = 99, margyPetGravityRow = 100, margyPetPhotoRow = 101,
+            margyPetShakeRow = 102;
+
+    private static final int REQUEST_PET_PHOTO = 9101;
 
     @Override
     public String getTitle() {
@@ -244,6 +247,15 @@ public class ChatsPreferencesActivity extends NimarkoUniversalPreferencesActivit
                             getString(R.string.NM_MargyPetInChat_Desc))
                     .setChecked(app.nimarkogram.messenger.margy.MargyConfig.petInChat()));
             if (app.nimarkogram.messenger.margy.MargyConfig.petInChat()) {
+                items.add(UItem.asButton(margyPetPhotoRow, R.drawable.msg_gallery,
+                                getString(R.string.NM_MargyPetPhoto),
+                                getString(app.nimarkogram.messenger.margy.MargyConfig.hasPetPhoto()
+                                        ? R.string.NM_MargyPetPhotoSet
+                                        : R.string.NM_MargyPetPhotoNone)));
+                items.add(SettingsHelper.asSwitchCG(margyPetShakeRow,
+                                getString(R.string.NM_MargyPetShake),
+                                getString(R.string.NM_MargyPetShake_Desc))
+                        .setChecked(app.nimarkogram.messenger.margy.MargyConfig.petShake()));
                 items.add(SettingsHelper.asSwitchCG(margyPetGravityRow,
                                 getString(R.string.NM_MargyPetGravity),
                                 getString(R.string.NM_MargyPetGravity_Desc))
@@ -473,7 +485,67 @@ public class ChatsPreferencesActivity extends NimarkoUniversalPreferencesActivit
         } else if (id == margyPetGravityRow) {
             app.nimarkogram.messenger.margy.MargyConfig.togglePetGravity();
             updateCheckState(view, app.nimarkogram.messenger.margy.MargyConfig.petGravity());
+        } else if (id == margyPetShakeRow) {
+            app.nimarkogram.messenger.margy.MargyConfig.togglePetShake();
+            updateCheckState(view, app.nimarkogram.messenger.margy.MargyConfig.petShake());
+        } else if (id == margyPetPhotoRow) {
+            showPetPhotoOptions(view);
         }
+    }
+
+    /** Выбор фото питомца: галерея или сброс, если фото уже задано. */
+    private void showPetPhotoOptions(View anchor) {
+        if (!app.nimarkogram.messenger.margy.MargyConfig.hasPetPhoto()) {
+            pickPetPhoto();
+            return;
+        }
+        org.telegram.ui.Components.ItemOptions options = org.telegram.ui.Components.ItemOptions.makeOptions(
+                this, anchor == null ? fragmentView : anchor);
+        options.add(R.drawable.msg_gallery, getString(R.string.NM_MargyPetPhotoPick),
+                this::pickPetPhoto);
+        options.add(R.drawable.msg_delete, getString(R.string.NM_MargyPetPhotoReset),
+                () -> {
+                    app.nimarkogram.messenger.margy.MargyConfig.clearPetPhoto();
+                    app.nimarkogram.messenger.margy.MargyPetView.notifyPhotoChanged();
+                    listView.adapter.update(false);
+                });
+        options.show();
+    }
+
+    private void pickPetPhoto() {
+        try {
+            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_GET_CONTENT);
+            intent.setType("image/*");
+            intent.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+            startActivityForResult(intent, REQUEST_PET_PHOTO);
+        } catch (Throwable t) {
+            org.telegram.messenger.FileLog.e("MargyPetPhoto: no gallery", t);
+        }
+    }
+
+    @Override
+    public void onActivityResultFragment(int requestCode, int resultCode, android.content.Intent data) {
+        if (requestCode != REQUEST_PET_PHOTO) {
+            super.onActivityResultFragment(requestCode, resultCode, data);
+            return;
+        }
+        if (resultCode != android.app.Activity.RESULT_OK || data == null || data.getData() == null) {
+            return;
+        }
+        final android.net.Uri uri = data.getData();
+        app.nimarkogram.messenger.margy.MargyPetPhoto.save(getContext(), uri,
+                () -> {
+                    app.nimarkogram.messenger.margy.MargyConfig.setPetPhoto(
+                            app.nimarkogram.messenger.margy.MargyPetPhoto.file() == null ? null
+                                    : app.nimarkogram.messenger.margy.MargyPetPhoto.file().getAbsolutePath());
+                    app.nimarkogram.messenger.margy.MargyPetView.notifyPhotoChanged();
+                    if (listView != null) listView.adapter.update(false);
+                },
+                () -> {
+                    if (getParentActivity() == null) return;
+                    org.telegram.ui.Components.BulletinFactory.of(this).createSimpleBulletin(
+                            R.raw.error, getString(R.string.NM_MargyPetPhotoFailed)).show();
+                });
     }
 
     @Override

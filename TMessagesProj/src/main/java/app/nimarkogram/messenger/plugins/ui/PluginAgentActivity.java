@@ -11,10 +11,7 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.net.Uri;
 import android.provider.OpenableColumns;
-import android.text.SpannableStringBuilder;
-import android.text.Spanned;
 import android.text.TextUtils;
-import android.text.style.TypefaceSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -54,16 +51,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import app.exteraless.ai.AiConfig;
 import app.exteraless.ai.data.Message;
-import app.exteraless.ai.data.Role;
-import app.exteraless.ai.data.Service;
-import app.exteraless.ai.network.Client;
-import app.exteraless.ai.network.GenerationCallback;
 import app.nimarkogram.messenger.plugins.Plugin;
 import app.nimarkogram.messenger.plugins.PluginsController;
 
@@ -82,35 +71,33 @@ public class PluginAgentActivity extends BaseFragment {
 
     private static final int MENU_REPORT = 1;
     private static final int MENU_SETTINGS = 2;
+    private static final int MENU_NEW_CHAT = 3;
     private static final int REQUEST_PICK_IMAGE = 4101;
     private static final int REQUEST_PICK_FILE = 4102;
-    /** Upper bound of the in-memory conversation that is resent with every request. */
-    private static final int MAX_HISTORY = 16;
-    private static final int MAX_HISTORY_CHARS = 120000;
     /** Text attachments are pasted into the prompt, so they stay small. */
     private static final int MAX_ATTACHMENT_BYTES = 256 * 1024;
     /** Raw camera pictures are often bigger than the compressed result. */
     private static final int MAX_READ_IMAGE_BYTES = 16 * 1024 * 1024;
     private static final int MAX_ATTACHMENT_IMAGE_BYTES = 2 * 1024 * 1024;
     private static final int MAX_IMAGE_SIDE = 1600;
-    private static final Pattern FENCE = Pattern.compile("```[a-zA-Z0-9_+.-]*\\n?");
-
-    /** Kept for the app session so closing and reopening the screen keeps the context. */
-    private static final ArrayList<Message> SESSION_HISTORY = new ArrayList<>();
 
     private final String pendingPluginId;
-    private Client client;
-    private String requestId;
-    private boolean busy;
+    private final PluginAgentJob job = PluginAgentJob.getInstance();
+    private final PluginAgentJob.Listener jobListener = this::onAgentChanged;
+    private int renderedEntries;
     private boolean attachmentLoading;
+    private boolean screenVisible;
 
     private ScrollView scrollView;
     private LinearLayout messagesView;
     private EditText inputField;
     private View sendButton;
+    private ImageView sendIconView;
     private View attachButton;
     private LinearLayout inputPanel;
     private LinearLayout attachmentBar;
+    private LinearLayout statusBar;
+    private TextView statusText;
     private TextView attachmentTitle;
     private Context context;
     private String modelLabel;
@@ -146,10 +133,14 @@ public class PluginAgentActivity extends BaseFragment {
                     showReportPicker(fragmentView);
                 } else if (id == MENU_SETTINGS) {
                     presentFragment(new app.exteraless.ai.ui.AiSettingsActivity());
+                } else if (id == MENU_NEW_CHAT) {
+                    job.clearSession();
                 }
             }
         });
         ActionBarMenu menu = actionBar.createMenu();
+        ActionBarMenuItem newChatItem = menu.addItem(MENU_NEW_CHAT, R.drawable.msg_clear);
+        newChatItem.setContentDescription(LocaleController.getString(R.string.NM_PluginAgentNewChat));
         ActionBarMenuItem reportItem = menu.addItem(MENU_REPORT, R.drawable.msg_report);
         reportItem.setContentDescription(LocaleController.getString(R.string.NM_PluginAgentReport));
         ActionBarMenuItem settingsItem = menu.addItem(MENU_SETTINGS, R.drawable.msg_settings);
@@ -174,6 +165,20 @@ public class PluginAgentActivity extends BaseFragment {
         inputPanel.setPadding(dp(8), dp(6), dp(8), dp(8) + bottomInset);
         ThemeBind.backgroundColor(inputPanel, Theme.key_windowBackgroundWhite);
         root.addView(inputPanel, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT));
+
+        statusBar = new LinearLayout(context);
+        statusBar.setOrientation(LinearLayout.HORIZONTAL);
+        statusBar.setGravity(Gravity.CENTER_VERTICAL);
+        statusBar.setVisibility(View.GONE);
+        statusBar.setPadding(dp(12), dp(2), dp(12), dp(6));
+        inputPanel.addView(statusBar, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT,
+                LayoutHelper.WRAP_CONTENT));
+
+        statusText = new TextView(context);
+        statusText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13);
+        statusText.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText2));
+        statusText.setText(LocaleController.getString(R.string.NM_PluginAgentBackground));
+        statusBar.addView(statusText, LayoutHelper.createLinear(0, LayoutHelper.WRAP_CONTENT, 1f));
 
         attachmentBar = new LinearLayout(context);
         attachmentBar.setOrientation(LinearLayout.HORIZONTAL);
@@ -259,27 +264,24 @@ public class PluginAgentActivity extends BaseFragment {
         sendIcon.setColorFilter(new PorterDuffColorFilter(
                 Theme.getColor(Theme.key_chats_actionIcon), PorterDuff.Mode.MULTIPLY));
         sendContainer.addView(sendIcon, LayoutHelper.createFrame(24, 24, Gravity.CENTER));
-        sendContainer.setOnClickListener(view -> submit());
+        sendIconView = sendIcon;
+        sendContainer.setOnClickListener(view -> {
+            if (job.isBusy()) {
+                job.cancel();
+            } else {
+                submit();
+            }
+        });
         sendContainer.setContentDescription(LocaleController.getString(R.string.NM_PluginAgentSend));
         sendButton = sendContainer;
         inputRow.addView(sendContainer, LayoutHelper.createLinear(40, 40, Gravity.CENTER_VERTICAL, 8, 0, 2, 0));
 
         fragmentView = root;
-        replaySession();
+        job.addListener(jobListener);
+        job.markSeen();
+        rebind();
         AndroidUtilities.runOnUIThread(this::reportPendingPlugin);
         return fragmentView;
-    }
-
-    private void replaySession() {
-        if (!SESSION_HISTORY.isEmpty()) {
-            for (Message message : SESSION_HISTORY) {
-                boolean user = "user".equals(message.role());
-                addBubble(format(message.content()), user, user ? null : PluginAgentPrompt.extractCode(message.content()));
-            }
-        } else {
-            addBubble(LocaleController.getString(R.string.NM_PluginAgentHint), false, null);
-        }
-        scrollToBottom();
     }
 
     private void reportPendingPlugin() {
@@ -301,18 +303,37 @@ public class PluginAgentActivity extends BaseFragment {
     }
 
     @Override
-    public void onFragmentDestroy() {
-        if (client != null && requestId != null) {
-            client.cancel(requestId);
+    public void onResume() {
+        super.onResume();
+        if (!screenVisible) {
+            screenVisible = true;
+            job.setScreenVisible(true);
         }
-        client = null;
-        requestId = null;
-        busy = false;
+        job.markSeen();
+        onAgentChanged();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (screenVisible) {
+            screenVisible = false;
+            job.setScreenVisible(false);
+        }
+    }
+
+    @Override
+    public void onFragmentDestroy() {
+        if (screenVisible) {
+            screenVisible = false;
+            job.setScreenVisible(false);
+        }
+        job.removeListener(jobListener);
         super.onFragmentDestroy();
     }
 
     private void submit() {
-        if (busy || inputField == null) {
+        if (job.isBusy() || inputField == null) {
             return;
         }
         String text = inputField.getText() == null ? "" : inputField.getText().toString().trim();
@@ -336,7 +357,7 @@ public class PluginAgentActivity extends BaseFragment {
                 display = TextUtils.concat(display, "\n\n",
                         LocaleController.formatString(R.string.NM_PluginAgentAttachment, fileName));
             }
-            send(message, display);
+            job.submit(message, display);
             return;
         }
         if (fileText != null) {
@@ -353,129 +374,92 @@ public class PluginAgentActivity extends BaseFragment {
                 content.append('\n');
             }
             content.append("```");
-            send(new Message("user", content.toString()), format(content.toString()));
+            job.submit(new Message("user", content.toString()), format(content.toString()));
             return;
         }
-        send(new Message("user", text), format(text));
+        job.submit(new Message("user", text), format(text));
     }
 
     private void send(String text) {
-        send(new Message("user", text), format(text));
+        job.submit(new Message("user", text), format(text));
     }
 
-    private void send(Message message, CharSequence display) {
-        if (busy) {
+    /** Rebuilds the whole conversation from the process-wide job state. */
+    private void rebind() {
+        if (messagesView == null) {
             return;
         }
-        addBubble(display, true, null);
-        remember(message);
+        messagesView.removeAllViews();
+        renderedEntries = 0;
+        List<PluginAgentJob.Entry> all = job.entries();
+        if (all.isEmpty()) {
+            addBubble(LocaleController.getString(R.string.NM_PluginAgentHint), false, null);
+        } else {
+            for (PluginAgentJob.Entry entry : all) {
+                appendEntry(entry);
+            }
+        }
+        modelLabel = job.modelLabel();
+        setBusy(job.isBusy());
         scrollToBottom();
+    }
 
-        Service service = AiConfig.getSelectedService();
-        if (service == null || !service.hasCredentials()) {
-            addBubble(LocaleController.getString(R.string.NM_PluginAgentConfigure), false, null);
+    private void onAgentChanged() {
+        if (fragmentView == null) {
             return;
         }
-        modelLabel = service.getShortModel();
-        actionBar.setSubtitle(modelLabel);
-
-        Role role = new Role("PluginAgent",
-                PluginAgentPrompt.SYSTEM + "\n\n" + PluginAgentPrompt.catalog());
-        client = new Client.Builder()
-                .roleOverride(role)
-                .serviceOverride(service)
-                .build();
-        requestId = UUID.randomUUID().toString();
-        setBusy(true);
-
-        final StringBuilder chunked = new StringBuilder();
-        client.generate(requestId, new ArrayList<>(SESSION_HISTORY), false, new GenerationCallback() {
-            @Override
-            public void onChunk(String chunk) {
-                chunked.append(chunk);
+        List<PluginAgentJob.Entry> all = job.entries();
+        if (all.isEmpty() || renderedEntries == 0 || all.size() < renderedEntries) {
+            rebind();
+        } else if (all.size() > renderedEntries) {
+            for (int a = renderedEntries; a < all.size(); a++) {
+                appendEntry(all.get(a));
             }
+            modelLabel = job.modelLabel();
+            setBusy(job.isBusy());
+            scrollToBottom();
+        } else {
+            setBusy(job.isBusy());
+        }
+    }
 
-            @Override
-            public void onResponse(String response) {
-                setBusy(false);
-                String answer = TextUtils.isEmpty(response) ? chunked.toString() : response;
-                if (TextUtils.isEmpty(answer)) {
-                    answer = LocaleController.getString(R.string.OEAiFailed);
-                }
-                remember(new Message("assistant", answer));
-                if (fragmentView != null) {
-                    addBubble(format(answer), false, PluginAgentPrompt.extractCode(answer));
-                    scrollToBottom();
-                }
-            }
-
-            @Override
-            public void onError(int code, String message) {
-                setBusy(false);
-                String detail = TextUtils.isEmpty(message)
-                        ? LocaleController.getString(R.string.OEAiFailed)
-                        : message;
-                if (fragmentView != null) {
-                    addError(code == 0 ? detail : detail + " · " + code);
-                    scrollToBottom();
-                }
-            }
-        });
+    private void appendEntry(PluginAgentJob.Entry entry) {
+        renderedEntries++;
+        if (entry.error) {
+            addError(String.valueOf(entry.text));
+        } else {
+            addBubble(entry.text, entry.user, entry.code);
+        }
     }
 
     private void setBusy(boolean value) {
-        busy = value;
         if (sendButton != null) {
-            sendButton.setEnabled(!value);
-            sendButton.setAlpha(value ? 0.5f : 1f);
+            sendButton.setAlpha(1f);
+            sendButton.setContentDescription(LocaleController.getString(
+                    value ? R.string.NM_PluginAgentStop : R.string.NM_PluginAgentSend));
+        }
+        if (sendIconView != null) {
+            sendIconView.setImageDrawable(ContextCompat.getDrawable(context,
+                    value ? R.drawable.msg_cancel : R.drawable.ic_send).mutate());
+            sendIconView.setColorFilter(new PorterDuffColorFilter(
+                    Theme.getColor(Theme.key_chats_actionIcon), PorterDuff.Mode.MULTIPLY));
         }
         if (attachButton != null) {
             attachButton.setEnabled(!value);
             attachButton.setAlpha(value ? 0.5f : 1f);
         }
+        if (statusBar != null) {
+            statusBar.setVisibility(value ? View.VISIBLE : View.GONE);
+        }
         if (actionBar != null) {
-            actionBar.setSubtitle(value ? "…" : modelLabel);
-        }
-    }
-
-    /** Keeps the in-memory conversation bounded; only the last turns are resent. */
-    private static void remember(Message message) {
-        SESSION_HISTORY.add(message);
-        int chars = 0;
-        int keepFrom = 0;
-        for (int a = SESSION_HISTORY.size() - 1; a >= 0; a--) {
-            String content = SESSION_HISTORY.get(a).content();
-            chars += content == null ? 0 : content.length();
-            boolean tooOld = SESSION_HISTORY.size() - a > MAX_HISTORY
-                    || (chars > MAX_HISTORY_CHARS && a < SESSION_HISTORY.size() - 1);
-            if (tooOld) {
-                keepFrom = a + 1;
-                break;
-            }
-        }
-        if (keepFrom > 0) {
-            SESSION_HISTORY.subList(0, keepFrom).clear();
-        }
-        dropOldImages();
-    }
-
-    /** Base64 images are heavy, so only the newest attached pictures stay in the history. */
-    private static void dropOldImages() {
-        int images = 0;
-        for (int a = SESSION_HISTORY.size() - 1; a >= 0; a--) {
-            Message message = SESSION_HISTORY.get(a);
-            if (message.getImageData() == null || message.getImageData().length == 0) {
-                continue;
-            }
-            images++;
-            if (images > 2) {
-                message.clearImage();
-            }
+            actionBar.setSubtitle(value
+                    ? LocaleController.getString(R.string.NM_PluginAgentBackground)
+                    : modelLabel);
         }
     }
 
     private void showAttachMenu() {
-        if (busy || attachmentLoading) {
+        if (job.isBusy() || attachmentLoading) {
             return;
         }
         ItemOptions options = ItemOptions.makeOptions(this,
@@ -588,7 +572,7 @@ public class PluginAgentActivity extends BaseFragment {
             AndroidUtilities.runOnUIThread(() -> {
                 attachmentLoading = false;
                 if (attachButton != null) {
-                    attachButton.setEnabled(!busy);
+                    attachButton.setEnabled(!job.isBusy());
                 }
                 if (fragmentView == null) {
                     return;
@@ -818,31 +802,7 @@ public class PluginAgentActivity extends BaseFragment {
 
     /** Turns fenced code into monospace spans; the rest stays plain text. */
     private CharSequence format(String raw) {
-        if (TextUtils.isEmpty(raw)) {
-            return "";
-        }
-        SpannableStringBuilder out = new SpannableStringBuilder();
-        String[] parts = raw.split("```", -1);
-        for (int i = 0; i < parts.length; i++) {
-            String part = parts[i];
-            if (i % 2 == 1) {
-                Matcher fence = FENCE.matcher(part);
-                if (fence.lookingAt() && fence.end() <= 16) {
-                    part = part.substring(fence.end());
-                }
-                if (out.length() > 0 && out.charAt(out.length() - 1) != '\n') {
-                    out.append('\n');
-                }
-                int start = out.length();
-                out.append(part.trim());
-                out.setSpan(new TypefaceSpan("monospace"), start, out.length(),
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                out.append('\n');
-            } else {
-                out.append(part);
-            }
-        }
-        return out;
+        return PluginAgentJob.formatAnswer(raw);
     }
 
     private void showReportPicker(View anchor) {
@@ -865,7 +825,7 @@ public class PluginAgentActivity extends BaseFragment {
     }
 
     private void reportPlugin(Plugin plugin) {
-        if (plugin == null || busy) {
+        if (plugin == null || job.isBusy()) {
             return;
         }
         final String pluginId = plugin.getId();
