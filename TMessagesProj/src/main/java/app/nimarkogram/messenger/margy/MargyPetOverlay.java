@@ -9,9 +9,9 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.util.Log;
 import android.widget.FrameLayout;
 
-import org.telegram.messenger.FileLog;
 import org.telegram.ui.ChatActivity;
 import org.telegram.ui.Components.ChatActivityEnterView;
 import org.telegram.ui.Components.LayoutHelper;
@@ -60,18 +60,52 @@ public class MargyPetOverlay extends FrameLayout {
     /** Добавить питомца в готовый экран чата. Возвращает null, если он выключен. */
     public static MargyPetOverlay attach(ChatActivity chat, ViewGroup parent, int account, long dialogId) {
         if (chat == null || parent == null || !MargyConfig.pet() || !MargyConfig.petInChat()) {
-            FileLog.d("MargyPet: skipped pet=" + MargyConfig.pet() + " inChat=" + MargyConfig.petInChat()
+            Log.i(TAG, "skipped pet=" + MargyConfig.pet() + " inChat=" + MargyConfig.petInChat()
                     + " parent=" + (parent != null));
             return null;
         }
         final MargyPetOverlay overlay = new MargyPetOverlay(parent.getContext(), chat, account, dialogId);
         parent.addView(overlay, LayoutHelper.createFrame(
                 LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
-        FileLog.d("MargyPet: attached stage=" + MargyPetView.stageName(
+        // Порядок детей в contentView меняется после нас (undoView, плавающие
+        // подсказки), поэтому поднимаем слой явно, иначе питомец рисуется под
+        // ними и выглядит отсутствующим.
+        parent.bringChildToFront(overlay);
+        overlay.post(overlay::firstPosition);
+        Log.i(TAG, "attach stage=" + MargyPetView.stageName(
                 MargyStreaks.stage(MargyStreaks.state(account, dialogId).streak))
                 + " parent=" + parent.getClass().getSimpleName()
-                + " children=" + parent.getChildCount());
+                + " children=" + parent.getChildCount()
+                + " index=" + parent.indexOfChild(overlay));
         return overlay;
+    }
+
+    private static final String TAG = "MargyPet";
+
+    private int positionTries;
+
+    private void firstPosition() {
+        if (getWidth() <= 0 || getHeight() <= 0) {
+            // Экран ещё не измерен: повторяем, иначе позиция считается от нуля.
+            if (positionTries++ < 8) {
+                post(this::firstPosition);
+            }
+            Log.i(TAG, "post retry size=" + getWidth() + "x" + getHeight()
+                    + " try=" + positionTries);
+            return;
+        }
+        if (!placed) {
+            placePet(true);
+            placed = true;
+        }
+        final int[] loc = new int[2];
+        pet.getLocationOnScreen(loc);
+        Log.i(TAG, "post size=" + getWidth() + "x" + getHeight()
+                + " pet=" + pet.getWidth() + "x" + pet.getHeight()
+                + " petVis=" + pet.getVisibility() + " petAlpha=" + pet.getAlpha()
+                + " petShown=" + pet.isShown() + " overlayShown=" + isShown()
+                + " petScreen=" + loc[0] + "," + loc[1]
+                + " maxTop=" + maxTop() + " maxLeft=" + maxLeft());
     }
 
     @Override
@@ -100,7 +134,11 @@ public class MargyPetOverlay extends FrameLayout {
     private int bottomInset() {
         final ChatActivityEnterView enterView = chat.getChatActivityEnterView();
         if (enterView != null && enterView.getHeight() > 0) {
-            return enterView.getHeight() + dp(6);
+            final int h = enterView.getHeight();
+            // Защита от ещё не измеренной панели: она не может занимать треть экрана.
+            if (h < getHeight() / 3) {
+                return h + dp(6);
+            }
         }
         return dp(64);
     }
@@ -130,7 +168,7 @@ public class MargyPetOverlay extends FrameLayout {
         }
         applyPosition(left, top);
         if (initial) {
-            FileLog.d("MargyPet: place left=" + left + " top=" + top
+            Log.i(TAG, "place left=" + left + " top=" + top
                     + " w=" + getWidth() + " h=" + getHeight() + " maxTop=" + maxTop());
         }
     }

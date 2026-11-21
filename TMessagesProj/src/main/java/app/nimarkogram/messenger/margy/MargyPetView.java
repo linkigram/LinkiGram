@@ -42,6 +42,7 @@ public class MargyPetView extends View {
     private int stage = STAGE_EGG;
     private float phase;
     private boolean animating;
+    private boolean loggedDraw;
 
     public MargyPetView(Context context, int stage) {
         super(context);
@@ -73,13 +74,19 @@ public class MargyPetView extends View {
         if (w <= 0 || h <= 0) {
             return;
         }
+        if (!loggedDraw) {
+            loggedDraw = true;
+            final int[] loc = new int[2];
+            getLocationOnScreen(loc);
+            android.util.Log.i("MargyPet", "draw stage=" + stage + " size=" + (int) w + "x" + (int) h
+                    + " screen=" + loc[0] + "," + loc[1]
+                    + " accent=" + Integer.toHexString(accentColor()));
+        }
         final float u = Math.min(w, h);
         final float cx = w / 2f;
         final float cy = h * 0.545f;
         final float breathe = 1f + 0.02f * (float) Math.sin(phase);
-        accent = ClientTheme.isEnabled()
-                ? ClientTheme.color(ClientTheme.PRIMARY)
-                : Theme.getColor(Theme.key_chats_actionBackground);
+        accent = accentColor();
         final int ink = Theme.isCurrentThemeDark() ? 0xFF14151A : 0xFF23242A;
 
         if (stage == STAGE_EGG || stage == STAGE_HATCHING) {
@@ -241,6 +248,13 @@ public class MargyPetView extends View {
                 Math.round(Color.red(from) + (Color.red(to) - Color.red(from)) * fraction),
                 Math.round(Color.green(from) + (Color.green(to) - Color.green(from)) * fraction),
                 Math.round(Color.blue(from) + (Color.blue(to) - Color.blue(from)) * fraction));
+    }
+
+    /** Акцент текущей темы: палитра LinkiGram You или обычный зелёный. */
+    private int accentColor() {
+        return ClientTheme.isEnabled()
+                ? ClientTheme.color(ClientTheme.PRIMARY)
+                : Theme.getColor(Theme.key_chats_actionBackground);
     }
 
     /** Человеческая подпись стадии. */
