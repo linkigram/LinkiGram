@@ -130,6 +130,9 @@ public class AiResponseSheet extends BottomSheet {
                             String cachedAnswer, Utilities.Callback<String> onComplete,
                             Client clientOverride, byte[] imageData, String imageMime,
                             Utilities.Callback<String> onReply) {
+        android.util.Log.d("AiResponse", "show: ctx=" + (context != null)
+                + " prompt=" + (prompt == null ? "null" : prompt.length())
+                + " ai=" + AiController.canUseAI() + " image=" + (imageData == null ? "none" : imageData.length));
         if (context == null || TextUtils.isEmpty(prompt)) {
             return;
         }
@@ -424,6 +427,7 @@ public class AiResponseSheet extends BottomSheet {
 
             @Override
             public void onResponse(String response) {
+                android.util.Log.d("AiResponse", "response " + (response == null ? -1 : response.length()));
                 if (answer.length() == 0 && !TextUtils.isEmpty(response)) {
                     answer.append(response);
                 }
@@ -442,6 +446,7 @@ public class AiResponseSheet extends BottomSheet {
 
             @Override
             public void onError(int code, String message) {
+                android.util.Log.d("AiResponse", "error " + code + " " + message);
                 failed = true;
                 loadingView.setVisibility(View.GONE);
                 answerView.setTextColor(getThemedColor(Theme.key_text_RedRegular));

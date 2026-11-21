@@ -3,6 +3,7 @@ package app.nimarkogram.messenger.automation;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.text.TextUtils;
+import android.util.Log;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLoader;
@@ -38,6 +39,8 @@ public final class AiChatPrompt {
         }
     }
 
+    private static final String TAG = "AiChatPrompt";
+
     private static final int MAX_SIDE = 1280;
     private static final int POLL_PERIOD = 400;
     private static final int POLL_ATTEMPTS = 50;
@@ -48,16 +51,20 @@ public final class AiChatPrompt {
     public static void prepare(int account, MessageObject message,
                                Utilities.Callback<Prepared> done) {
         if (message == null || message.messageOwner == null) {
+            Log.d(TAG, "prepare: no message");
             return;
         }
         final String prompt = buildText(account, message);
+        Log.d(TAG, "prepare: len=" + prompt.length() + " photo=" + message.isPhoto());
         final TLRPC.Photo photo = message.isPhoto() ? MessageObject.getMedia(message.messageOwner).photo : null;
         if (photo == null) {
             dispatch(done, new Prepared(prompt, null, null));
             return;
         }
-        loadPhoto(account, message, photo, bytes ->
-                dispatch(done, new Prepared(prompt, bytes, bytes == null ? null : "image/jpeg")));
+        loadPhoto(account, message, photo, bytes -> {
+            Log.d(TAG, "prepare: image=" + (bytes == null ? "none" : bytes.length + "b"));
+            dispatch(done, new Prepared(prompt, bytes, bytes == null ? null : "image/jpeg"));
+        });
     }
 
     /** «Патрик пишет: …» — автор подставляется по отправителю сообщения. */
@@ -115,8 +122,13 @@ public final class AiChatPrompt {
         }
         final FileLoader loader = FileLoader.getInstance(account);
         final File file = loader.getPathToAttach(size, true);
+        Log.d(TAG, "loadPhoto: size=" + size.w + "x" + size.h + " file=" + (file == null ? "null" : file.exists()));
         if (file != null && file.exists()) {
             decode(file, done);
+            return;
+        }
+        if (file == null) {
+            done.run(null);
             return;
         }
         loader.loadFile(ImageLocation.getForPhoto(size, photo), message, "jpg",

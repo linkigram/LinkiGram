@@ -35238,6 +35238,8 @@ public class ChatActivity extends BaseFragment implements
             return;
         }
         if (option == 9877) {
+            android.util.Log.d("AiChat", "option 9877 selected=" + (selectedObject != null)
+                    + " parent=" + (getParentActivity() != null));
             if (selectedObject != null && getParentActivity() != null) {
                 final MessageObject quoted = selectedObject;
                 app.nimarkogram.messenger.automation.AiChatPrompt.prepare(currentAccount, quoted, prepared -> {
