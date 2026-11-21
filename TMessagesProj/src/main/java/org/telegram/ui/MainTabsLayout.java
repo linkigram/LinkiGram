@@ -6,10 +6,12 @@ import static org.telegram.messenger.AndroidUtilities.lerp;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.BlurMaskFilter;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RadialGradient;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -470,7 +472,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
      * a chromatic fringe and a specular highlight, so the selected tab reads as
      * a magnifying bubble rather than a flat capsule.
      */
-    private void drawLensBubble(Canvas canvas, RectF rect, float radius, float x, boolean lightTheme) {
+    private void drawLensBubble(Canvas canvas, RectF rect, float radius, float x, boolean lightTheme, boolean onTop) {
         final int width = Math.round(rect.width());
         final int height = Math.round(rect.height());
         if (lensShading == null || lensWidth != width || lensHeight != height) {
@@ -483,9 +485,11 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                             : new int[]{0x2EFFFFFF, 0x0EFFFFFF, 0x30000000},
                     new float[]{0f, 0.52f, 1f}, Shader.TileMode.CLAMP);
             lensBodyPaint.setShader(lensShading);
+            // Neutral cool-white fringe only. The old gradient carried a magenta
+            // band (0xFF4FA8) on the right side, which read as a pink capsule.
             lensChromaGradient = new LinearGradient(
                     -width / 2f, -height / 2f, width / 2f, height / 2f,
-                    new int[]{0x0000D8FF, 0x5A00D8FF, 0x66FFFFFF, 0x5AFF4FA8, 0x00FF4FA8},
+                    new int[]{0x0014C8FF, 0x2414C8FF, 0x2CFFFFFF, 0x2414C8FF, 0x0014C8FF},
                     new float[]{0f, 0.22f, 0.5f, 0.78f, 1f}, Shader.TileMode.CLAMP);
             lensChromaPaint.setShader(lensChromaGradient);
             lensBottomGradient = new LinearGradient(0, -height / 2f, 0, height / 2f,
@@ -497,7 +501,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         canvas.save();
         canvas.translate(cx, cy);
 
-        lensBodyPaint.setAlpha(lightTheme ? 210 : 235);
+        lensBodyPaint.setAlpha(onTop ? (lightTheme ? 238 : 248) : (lightTheme ? 210 : 235));
         final RectF local = lensLocalRect;
         local.set(-rect.width() / 2f, -rect.height() / 2f, rect.width() / 2f, rect.height() / 2f);
         canvas.drawRoundRect(local, radius, radius, lensBodyPaint);
@@ -528,6 +532,26 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         canvas.drawRoundRect(local, radius, radius, lensEdgePaint);
         canvas.restore();
 
+        if (onTop) {
+            // Floating capsule: a soft drop shadow underneath and a frosted, blurred bezel that
+            // melts into the panel — the canvas counterpart of the reference's edge blur.
+            lensShadowPaint.setColor(lightTheme ? 0x24000000 : 0x4A000000);
+            canvas.save();
+            canvas.translate(0, dp(2f));
+            canvas.scale(1.03f, 1.08f);
+            canvas.drawRoundRect(local, radius, radius, lensShadowPaint);
+            canvas.restore();
+
+            lensPath.reset();
+            lensPath.addRoundRect(local, radius, radius, Path.Direction.CW);
+            canvas.save();
+            canvas.clipPath(lensPath);
+            lensFrostPaint.setColor(lightTheme ? 0x3CFFFFFF : 0x32FFFFFF);
+            lensFrostPaint.setStrokeWidth(dp(13f));
+            canvas.drawRoundRect(local, radius, radius, lensFrostPaint);
+            canvas.restore();
+        }
+
         canvas.restore();
     }
 
@@ -539,39 +563,55 @@ public class MainTabsLayout extends AnimatedLinearLayout {
 
     @Override
     protected void dispatchDraw(@NonNull Canvas canvas) {
-        if (selectorInitialized && usesMovingSelector()) {
-            final boolean you = app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled();
-            final boolean stackedYou = you && getBottomNavigationMode() == BOTTOM_NAVIGATION_MODE_SHOW;
-            final float x = animatedLongSelectedViewCenterX + animatedLongSelectedViewOffsetX;
-            final float slotWidth = getInterpolatedWidthByX(x, this);
-            final float sWidth = stackedYou
-                    ? Math.min(dp(74), Math.max(0, slotWidth - dp(4)))
-                    : slotWidth;
-            final float sHeight = stackedYou
-                    ? Math.min(dp(46), getHeight() - getPaddingTop() - getPaddingBottom())
-                    : getHeight() - getPaddingTop() - getPaddingBottom();
-            final float top = stackedYou
-                    ? getPaddingTop() + (getHeight() - getPaddingTop() - getPaddingBottom() - sHeight) / 2f
-                    : (getHeight() - sHeight) / 2f;
-            selectorRect.set(x - sWidth / 2f, top, x + sWidth / 2f, top + sHeight);
-            final float radius = sHeight / 2f;
-            canvas.save();
-            final float travel = Math.min(0.18f,
-                    Math.abs(selectorTargetX - x) / Math.max(1f, sWidth) * 0.16f);
-            final boolean liquidGlass = you || LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
-            if (liquidGlass) {
-                canvas.scale((selectorStretchX + travel) * (1f + selectorPress * 0.16f),
-                        (selectorStretchY - travel * 0.3f) * (1f + selectorPress * (stackedYou ? 0.22f : 0.16f)),
-                        x, stackedYou ? selectorRect.top : selectorRect.centerY());
-            }
-            canvas.drawRoundRect(selectorRect, radius, radius, selectorPaint);
-            if (liquidGlass) {
-                drawLensBubble(canvas, selectorRect, radius, x, !Theme.isCurrentThemeDark());
-            }
-            canvas.restore();
+        final boolean drawable = selectorInitialized && usesMovingSelector();
+        // While the capsule is being dragged it floats above the tab icons and labels, like the
+        // bezel lens of the reference build; at rest it stays underneath the children as before.
+        final boolean onTop = drawable && isDraggingSelector;
+        if (drawable && !onTop) {
+            drawSelector(canvas, false);
         }
-
         super.dispatchDraw(canvas);
+        if (onTop) {
+            drawSelector(canvas, true);
+        }
+    }
+
+    private void drawSelector(Canvas canvas, boolean onTop) {
+        final boolean you = app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled();
+        final boolean stackedYou = you && getBottomNavigationMode() == BOTTOM_NAVIGATION_MODE_SHOW;
+        final float x = animatedLongSelectedViewCenterX + animatedLongSelectedViewOffsetX;
+        final float slotWidth = getInterpolatedWidthByX(x, this);
+        final float sWidth = stackedYou
+                ? Math.min(dp(74), Math.max(0, slotWidth - dp(4)))
+                : slotWidth;
+        final float sHeight = stackedYou
+                ? Math.min(dp(46), getHeight() - getPaddingTop() - getPaddingBottom())
+                : getHeight() - getPaddingTop() - getPaddingBottom();
+        final float top = stackedYou
+                ? getPaddingTop() + (getHeight() - getPaddingTop() - getPaddingBottom() - sHeight) / 2f
+                : (getHeight() - sHeight) / 2f;
+        selectorRect.set(x - sWidth / 2f, top, x + sWidth / 2f, top + sHeight);
+        final float radius = sHeight / 2f;
+        canvas.save();
+        final float travel = Math.min(0.18f,
+                Math.abs(selectorTargetX - x) / Math.max(1f, sWidth) * 0.16f);
+        final boolean liquidGlass = you || LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
+        if (liquidGlass) {
+            final float lift = onTop ? 1.04f : 1f;
+            canvas.scale((selectorStretchX + travel) * (1f + selectorPress * 0.16f) * lift,
+                    (selectorStretchY - travel * 0.3f) * (1f + selectorPress * (stackedYou ? 0.22f : 0.16f)) * lift,
+                    x, stackedYou ? selectorRect.top : selectorRect.centerY());
+        }
+        if (onTop) {
+            // the floating capsule needs its own body first, otherwise the icons below shine through
+            canvas.drawRoundRect(selectorRect, radius, radius, selectorPaint);
+        }
+        if (liquidGlass) {
+            drawLensBubble(canvas, selectorRect, radius, x, !Theme.isCurrentThemeDark(), onTop);
+        } else {
+            canvas.drawRoundRect(selectorRect, radius, radius, selectorPaint);
+        }
+        canvas.restore();
     }
 
 
@@ -583,6 +623,9 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     private final Paint lensSpecularPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint lensBottomPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint lensEdgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint lensFrostPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint lensShadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path lensPath = new Path();
     private final RectF lensLocalRect = new RectF();
     private final RectF lensSpecularRect = new RectF();
     private RadialGradient lensShading;
@@ -674,6 +717,11 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                 new int[]{0xAAFFFFFF, 0x00FFFFFF}, null, Shader.TileMode.CLAMP));
         lensChromaPaint.setStyle(Paint.Style.STROKE);
         lensChromaPaint.setStrokeWidth(dp(2.2f));
+        lensFrostPaint.setStyle(Paint.Style.STROKE);
+        if (Build.VERSION.SDK_INT >= 28) {
+            lensFrostPaint.setMaskFilter(new BlurMaskFilter(dp(6f), BlurMaskFilter.Blur.NORMAL));
+            lensShadowPaint.setMaskFilter(new BlurMaskFilter(dp(9f), BlurMaskFilter.Blur.NORMAL));
+        }
         lensEdgePaint.setStyle(Paint.Style.STROKE);
         selectorEdgePaint.setStyle(Paint.Style.STROKE);
         selectorEdgePaint.setStrokeWidth(dp(0.75f));

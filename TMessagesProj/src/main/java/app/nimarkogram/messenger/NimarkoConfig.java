@@ -914,7 +914,7 @@ public final class NimarkoConfig {
     public static boolean drawSnowInActionBar = getPreferences().getBoolean("drawSnowInActionBar", false);
     public static void toggleDrawSnowInActionBar() { drawSnowInActionBar = !drawSnowInActionBar; getEditor().putBoolean("drawSnowInActionBar", drawSnowInActionBar).apply(); }
 
-    public static boolean drawSnowEverywhere = getPreferences().getBoolean("drawSnowEverywhere", false);
+    public static boolean drawSnowEverywhere = getPreferences().getBoolean("drawSnowEverywhere", true);
     public static void toggleDrawSnowEverywhere() {
         drawSnowEverywhere = !drawSnowEverywhere;
         getEditor().putBoolean("drawSnowEverywhere", drawSnowEverywhere).apply();

@@ -56,9 +56,7 @@ public final class SnowOverlay implements Application.ActivityLifecycleCallbacks
     }
 
     private void applyInternal() {
-        if (!NimarkoConfig.drawSnowEverywhere
-                || !LiteMode.isEnabled(LiteMode.FLAG_CHAT_BACKGROUND)
-                || LiteMode.isPowerSaverApplied()) {
+        if (!NimarkoConfig.drawSnowEverywhere) {
             detachAll();
             return;
         }
@@ -82,17 +80,31 @@ public final class SnowOverlay implements Application.ActivityLifecycleCallbacks
 
     private void attach(Activity activity) {
         final ViewGroup content = activity.findViewById(android.R.id.content);
-        if (content == null || content.getChildCount() == 0) {
+        if (content == null) {
             return;
         }
         for (int a = 0, n = content.getChildCount(); a < n; a++) {
             if (content.getChildAt(a) instanceof SnowView) {
+                if (!activities.contains(activity)) {
+                    activities.add(activity);
+                }
                 return;
             }
+        }
+        if (content.getChildCount() == 0) {
+            // LaunchActivity installs its own layout a bit later; retry once the content exists.
+            content.post(() -> {
+                if (resumed.get() == activity) {
+                    attach(activity);
+                }
+            });
+            return;
         }
         final SnowView view = new SnowView(activity);
         content.addView(view, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        android.util.Log.d("LinkiGramSnow", "attached to " + activity.getClass().getSimpleName()
+                + " size=" + content.getWidth() + "x" + content.getHeight());
         if (!activities.contains(activity)) {
             activities.add(activity);
         }
@@ -279,7 +291,7 @@ public final class SnowOverlay implements Application.ActivityLifecycleCallbacks
                 canvas.drawCircle(flake.x, flake.y, flake.radius, paint);
             }
 
-            if (LiteMode.isPowerSaverApplied()) {
+            if (!isShown()) {
                 attached = false;
                 return;
             }
