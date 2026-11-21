@@ -35217,14 +35217,27 @@ public class ChatActivity extends BaseFragment implements
 
     /** Ответ ИИ как reply на сообщение, для которого нажали «Спросить ИИ». */
     private void sendAiReply(String text, MessageObject replyTo) {
+        android.util.Log.d("AiChat", "sendAiReply len=" + (text == null ? -1 : text.length())
+                + " reply=" + (replyTo != null) + " canSend=" + canSendMessage());
         if (TextUtils.isEmpty(text) || replyTo == null || !canSendMessage()) {
+            android.util.Log.d("AiChat", "sendAiReply blocked");
+            BulletinFactory.of(this)
+                    .createErrorBulletin(LocaleController.getString(R.string.ErrorOccurred), themeDelegate)
+                    .show();
             return;
         }
         final String body = text.length() > 4000 ? text.substring(0, 4000) : text;
-        AlertsCreator.ensurePaidMessageConfirmation(currentAccount, dialog_id, 1, stars ->
-                getSendMessagesHelper().sendMessage(SendMessagesHelper.SendMessageParams.of(
-                        body, dialog_id, replyTo, null, (TLRPC.WebPage) null, false,
-                        (ArrayList<TLRPC.MessageEntity>) null, null, null, true, 0, 0, null, false)));
+        AlertsCreator.ensurePaidMessageConfirmation(currentAccount, dialog_id, 1, stars -> {
+            final SendMessagesHelper.SendMessageParams params = SendMessagesHelper.SendMessageParams.of(
+                    body, dialog_id, replyTo, getThreadMessage(), null, false,
+                    null, null, null, true, 0, 0, null, false);
+            params.sendMessageChatArguments = getMessageChatSendParams();
+            params.payStars = stars;
+            params.monoForumPeer = getSendMonoForumPeerId();
+            params.suggestionParams = getSendMessageSuggestionParams();
+            android.util.Log.d("AiChat", "sendAiReply send peer=" + dialog_id + " stars=" + stars);
+            SendMessagesHelper.getInstance(currentAccount).sendMessage(params);
+        });
     }
 
     public void processSelectedOption(int option) {

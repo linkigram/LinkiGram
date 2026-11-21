@@ -324,8 +324,13 @@ public class AiResponseSheet extends BottomSheet {
         replyButton.setVisibility(View.GONE);
         replyButton.setContentDescription(getString(R.string.OEAiReply));
         replyButton.setOnClickListener(v -> {
+            android.util.Log.d("AiResponse", "reply click len=" + answer.length()
+                    + " hasCallback=" + (onReply != null));
             if (onReply != null && answer.length() > 0) {
                 onReply.run(answer.toString());
+            } else {
+                AndroidUtilities.addToClipboard(answer.toString());
+                BulletinFactory.global().createCopyBulletin(getString(R.string.TextCopied)).show();
             }
             dismiss();
         });

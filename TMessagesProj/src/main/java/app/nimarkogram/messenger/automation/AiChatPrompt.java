@@ -114,38 +114,81 @@ public final class AiChatPrompt {
 
     private static void loadPhoto(int account, MessageObject message, TLRPC.Photo photo,
                                   Utilities.Callback<byte[]> done) {
+        // У своего только что отправленного фото файл ещё лежит в attachPath,
+        // и FileLoader его по PhotoSize не находит.
+        final File attach = localAttach(message);
+        if (attach != null) {
+            Log.d(TAG, "loadPhoto: attachPath exists");
+            decode(attach, done);
+            return;
+        }
+
         final TLRPC.PhotoSize size = FileLoader.getClosestPhotoSizeWithSize(
                 photo.sizes, MAX_SIDE, false, null, true);
         if (size == null) {
+            Log.d(TAG, "loadPhoto: no suitable size");
             done.run(null);
             return;
         }
         final FileLoader loader = FileLoader.getInstance(account);
-        final File file = loader.getPathToAttach(size, true);
-        Log.d(TAG, "loadPhoto: size=" + size.w + "x" + size.h + " file=" + (file == null ? "null" : file.exists()));
-        if (file != null && file.exists()) {
-            decode(file, done);
+        // ImageLoader кладёт просмотренные фото в кэш, а скачанный через
+        // loadFile полный файл — в MEDIA_DIR_IMAGE. Проверяем оба пути, иначе
+        // ожидание в кэше никогда не заканчивается файлом.
+        final File cacheFile = loader.getPathToAttach(size, true);
+        final File imageFile = loader.getPathToAttach(size, false);
+        Log.d(TAG, "loadPhoto: size=" + size.w + "x" + size.h
+                + " cache=" + cacheFile.exists() + " image=" + imageFile.exists());
+        final File ready = firstExisting(cacheFile, imageFile);
+        if (ready != null) {
+            decode(ready, done);
             return;
         }
-        if (file == null) {
-            done.run(null);
-            return;
+        final ImageLocation location = ImageLocation.getForPhoto(size, photo);
+        if (location != null) {
+            loader.loadFile(location, message, "jpg", FileLoader.PRIORITY_HIGH, 0);
         }
-        loader.loadFile(ImageLocation.getForPhoto(size, photo), message, "jpg",
-                FileLoader.PRIORITY_HIGH, 0);
-        pollFile(file, 0, done);
+        pollFile(cacheFile, imageFile, 0, done);
     }
 
-    private static void pollFile(File file, int attempt, Utilities.Callback<byte[]> done) {
-        if (file != null && file.exists()) {
-            decode(file, done);
+    private static File localAttach(MessageObject message) {
+        if (message == null || message.messageOwner == null) {
+            return null;
+        }
+        String path = message.messageOwner.attachPath;
+        if (TextUtils.isEmpty(path)) {
+            path = message.messageOwner.localPath;
+        }
+        if (TextUtils.isEmpty(path)) {
+            return null;
+        }
+        File file = new File(path);
+        return file.exists() ? file : null;
+    }
+
+    private static File firstExisting(File first, File second) {
+        if (first != null && first.exists()) {
+            return first;
+        }
+        if (second != null && second.exists()) {
+            return second;
+        }
+        return null;
+    }
+
+    private static void pollFile(File cacheFile, File imageFile, int attempt,
+                                 Utilities.Callback<byte[]> done) {
+        final File ready = firstExisting(cacheFile, imageFile);
+        if (ready != null) {
+            decode(ready, done);
             return;
         }
         if (attempt >= POLL_ATTEMPTS) {
+            Log.d(TAG, "loadPhoto: timeout");
             done.run(null);
             return;
         }
-        AndroidUtilities.runOnUIThread(() -> pollFile(file, attempt + 1, done), POLL_PERIOD);
+        AndroidUtilities.runOnUIThread(
+                () -> pollFile(cacheFile, imageFile, attempt + 1, done), POLL_PERIOD);
     }
 
     private static void decode(File file, Utilities.Callback<byte[]> done) {
