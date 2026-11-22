@@ -75,6 +75,12 @@ half4 main(float2 coord) {
     float depth = -sd;
     float bezel = max(1.0, min(60.0, r - 1.0));
     float t = clamp(depth / bezel, 0.0, 1.0);
+    // The flat middle of the lens doesn't displace the image. Leave the already
+    // rendered panel and tabs untouched there instead of painting a second copy.
+    float bevelCoverage = 1.0 - smoothstep(0.28, 0.62, t);
+    if (bevelCoverage <= 0.0) {
+        return half4(0.0);
+    }
     float h = surfaceHeight(t);
     float dh = (surfaceHeight(min(t + 0.001, 1.0)) - h) / 0.001;
     float slope = dh * (50.0 / bezel);
@@ -97,6 +103,6 @@ half4 main(float2 coord) {
     color += innerRim * 0.15 * 0.55;
     color = mix(color, float3(1.0), 0.08);
 
-    float alpha = sample.a * smoothstep(0.0, 1.5, depth);
+    float alpha = sample.a * smoothstep(0.0, 1.5, depth) * bevelCoverage;
     return half4(clamp(color, 0.0, 1.0) * alpha, alpha);
 }

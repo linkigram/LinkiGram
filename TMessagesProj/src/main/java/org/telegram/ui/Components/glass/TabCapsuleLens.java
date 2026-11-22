@@ -108,10 +108,6 @@ public final class TabCapsuleLens {
 
     private static final float DRAG_REFERENCE_HEIGHT = 52f;
 
-    public static float dragFeather(float height) {
-        return 1.5f * height / DRAG_REFERENCE_HEIGHT;
-    }
-
     private BitmapShader bind(Bitmap bitmap) {
         if (bound != bitmap) {
             bound = bitmap;

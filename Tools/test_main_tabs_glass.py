@@ -13,6 +13,7 @@ import skia
 
 ROOT = Path(__file__).resolve().parents[1]
 SHADER = ROOT / "TMessagesProj/src/main/res/raw/main_tabs_glass_shader.agsl"
+DRAG_SHADER = SHADER.with_name("tab_capsule_drag_lens.agsl")
 
 
 def render(effect, scale=1, dark=True, position=0.5, press=0.0,
@@ -62,6 +63,33 @@ def render(effect, scale=1, dark=True, position=0.5, press=0.0,
     return output
 
 
+def check_drag_center():
+    effect = skia.RuntimeEffect.MakeForShader(DRAG_SHADER.read_text())
+    width, height, half_w, half_h = 384, 128, 56, 32
+    count = 0
+    for x in (half_w, width // 2, width - half_w):
+        for color in (skia.ColorTRANSPARENT, skia.ColorBLACK,
+                      skia.ColorSetARGB(96, 20, 30, 40), skia.ColorWHITE):
+            background = skia.Surface(width, height)
+            background.getCanvas().clear(color)
+            builder = skia.RuntimeShaderBuilder(effect)
+            builder.setChild("img", background.makeImageSnapshot().makeShader(
+                skia.TileMode.kClamp, skia.TileMode.kClamp))
+            builder.setUniform("center", [float(x), height / 2.0])
+            builder.setUniform("size", [float(half_w), float(half_h)])
+            builder.setUniform("scene_size", [float(width), float(height)])
+            builder.setUniform("unit", 2.0 * half_h / 52.0)
+            result = skia.Surface(width, height)
+            result.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
+            pixels = result.makeImageSnapshot().toarray()
+            assert not pixels[55:73, x - 16:x + 16].any(), "The dragged lens repaints its center"
+            rim_alpha = pixels[34:39, x - 9:x + 9, 3]
+            assert bool(rim_alpha.any()) == (color != skia.ColorTRANSPARENT), "Invalid bevel coverage"
+            assert pixels[90:110, x, 3].max() > 0, "Missing drag shadow"
+            count += 1
+    return count
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--preview", type=Path, help="Optional PNG of the actual Skia render")
@@ -88,6 +116,7 @@ def main():
         image = skia.Image.fromarray(rgba, colorType=skia.kRGBA_8888_ColorType)
         image.save(str(args.preview), skia.kPNG)
     print(f"PASS: SkSL compiled; {count} theme/scale/light/press renders; tint extremes; active lens and lighting")
+    print(f"PASS: {check_drag_center()} drag renders; center untouched, bevel and shadow preserved")
 
 
 if __name__ == "__main__":
