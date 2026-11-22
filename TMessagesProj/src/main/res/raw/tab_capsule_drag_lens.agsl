@@ -1,0 +1,94 @@
+/*
+ * Adapted from https://github.com/archisvaze/liquid-glass/blob/main/webgl.html
+ *
+ * MIT License
+ * Copyright (c) 2026 Archis Vaze
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+uniform shader img;
+uniform float2 center;
+uniform float2 size;
+uniform float unit;
+
+float sdRoundedRect(float2 p, float2 halfSize, float r) {
+    float2 q = abs(p) - halfSize + r;
+    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+}
+
+float surfaceHeight(float t) {
+    float s = 1.0 - t;
+    return pow(max(1.0 - s * s * s * s, 0.0), 0.25);
+}
+
+float3 sampleBlur(float2 p, float blur) {
+    float3 sum = float3(img.eval(p + float2(-0.94201, -0.39906) * blur).rgb);
+    sum += float3(img.eval(p + float2( 0.94558, -0.76890) * blur).rgb);
+    sum += float3(img.eval(p + float2(-0.09418, -0.92938) * blur).rgb);
+    sum += float3(img.eval(p + float2( 0.34495,  0.29387) * blur).rgb);
+    sum += float3(img.eval(p + float2(-0.91588, -0.45771) * blur).rgb);
+    sum += float3(img.eval(p + float2(-0.81544,  0.48568) * blur).rgb);
+    sum += float3(img.eval(p + float2(-0.38277, -0.56071) * blur).rgb);
+    sum += float3(img.eval(p + float2(-0.12675,  0.84686) * blur).rgb);
+    sum += float3(img.eval(p + float2( 0.89642,  0.41254) * blur).rgb);
+    sum += float3(img.eval(p + float2( 0.18150, -0.30020) * blur).rgb);
+    sum += float3(img.eval(p + float2(-0.01445, -0.16001) * blur).rgb);
+    sum += float3(img.eval(p + float2( 0.59614,  0.71118) * blur).rgb);
+    sum += float3(img.eval(p + float2( 0.49742, -0.47280) * blur).rgb);
+    sum += float3(img.eval(p + float2( 0.80685,  0.04588) * blur).rgb);
+    sum += float3(img.eval(p + float2(-0.32490, -0.03965) * blur).rgb);
+    sum += float3(img.eval(p + float2(-0.60975,  0.06566) * blur).rgb);
+    return sum / 16.0;
+}
+
+half4 main(float2 coord) {
+    // Work in the demo's CSS-pixel units so thickness, bevel, blur and shadow scale together.
+    float2 p = (coord - center) / unit;
+    float2 halfSize = size / unit;
+    float r = min(halfSize.x, halfSize.y);
+    float sd = sdRoundedRect(p, halfSize, r);
+    if (sd > 0.0) {
+        return half4(0.0, 0.0, 0.0, exp(-sd * sd / 800.0) * 0.30);
+    }
+
+    float depth = -sd;
+    float bezel = max(1.0, min(60.0, r - 1.0));
+    float t = clamp(depth / bezel, 0.0, 1.0);
+    float h = surfaceHeight(t);
+    float dh = (surfaceHeight(min(t + 0.001, 1.0)) - h) / 0.001;
+    float slope = dh * (50.0 / bezel);
+    float thetaR = asin(sin(atan(slope)) / 3.0);
+    float displacement = h * 50.0 * (slope - tan(thetaR));
+    float2 grad = float2(sdRoundedRect(p + float2(0.5, 0.0), halfSize, r) - sd,
+                         sdRoundedRect(p + float2(0.0, 0.5), halfSize, r) - sd);
+    grad /= max(length(grad), 0.0001);
+    float3 color = sampleBlur(coord - grad * displacement * unit, 1.5 * unit);
+
+    float rimDot = abs(dot(grad, normalize(float2(0.5, -0.7))));
+    float rimFalloff = 1.0 - smoothstep(0.0, bezel * 0.4, depth);
+    color += 0.55 * pow(rimDot * rimFalloff, 1.5);
+    float innerShadow = 1.0 - smoothstep(0.0, bezel * 0.6, depth);
+    color *= mix(1.0, 0.7, innerShadow * 0.3);
+    float innerRim = smoothstep(0.0, 2.0, depth) * (1.0 - smoothstep(2.0, 5.0, depth));
+    color += innerRim * 0.15 * 0.55;
+    color = mix(color, float3(1.0), 0.08);
+
+    float alpha = smoothstep(0.0, 1.5, depth);
+    return half4(clamp(color, 0.0, 1.0) * alpha, alpha);
+}

@@ -1,15 +1,8 @@
 /*
  * LinkiGram capsule lens.
  *
- * This is not a tinted pill. The tab row is captured into a small bitmap and the capsule
- * refracts that bitmap the way a real slab of glass does (the same bevel/dome model as
- * archisvaze/liquid-glass): the surface bends the image, disperses the channels and gathers
- * light on the rim. Only the refracted image and the rim are drawn; the tinted body of the
- * capsule stays on the canvas underneath, so the glass keeps its colour while the icons
- * inside it are genuinely pulled through the lens.
- *
- * The captured bitmap holds the icons only (the panel background is drawn by the canvas),
- * therefore transparent pixels must stay transparent instead of being filled with a tint.
+ * Idle lens: refracts the captured panel background, not the tabs drawn above it.
+ * The dragged capsule uses tab_capsule_drag_lens.agsl instead.
  */
 uniform shader img;
 uniform float2 resolution;
@@ -111,8 +104,7 @@ half4 main(float2 coord) {
     rgb = rgb + float3(specular + hairLit + body * 0.10 * lit);
     rgb = mix(rgb, float3(1.0), glow * 0.5);
 
-    // Transparent where the captured row was transparent, so the tinted body shows through
-    // instead of being covered by a flat fill; the rim itself is always visible.
+    // Keep transparent regions of the background, except for the rim.
     float imageAlpha = clamp(sample.a, 0.0, 1.0);
     float alpha = clamp(max(imageAlpha, body * 0.92), 0.0, 1.0) * coverage;
     return half4(clamp(rgb, 0.0, 1.0) * alpha, alpha);

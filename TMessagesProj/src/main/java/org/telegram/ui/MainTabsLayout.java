@@ -568,18 +568,14 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     @Override
     protected void dispatchDraw(@NonNull Canvas canvas) {
         final boolean drawable = selectorInitialized && usesMovingSelector();
-        // While the capsule is being dragged it floats above the tab icons and labels, like the
-        // bezel lens of the reference build; at rest it sits underneath the children.
         final boolean onTop = drawable && isDraggingSelector;
-        // The lens only refracts the panel and the page behind it. Icons and labels stay the ones
-        // drawn by the row itself, so nothing appears twice: at rest the lens is painted first and
-        // the children land on top of it, while a dragged capsule is painted over them.
-        final boolean lensDrawn = drawable && capsuleLensReady() && drawSelectorLens(canvas);
-        if (drawable && !lensDrawn && !onTop) {
-            drawSelector(canvas, false);
+        if (drawable && !onTop) {
+            if (!capsuleLensReady() || !drawSelectorLens(canvas)) {
+                drawSelector(canvas, false);
+            }
         }
         super.dispatchDraw(canvas);
-        if (drawable && !lensDrawn && onTop) {
+        if (onTop && (!useReferenceDrag() || !drawReferenceDrag(canvas))) {
             drawSelector(canvas, true);
         }
     }
@@ -610,8 +606,58 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         return capsuleLens.isReady();
     }
 
+    private boolean useReferenceDrag() {
+        capsuleLensReady();
+        return Build.VERSION.SDK_INT >= 33 && capsuleLens != null && capsuleLens.isDragReady()
+                && app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled();
+    }
+
+    private Bitmap dragBackdrop;
+    private boolean dragCaptureFailureLogged;
+    private boolean dragCaptureSuccessLogged;
+    private float dragGrabOffset;
+    private float dragCapsuleWidth;
+
+    private boolean drawReferenceDrag(Canvas canvas) {
+        final Drawable background = getBackground();
+        final int width = getWidth();
+        final int height = getHeight();
+        if (background == null || width <= 0 || height <= 0 || dragCapsuleWidth <= 0f) {
+            return false;
+        }
+        layoutSelectorRect();
+        if (selectorRect.height() <= 0f) {
+            return false;
+        }
+        if (dragBackdrop == null || dragBackdrop.getWidth() != width || dragBackdrop.getHeight() != height) {
+            dragBackdrop = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        }
+        // The web demo replaces the scene inside the lens. Make the sampled backdrop opaque
+        // before including the tabs so their original silhouettes can't bleed through underneath.
+        dragBackdrop.eraseColor(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider)
+                | 0xFF000000);
+        final Canvas backdrop = new Canvas(dragBackdrop);
+        try {
+            background.draw(backdrop);
+            super.dispatchDraw(backdrop);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            if (!dragCaptureFailureLogged) {
+                dragCaptureFailureLogged = true;
+                android.util.Log.w("LinkiGlass", "drag lens capture failed", e);
+            }
+            return false;
+        }
+        if (!dragCaptureSuccessLogged) {
+            dragCaptureSuccessLogged = true;
+            android.util.Log.i("LinkiGlass", "reference drag capture ok, src=" + lensSourceName(background));
+        }
+        capsuleLens.drawDrag(canvas, dragBackdrop, selectorDrawX, selectorRect.centerY(),
+                dragCapsuleWidth, selectorRect.height());
+        return true;
+    }
+
     /**
-     * The tab row is captured into a small bitmap and pulled through the same bevel model the
+     * The panel background is captured into a small bitmap and pulled through the bevel model the
      * bottom bar uses: near the rim the sample comes from beyond the silhouette and is blurred,
      * in the middle the bend fades to nothing. This is what makes the capsule a real lens
      * instead of a tinted pill.
@@ -728,7 +774,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                     (selectorStretchY - travel * 0.3f) * (1f + selectorPress * (stackedYou ? 0.22f : 0.16f)) * lift,
                     x, stackedYou ? selectorRect.top : selectorRect.centerY());
         }
-        if (onTop) {
+        if (onTop && liquidGlass) {
             // the floating capsule needs its own body first, otherwise the icons below shine through
             canvas.drawRoundRect(selectorRect, radius, radius, selectorPaint);
         }
@@ -891,16 +937,17 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     private View dragOriginalTab;
 
     private void updateDragSelector(float x) {
-        final float nextX = clampXToChildrenCenters(x, this);
+        final boolean reference = useReferenceDrag();
+        final float nextX = clampXToChildrenCenters(reference ? x + dragGrabOffset : x, this);
         final float movement = Math.min(0.12f,
                 Math.abs(nextX - animatedLongSelectedViewCenterX) / Math.max(1f, dp(72)));
         animatedLongSelectedViewCenterX = nextX;
         selectorTargetX = nextX;
-        selectorStretchX = 1.04f + movement;
-        selectorStretchY = 0.98f - movement * 0.3f;
+        selectorStretchX = reference ? 1f : 1.04f + movement;
+        selectorStretchY = reference ? 1f : 0.98f - movement * 0.3f;
         selectorInitialized = true;
         final View nearest = findNearestVisibleChildByX(nextX, this);
-        setPressedTab(nearest);
+        setPressedTab(reference ? null : nearest);
         for (int i = 0; i < getChildCount(); i++) {
             final View child = getChildAt(i);
             if (child instanceof GlassTabView) {
@@ -911,7 +958,8 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     }
 
     private void finishSelectorDrag(boolean cancelled, float x) {
-        final View target = cancelled ? dragOriginalTab : findNearestVisibleChildByX(x, this);
+        final View target = cancelled ? dragOriginalTab
+                : findNearestVisibleChildByX(useReferenceDrag() ? x + dragGrabOffset : x, this);
         isDraggingSelector = false;
         // Restore the committed tab before asking the host to switch pages. Its click
         // listener can refuse a switch while another navigation gesture is active.
@@ -996,9 +1044,16 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                     selectorFollowsPager = false;
                     selectedTabPositionX.cancel();
                     selectedTabPositionOffsetX.cancel();
-                    animatedLongSelectedViewOffsetX = animatedLongSelectedViewCenterX
-                            - clampXToChildrenCenters(x, this);
-                    selectedTabPositionOffsetX.animateToFinalPosition(0);
+                    if (useReferenceDrag()) {
+                        layoutSelectorRect();
+                        dragGrabOffset = selectorDrawX - touchDownX;
+                        dragCapsuleWidth = selectorRect.width();
+                        animatedLongSelectedViewOffsetX = 0;
+                    } else {
+                        animatedLongSelectedViewOffsetX = animatedLongSelectedViewCenterX
+                                - clampXToChildrenCenters(x, this);
+                        selectedTabPositionOffsetX.animateToFinalPosition(0);
+                    }
                     selectorStretchXAnimation.cancel();
                     selectorStretchYAnimation.cancel();
                     // Cancel the child's click/long press only once dragging is claimed.
@@ -1046,6 +1101,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         }
         selectorPointerId = -1;
         dragOriginalTab = null;
+        dragBackdrop = null;
         selectedTabPositionX.cancel();
         selectedTabPositionOffsetX.cancel();
         selectorStretchXAnimation.cancel();

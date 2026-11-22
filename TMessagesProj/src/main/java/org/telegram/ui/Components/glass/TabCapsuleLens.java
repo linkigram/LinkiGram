@@ -13,31 +13,31 @@ import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.R;
 
-/**
- * The lens of the moving tab capsule. Unlike the old canvas bubble it does not fake the
- * refraction with gradients: the tab row is captured into a small bitmap and pulled through
- * the same bend model the bottom bar uses, so the icons really bend and blur at the rim.
- */
+/** Samples an offscreen backdrop for the idle and dragged tab capsule. */
 @RequiresApi(api = 33)
 public final class TabCapsuleLens {
 
     private final RuntimeShader shader;
+    private final RuntimeShader dragShader;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint dragPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private BitmapShader content;
     private Bitmap bound;
 
     public TabCapsuleLens() {
-        RuntimeShader compiled = null;
+        shader = compile(R.raw.tab_capsule_lens);
+        dragShader = compile(R.raw.tab_capsule_drag_lens);
+        if (shader != null) paint.setShader(shader);
+        if (dragShader != null) dragPaint.setShader(dragShader);
+    }
+
+    private static RuntimeShader compile(int resource) {
         try {
-            compiled = new RuntimeShader(AndroidUtilities.readRes(R.raw.tab_capsule_lens));
-            android.util.Log.i("LinkiGlass", "capsule lens compiled");
-        } catch (Throwable e) {
-            android.util.Log.e("LinkiGlass", "capsule lens failed: " + e);
+            return new RuntimeShader(AndroidUtilities.readRes(resource));
+        } catch (IllegalArgumentException e) {
+            android.util.Log.e("LinkiGlass", "capsule shader failed: " + resource, e);
             FileLog.e(e);
-        }
-        shader = compiled;
-        if (shader != null) {
-            paint.setShader(shader);
+            return null;
         }
     }
 
@@ -46,7 +46,7 @@ public final class TabCapsuleLens {
     }
 
     /**
-     * @param content   the captured tab row, premultiplied, its origin at {@code drawLeft/drawTop}
+     * @param content   the captured panel background
      * @param bitmapW   bitmap width in px
      * @param bitmapH   bitmap height in px
      * @param capsuleW  capsule width in px
@@ -60,11 +60,7 @@ public final class TabCapsuleLens {
         if (shader == null || content == null || content.isRecycled()) {
             return;
         }
-        if (bound != content) {
-            bound = content;
-            this.content = new BitmapShader(content, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-        }
-        shader.setInputShader("img", this.content);
+        shader.setInputShader("img", bind(content));
         shader.setFloatUniform("resolution", Math.max(1f, bitmapW), Math.max(1f, bitmapH));
         shader.setFloatUniform("center", bitmapW / 2f, bitmapH / 2f);
         shader.setFloatUniform("size", Math.max(0.5f, capsuleW / 2f - 0.5f), Math.max(0.5f, capsuleH / 2f - 0.5f));
@@ -75,5 +71,29 @@ public final class TabCapsuleLens {
         shader.setFloatUniform("light_position", Math.max(0f, Math.min(1f, light)));
         shader.setFloatUniform("press_progress", Math.max(0f, Math.min(1f, press)));
         canvas.drawRect(0, 0, bitmapW, bitmapH, paint);
+    }
+
+    public boolean isDragReady() {
+        return dragShader != null;
+    }
+
+    public void drawDrag(Canvas canvas, Bitmap backdrop, float x, float y, float width, float height) {
+        final float unit = height / 52f; // The reference's Button preset, scaled to our tab height.
+        final float pad = unit * 64f;
+        dragShader.setInputShader("img", bind(backdrop));
+        dragShader.setFloatUniform("center", x, y);
+        dragShader.setFloatUniform("size", width / 2f, height / 2f);
+        dragShader.setFloatUniform("unit", unit);
+        canvas.drawRect(x - width / 2f - pad, y - height / 2f - pad,
+                x + width / 2f + pad, y + height / 2f + pad, dragPaint);
+    }
+
+    private BitmapShader bind(Bitmap bitmap) {
+        if (bound != bitmap) {
+            bound = bitmap;
+            content = new BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+            content.setFilterMode(BitmapShader.FILTER_MODE_LINEAR);
+        }
+        return content;
     }
 }
