@@ -567,25 +567,19 @@ public class MainTabsLayout extends AnimatedLinearLayout {
 
     @Override
     protected void dispatchDraw(@NonNull Canvas canvas) {
-        if (lensCapture) {
-            // drawing the tab row into the lens bitmap: draw the children only, never recurse
-            super.dispatchDraw(canvas);
-            return;
-        }
         final boolean drawable = selectorInitialized && usesMovingSelector();
-        final boolean shaderLens = drawable && capsuleLensReady();
         // While the capsule is being dragged it floats above the tab icons and labels, like the
-        // bezel lens of the reference build; at rest it stays underneath the children as before.
+        // bezel lens of the reference build; at rest it sits underneath the children.
         final boolean onTop = drawable && isDraggingSelector;
-        if (drawable && !onTop && !shaderLens) {
+        // The lens only refracts the panel and the page behind it. Icons and labels stay the ones
+        // drawn by the row itself, so nothing appears twice: at rest the lens is painted first and
+        // the children land on top of it, while a dragged capsule is painted over them.
+        final boolean lensDrawn = drawable && capsuleLensReady() && drawSelectorLens(canvas);
+        if (drawable && !lensDrawn && !onTop) {
             drawSelector(canvas, false);
         }
         super.dispatchDraw(canvas);
-        if (shaderLens) {
-            if (!drawSelectorLens(canvas)) {
-                drawSelector(canvas, onTop);
-            }
-        } else if (onTop) {
+        if (drawable && !lensDrawn && onTop) {
             drawSelector(canvas, true);
         }
     }
@@ -641,8 +635,9 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         lensBitmap.eraseColor(0);
         final Canvas offscreen = new Canvas(lensBitmap);
         offscreen.translate(-(selectorRect.left - padX), -(selectorRect.top - padY));
-        // The panel itself is a drawable on this view, so it has to be drawn into the capture by
-        // hand: the capsule then refracts the real glass and the page behind it, not just icons.
+        // Only the panel (the glass drawable over the page) goes into the capture. The tab row is
+        // deliberately left out: it is drawn once, on top of the lens, otherwise every icon would
+        // show up twice — the real one and its refracted copy.
         final Drawable background = getBackground();
         if (background != null) {
             try {
@@ -666,12 +661,6 @@ public class MainTabsLayout extends AnimatedLinearLayout {
             android.util.Log.i("LinkiGlass", "capsule capture ok, bg="
                     + (background == null ? "null" : background.getClass().getSimpleName())
                     + " src=" + lensSourceName(background));
-        }
-        lensCapture = true;
-        try {
-            super.dispatchDraw(offscreen);
-        } finally {
-            lensCapture = false;
         }
 
         final float travel = Math.min(0.18f,
@@ -776,7 +765,6 @@ public class MainTabsLayout extends AnimatedLinearLayout {
             new int[]{0x00FFFFFF, 0x22FFFFFF, 0x00FFFFFF}, null, Shader.TileMode.CLAMP);
     private float lastLightPosition = 0.5f;
     private Bitmap lensBitmap;
-    private boolean lensCapture;
     private float selectorDrawX;
     private boolean selectorStackedYou;
     private boolean selectorInitialized;
