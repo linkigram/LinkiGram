@@ -619,6 +619,9 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     private boolean dragCaptureSuccessLogged;
     private float dragGrabOffset;
     private float dragCapsuleWidth;
+    private float dragCapsuleHeight;
+    private float dragCapsulePivotY;
+    private boolean dragCapsuleStacked;
 
     private boolean drawReferenceDrag(Canvas canvas) {
         final Drawable background = getBackground();
@@ -627,8 +630,8 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         if (background == null || width <= 0 || height <= 0 || dragCapsuleWidth <= 0f) {
             return false;
         }
-        layoutSelectorRect();
-        if (selectorRect.height() <= 0f) {
+        final float capsuleHeight = dragCapsuleHeight * selectorPressScaleY(dragCapsuleStacked);
+        if (capsuleHeight <= 0f) {
             return false;
         }
         try {
@@ -652,8 +655,9 @@ public class MainTabsLayout extends AnimatedLinearLayout {
             android.util.Log.i("LinkiGlass", "reference drag capture ok, src=" + lensSourceName(background));
         }
         super.dispatchDraw(canvas);
-        capsuleLens.drawDrag(canvas, width, height, selectorDrawX, selectorRect.centerY(),
-                dragCapsuleWidth, selectorRect.height());
+        final float capsuleCenterY = dragCapsulePivotY + (dragCapsuleStacked ? capsuleHeight / 2f : 0f);
+        capsuleLens.drawDrag(canvas, animatedLongSelectedViewCenterX, capsuleCenterY,
+                dragCapsuleWidth * selectorPressScaleX(), capsuleHeight);
         return true;
     }
 
@@ -710,12 +714,11 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                     + " src=" + lensSourceName(background));
         }
 
-        final float travel = Math.min(0.18f,
-                Math.abs(selectorTargetX - selectorDrawX) / Math.max(1f, selectorRect.width()) * 0.16f);
+        final float travel = selectorTravel(selectorDrawX, selectorRect.width());
         final boolean stackedYou = selectorStackedYou;
         canvas.save();
-        canvas.scale((selectorStretchX + travel) * (1f + selectorPress * 0.16f),
-                (selectorStretchY - travel * 0.3f) * (1f + selectorPress * (stackedYou ? 0.22f : 0.16f)),
+        canvas.scale((selectorStretchX + travel) * selectorPressScaleX(),
+                (selectorStretchY - travel * 0.3f) * selectorPressScaleY(stackedYou),
                 selectorDrawX, stackedYou ? selectorRect.top : selectorRect.centerY());
         // The body of the capsule is inside the capture now, so the shader paints the whole pill:
         // the refracted panel, the glass film, the rim and the highlights.
@@ -749,6 +752,31 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         return sHeight / 2f;
     }
 
+    private float selectorTravel(float x, float width) {
+        return Math.min(0.18f, Math.abs(selectorTargetX - x) / Math.max(1f, width) * 0.16f);
+    }
+
+    private float selectorPressScaleX() {
+        return 1f + selectorPress * 0.16f;
+    }
+
+    private float selectorPressScaleY(boolean stacked) {
+        return 1f + selectorPress * (stacked ? 0.22f : 0.16f);
+    }
+
+    private void prepareReferenceDrag() {
+        layoutSelectorRect();
+        dragGrabOffset = selectorDrawX - touchDownX;
+        final float travel = selectorTravel(selectorDrawX, selectorRect.width());
+        selectorStretchX += travel;
+        selectorStretchY -= travel * 0.3f;
+        dragCapsuleWidth = selectorRect.width() * selectorStretchX;
+        dragCapsuleHeight = selectorRect.height() * selectorStretchY;
+        dragCapsuleStacked = selectorStackedYou;
+        dragCapsulePivotY = dragCapsuleStacked ? selectorRect.top : selectorRect.centerY();
+        animatedLongSelectedViewOffsetX = 0;
+    }
+
     private void drawSelector(Canvas canvas, boolean onTop) {
         final boolean you = app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled();
         final boolean stackedYou = you && getBottomNavigationMode() == BOTTOM_NAVIGATION_MODE_SHOW;
@@ -766,13 +794,12 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         selectorRect.set(x - sWidth / 2f, top, x + sWidth / 2f, top + sHeight);
         final float radius = sHeight / 2f;
         canvas.save();
-        final float travel = Math.min(0.18f,
-                Math.abs(selectorTargetX - x) / Math.max(1f, sWidth) * 0.16f);
+        final float travel = selectorTravel(x, sWidth);
         final boolean liquidGlass = you || LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
         if (liquidGlass) {
             final float lift = onTop ? 1.04f : 1f;
-            canvas.scale((selectorStretchX + travel) * (1f + selectorPress * 0.16f) * lift,
-                    (selectorStretchY - travel * 0.3f) * (1f + selectorPress * (stackedYou ? 0.22f : 0.16f)) * lift,
+            canvas.scale((selectorStretchX + travel) * selectorPressScaleX() * lift,
+                    (selectorStretchY - travel * 0.3f) * selectorPressScaleY(stackedYou) * lift,
                     x, stackedYou ? selectorRect.top : selectorRect.centerY());
         }
         if (onTop && liquidGlass) {
@@ -944,8 +971,10 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                 Math.abs(nextX - animatedLongSelectedViewCenterX) / Math.max(1f, dp(72)));
         animatedLongSelectedViewCenterX = nextX;
         selectorTargetX = nextX;
-        selectorStretchX = reference ? 1f : 1.04f + movement;
-        selectorStretchY = reference ? 1f : 0.98f - movement * 0.3f;
+        if (!reference) {
+            selectorStretchX = 1.04f + movement;
+            selectorStretchY = 0.98f - movement * 0.3f;
+        }
         selectorInitialized = true;
         final View nearest = findNearestVisibleChildByX(nextX, this);
         setPressedTab(reference ? null : nearest);
@@ -1045,18 +1074,15 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                     selectorFollowsPager = false;
                     selectedTabPositionX.cancel();
                     selectedTabPositionOffsetX.cancel();
+                    selectorStretchXAnimation.cancel();
+                    selectorStretchYAnimation.cancel();
                     if (useReferenceDrag()) {
-                        layoutSelectorRect();
-                        dragGrabOffset = selectorDrawX - touchDownX;
-                        dragCapsuleWidth = selectorRect.width();
-                        animatedLongSelectedViewOffsetX = 0;
+                        prepareReferenceDrag();
                     } else {
                         animatedLongSelectedViewOffsetX = animatedLongSelectedViewCenterX
                                 - clampXToChildrenCenters(x, this);
                         selectedTabPositionOffsetX.animateToFinalPosition(0);
                     }
-                    selectorStretchXAnimation.cancel();
-                    selectorStretchYAnimation.cancel();
                     // Cancel the child's click/long press only once dragging is claimed.
                     final MotionEvent cancel = MotionEvent.obtain(event);
                     cancel.setAction(MotionEvent.ACTION_CANCEL);

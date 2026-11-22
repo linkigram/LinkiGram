@@ -78,13 +78,18 @@ def check_drag_center():
             builder.setUniform("center", [float(x), height / 2.0])
             builder.setUniform("size", [float(half_w), float(half_h)])
             builder.setUniform("scene_size", [float(width), float(height)])
+            builder.setUniform("scene_pad", 0.0)
             builder.setUniform("unit", 2.0 * half_h / 52.0)
             result = skia.Surface(width, height)
             result.getCanvas().drawPaint(skia.Paint(Shader=builder.makeShader()))
             pixels = result.makeImageSnapshot().toarray()
-            assert not pixels[55:73, x - 16:x + 16].any(), "The dragged lens repaints its center"
+            center = pixels[55:73, x - 16:x + 16]
+            assert np.all(center[..., 3] == 18), "The center must stay lightly translucent"
+            assert np.all(center[..., :3] == 255), "The center can only lighten the panel"
             rim_alpha = pixels[34:39, x - 9:x + 9, 3]
-            assert bool(rim_alpha.any()) == (color != skia.ColorTRANSPARENT), "Invalid bevel coverage"
+            assert rim_alpha.max() >= 18, "The bevel disappears against a transparent backdrop"
+            if color == skia.ColorBLACK:
+                assert rim_alpha.max() > 80, "The bevel no longer samples the backdrop"
             assert pixels[90:110, x, 3].max() > 0, "Missing drag shadow"
             count += 1
     return count
@@ -116,7 +121,7 @@ def main():
         image = skia.Image.fromarray(rgba, colorType=skia.kRGBA_8888_ColorType)
         image.save(str(args.preview), skia.kPNG)
     print(f"PASS: SkSL compiled; {count} theme/scale/light/press renders; tint extremes; active lens and lighting")
-    print(f"PASS: {check_drag_center()} drag renders; center untouched, bevel and shadow preserved")
+    print(f"PASS: {check_drag_center()} drag renders; light-only center, bevel and shadow preserved")
 
 
 if __name__ == "__main__":

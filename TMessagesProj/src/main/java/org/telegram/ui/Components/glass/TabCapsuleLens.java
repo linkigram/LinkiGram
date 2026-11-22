@@ -23,6 +23,7 @@ public final class TabCapsuleLens {
     private final RuntimeShader dragShader;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private RenderNode dragScene;
+    private int dragScenePad;
     private BitmapShader content;
     private Bitmap bound;
 
@@ -80,8 +81,11 @@ public final class TabCapsuleLens {
 
     public Canvas beginDragScene(int width, int height) {
         if (dragScene == null) dragScene = new RenderNode("LinkiTabDragScene");
-        dragScene.setPosition(0, 0, width, height);
-        return dragScene.beginRecording(width, height);
+        dragScenePad = AndroidUtilities.dp(12);
+        dragScene.setPosition(-dragScenePad, -dragScenePad, width + dragScenePad, height + dragScenePad);
+        final Canvas canvas = dragScene.beginRecording();
+        canvas.translate(dragScenePad, dragScenePad);
+        return canvas;
     }
 
     public void endDragScene() {
@@ -95,12 +99,12 @@ public final class TabCapsuleLens {
         }
     }
 
-    public void drawDrag(Canvas canvas, int sceneWidth, int sceneHeight,
-                         float x, float y, float width, float height) {
+    public void drawDrag(Canvas canvas, float x, float y, float width, float height) {
         final float unit = height / DRAG_REFERENCE_HEIGHT;
-        dragShader.setFloatUniform("center", x, y);
+        dragShader.setFloatUniform("center", x + dragScenePad, y + dragScenePad);
         dragShader.setFloatUniform("size", width / 2f, height / 2f);
-        dragShader.setFloatUniform("scene_size", sceneWidth, sceneHeight);
+        dragShader.setFloatUniform("scene_size", dragScene.getWidth(), dragScene.getHeight());
+        dragShader.setFloatUniform("scene_pad", dragScenePad);
         dragShader.setFloatUniform("unit", unit);
         dragScene.setRenderEffect(RenderEffect.createRuntimeShaderEffect(dragShader, "img"));
         canvas.drawRenderNode(dragScene);

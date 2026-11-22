@@ -627,6 +627,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
                 colorOsNav ? 64 : md3Nav ? 64 : dockedTabs ? DialogsActivity.MAIN_TABS_HEIGHT : DialogsActivity.MAIN_TABS_HEIGHT_WITH_MARGINS,
                 Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL, 0, 0, 0, colorOsNav || dockedTabs ? 0 : md3Nav ? 8 : 0));
         tabsViewWrapper.setClipToPadding(false);
+        tabsViewWrapper.setClipChildren(false);
         contentView.addView(tabsViewWrapper, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.BOTTOM));
         applyTabsWrapperBackground();
 
