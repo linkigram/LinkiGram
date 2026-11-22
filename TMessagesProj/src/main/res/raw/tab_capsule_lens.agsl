@@ -1,0 +1,119 @@
+/*
+ * LinkiGram capsule lens.
+ *
+ * This is not a tinted pill. The tab row is captured into a small bitmap and the capsule
+ * refracts that bitmap the way a real slab of glass does (the same bevel/dome model as
+ * archisvaze/liquid-glass): the surface bends the image, disperses the channels and gathers
+ * light on the rim. Only the refracted image and the rim are drawn; the tinted body of the
+ * capsule stays on the canvas underneath, so the glass keeps its colour while the icons
+ * inside it are genuinely pulled through the lens.
+ *
+ * The captured bitmap holds the icons only (the panel background is drawn by the canvas),
+ * therefore transparent pixels must stay transparent instead of being filled with a tint.
+ */
+uniform shader img;
+uniform float2 resolution;
+uniform float2 center;
+uniform float2 size;
+uniform float radius;
+uniform float thickness;
+uniform float refract_index;
+uniform float refract_intensity;
+uniform float light_position;
+uniform float press_progress;
+
+float sdRoundBox(float2 p, float2 halfSize, float r) {
+    float2 q = abs(p) - halfSize + float2(r);
+    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+}
+
+// Dome across the bezel: t = 0 on the silhouette, t = 1 at its inner edge.
+float surfaceHeight(float t) {
+    float s = 1.0 - t;
+    return sqrt(max(1.0 - s * s, 0.0));
+}
+
+// The captured row through the lens. The flat middle of the slab does not displace anything
+// (shift fades to zero there), only the bezel bends the image, so the icons never double up.
+half4 sampleRow(float2 coord, float2 outward, float shift, float blur) {
+    float2 base = coord + outward * shift;
+    if (blur <= 0.35) {
+        return img.eval(base);
+    }
+    half4 acc = img.eval(base);
+    acc += img.eval(base + float2(blur, 0.0));
+    acc += img.eval(base - float2(blur, 0.0));
+    acc += img.eval(base + float2(0.0, blur));
+    acc += img.eval(base - float2(0.0, blur));
+    return acc * 0.2;
+}
+
+half4 main(float2 coord) {
+    float2 p = coord - center;
+    float sd = sdRoundBox(p, size, radius);
+    float coverage = clamp(0.5 - sd, 0.0, 1.0);
+    if (coverage <= 0.001) {
+        return half4(0.0);
+    }
+
+    float depth = max(-sd, 0.0);
+    float shortSide = min(size.x, size.y);
+    float bezel = clamp(max(thickness, min(shortSide * 0.7, radius * 1.5)), 1.0, max(shortSide * 0.9, 1.0));
+    float t = clamp(depth / bezel, 0.0, 1.0);
+
+    float2 grad = float2(
+        sdRoundBox(p + float2(0.5, 0.0), size, radius) - sdRoundBox(p - float2(0.5, 0.0), size, radius),
+        sdRoundBox(p + float2(0.0, 0.5), size, radius) - sdRoundBox(p - float2(0.0, 0.5), size, radius));
+    float2 outward = grad / max(length(grad), 0.0001);
+
+    // The denser the glass the further it looks; bounded by the bezel, so the bent image
+    // stays ordered in depth instead of folding back over itself.
+    float bend = clamp(0.34 + 0.24 * (refract_index - 1.0), 0.05, 0.60) * max(refract_intensity, 0.0);
+    float fall = 1.0 - t;
+    float shift = bezel * bend * fall * fall;
+
+    float lightX = -0.35 + (light_position - 0.5) * 0.7;
+    float3 light = normalize(float3(lightX, -0.62, 0.70));
+    float lit = clamp(dot(outward, normalize(light.xy)), 0.0, 1.0);
+
+    float rimFalloff = 1.0 - smoothstep(0.0, bezel * 0.60, depth);
+    float body = rimFalloff * rimFalloff;
+
+    // Blur widens with the bend; the channels separate by a fraction of it.
+    float blur = body * bezel * 0.14;
+    float spread = 0.10 * max(bezel * 0.02, 1.0) * (0.35 + body);
+    half4 sample = sampleRow(coord, outward, shift, blur);
+    float3 rgb = float3(sample.rgb);
+    if (spread > 0.35) {
+        rgb.r = sampleRow(coord + float2(spread, 0.0), outward, shift, blur).r;
+        rgb.b = sampleRow(coord - float2(spread, 0.0), outward, shift, blur).b;
+    }
+
+    // Rim light and dome highlight.
+    float hair = 1.0 - smoothstep(0.0, max(1.2, bezel * 0.10), depth);
+    float hairLit = hair * (0.16 + 0.62 * lit);
+    float hairDark = hair * clamp(-outward.y, 0.0, 1.0) * 0.28;
+
+    float dome = surfaceHeight(t);
+    float3 surfaceNormal = normalize(float3(outward * (1.0 - dome * 0.65), max(dome, 0.10)));
+    float specular = pow(max(dot(surfaceNormal, normalize(light + float3(0.0, 0.0, 1.0))), 0.0), 48.0)
+        * body * (0.30 + 0.50 * lit);
+
+    // The light of the surface glides across the glass and blooms under a press.
+    float sweep = (light_position - 0.5) * size.x * 2.0;
+    float2 glowDelta = float2(p.x - sweep, p.y) / max(float2(size.y * 2.1, size.y * 1.5), float2(1.0));
+    float glow = exp(-dot(glowDelta, glowDelta) * 2.0) * (0.02 + 0.10 * press_progress);
+
+    rgb = rgb * (1.0 - hairDark);
+    // The glass film: the panel seen through the slab is lifted a little, which is what keeps
+    // the selected tab brighter than its neighbours.
+    rgb = mix(rgb, float3(1.0), 0.07 + 0.05 * body);
+    rgb = rgb + float3(specular + hairLit + body * 0.10 * lit);
+    rgb = mix(rgb, float3(1.0), glow * 0.5);
+
+    // Transparent where the captured row was transparent, so the tinted body shows through
+    // instead of being covered by a flat fill; the rim itself is always visible.
+    float imageAlpha = clamp(sample.a, 0.0, 1.0);
+    float alpha = clamp(max(imageAlpha, body * 0.92), 0.0, 1.0) * coverage;
+    return half4(clamp(rgb, 0.0, 1.0) * alpha, alpha);
+}

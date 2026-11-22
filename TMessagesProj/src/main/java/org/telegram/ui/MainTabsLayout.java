@@ -5,6 +5,7 @@ import static org.telegram.messenger.AndroidUtilities.lerp;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.BlurMaskFilter;
 import android.graphics.Color;
@@ -16,6 +17,7 @@ import android.graphics.RadialGradient;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Shader;
+import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.view.MotionEvent;
 import android.view.View;
@@ -35,6 +37,7 @@ import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.AnimatedLinearLayout;
 import org.telegram.ui.Components.blur3.drawable.BlurredBackgroundDrawable;
 import org.telegram.ui.Components.glass.GlassTabView;
+import org.telegram.ui.Components.glass.TabCapsuleLens;
 
 
 import me.vkryl.android.animator.ListAnimator;
@@ -451,6 +454,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
             final float width = Math.max(1f, getWidth() - getPaddingLeft() - getPaddingRight());
             final float x = (animatedLongSelectedViewCenterX + animatedLongSelectedViewOffsetX - getPaddingLeft()) / width;
             final float clamped = Math.max(0f, Math.min(1f, x));
+            lastLightPosition = clamped;
             // 0 degrees is the light from straight above, positive towards the left. The rim geometry is
             // baked into a nine-patch and cached per angle, so quantise: a continuous angle would re-bake
             // on every frame of the selector drag.
@@ -563,17 +567,150 @@ public class MainTabsLayout extends AnimatedLinearLayout {
 
     @Override
     protected void dispatchDraw(@NonNull Canvas canvas) {
+        if (lensCapture) {
+            // drawing the tab row into the lens bitmap: draw the children only, never recurse
+            super.dispatchDraw(canvas);
+            return;
+        }
         final boolean drawable = selectorInitialized && usesMovingSelector();
+        final boolean shaderLens = drawable && capsuleLensReady();
         // While the capsule is being dragged it floats above the tab icons and labels, like the
         // bezel lens of the reference build; at rest it stays underneath the children as before.
         final boolean onTop = drawable && isDraggingSelector;
-        if (drawable && !onTop) {
+        if (drawable && !onTop && !shaderLens) {
             drawSelector(canvas, false);
         }
         super.dispatchDraw(canvas);
-        if (onTop) {
+        if (shaderLens) {
+            if (!drawSelectorLens(canvas)) {
+                drawSelector(canvas, onTop);
+            }
+        } else if (onTop) {
             drawSelector(canvas, true);
         }
+    }
+
+    private TabCapsuleLens capsuleLens;
+    private boolean capsuleLensFailed;
+    private boolean lensCaptureLogged;
+
+    /** Diagnostic only: which glass source the capture came from. */
+    private static String lensSourceName(Drawable background) {
+        if (!(background instanceof BlurredBackgroundDrawable)) {
+            return "-";
+        }
+        final org.telegram.utils.glass.source.GlassSource source =
+                ((BlurredBackgroundDrawable) background).getSource();
+        return source == null ? "null" : source.getClass().getSimpleName();
+    }
+
+    private boolean capsuleLensReady() {
+        if (Build.VERSION.SDK_INT < 33 || capsuleLensFailed
+                || !app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled()) {
+            return false;
+        }
+        if (capsuleLens == null) {
+            capsuleLens = new TabCapsuleLens();
+            capsuleLensFailed = !capsuleLens.isReady();
+        }
+        return capsuleLens.isReady();
+    }
+
+    /**
+     * The tab row is captured into a small bitmap and pulled through the same bevel model the
+     * bottom bar uses: near the rim the sample comes from beyond the silhouette and is blurred,
+     * in the middle the bend fades to nothing. This is what makes the capsule a real lens
+     * instead of a tinted pill.
+     */
+    private boolean drawSelectorLens(Canvas canvas) {
+        final float radius = layoutSelectorRect();
+        final float padX = Math.min(dp(30), Math.max(dp(10), selectorRect.height() * 0.75f));
+        final float padY = padX;
+        final int bitmapW = Math.round(selectorRect.width() + padX * 2f);
+        final int bitmapH = Math.round(selectorRect.height() + padY * 2f);
+        if (bitmapW <= 0 || bitmapH <= 0) {
+            return false;
+        }
+        if (lensBitmap == null || lensBitmap.isRecycled()
+                || lensBitmap.getWidth() != bitmapW || lensBitmap.getHeight() != bitmapH) {
+            if (lensBitmap != null) {
+                lensBitmap.recycle();
+            }
+            lensBitmap = Bitmap.createBitmap(bitmapW, bitmapH, Bitmap.Config.ARGB_8888);
+        }
+        lensBitmap.eraseColor(0);
+        final Canvas offscreen = new Canvas(lensBitmap);
+        offscreen.translate(-(selectorRect.left - padX), -(selectorRect.top - padY));
+        // The panel itself is a drawable on this view, so it has to be drawn into the capture by
+        // hand: the capsule then refracts the real glass and the page behind it, not just icons.
+        final Drawable background = getBackground();
+        if (background != null) {
+            try {
+                background.draw(offscreen);
+            } catch (Throwable ignore) {
+                // software fallback unavailable: the tint below keeps the lens readable
+            }
+        }
+        if ((lensBitmap.getPixel(bitmapW / 2, bitmapH / 2) >>> 24) == 0) {
+            // No usable capture (the glass drawable has no software path here): stay on the
+            // canvas lens instead of covering the panel with a flat slab.
+            if (!lensCaptureLogged) {
+                lensCaptureLogged = true;
+                android.util.Log.i("LinkiGlass", "capsule capture empty, bg="
+                        + (background == null ? "null" : background.getClass().getSimpleName()));
+            }
+            return false;
+        }
+        if (!lensCaptureLogged) {
+            lensCaptureLogged = true;
+            android.util.Log.i("LinkiGlass", "capsule capture ok, bg="
+                    + (background == null ? "null" : background.getClass().getSimpleName())
+                    + " src=" + lensSourceName(background));
+        }
+        lensCapture = true;
+        try {
+            super.dispatchDraw(offscreen);
+        } finally {
+            lensCapture = false;
+        }
+
+        final float travel = Math.min(0.18f,
+                Math.abs(selectorTargetX - selectorDrawX) / Math.max(1f, selectorRect.width()) * 0.16f);
+        final boolean stackedYou = selectorStackedYou;
+        canvas.save();
+        canvas.scale((selectorStretchX + travel) * (1f + selectorPress * 0.16f),
+                (selectorStretchY - travel * 0.3f) * (1f + selectorPress * (stackedYou ? 0.22f : 0.16f)),
+                selectorDrawX, stackedYou ? selectorRect.top : selectorRect.centerY());
+        // The body of the capsule is inside the capture now, so the shader paints the whole pill:
+        // the refracted panel, the glass film, the rim and the highlights.
+        canvas.save();
+        canvas.translate(selectorRect.left - padX, selectorRect.top - padY);
+        capsuleLens.draw(canvas, lensBitmap, bitmapW, bitmapH,
+                selectorRect.width(), selectorRect.height(), radius, dp(16),
+                lastLightPosition, selectorPress);
+        canvas.restore();
+        canvas.restore();
+        return true;
+    }
+
+    private float layoutSelectorRect() {
+        final boolean you = app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled();
+        final boolean stackedYou = you && getBottomNavigationMode() == BOTTOM_NAVIGATION_MODE_SHOW;
+        final float x = animatedLongSelectedViewCenterX + animatedLongSelectedViewOffsetX;
+        final float slotWidth = getInterpolatedWidthByX(x, this);
+        final float sWidth = stackedYou
+                ? Math.min(dp(74), Math.max(0, slotWidth - dp(4)))
+                : slotWidth;
+        final float sHeight = stackedYou
+                ? Math.min(dp(46), getHeight() - getPaddingTop() - getPaddingBottom())
+                : getHeight() - getPaddingTop() - getPaddingBottom();
+        final float top = stackedYou
+                ? getPaddingTop() + (getHeight() - getPaddingTop() - getPaddingBottom() - sHeight) / 2f
+                : (getHeight() - sHeight) / 2f;
+        selectorRect.set(x - sWidth / 2f, top, x + sWidth / 2f, top + sHeight);
+        selectorDrawX = x;
+        selectorStackedYou = stackedYou;
+        return sHeight / 2f;
     }
 
     private void drawSelector(Canvas canvas, boolean onTop) {
@@ -637,6 +774,11 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     private final Matrix selectorLightMatrix = new Matrix();
     private final LinearGradient selectorLightShader = new LinearGradient(-dp(40), 0, dp(40), 0,
             new int[]{0x00FFFFFF, 0x22FFFFFF, 0x00FFFFFF}, null, Shader.TileMode.CLAMP);
+    private float lastLightPosition = 0.5f;
+    private Bitmap lensBitmap;
+    private boolean lensCapture;
+    private float selectorDrawX;
+    private boolean selectorStackedYou;
     private boolean selectorInitialized;
     private boolean selectorFollowsPager;
     private float selectorTargetX;
