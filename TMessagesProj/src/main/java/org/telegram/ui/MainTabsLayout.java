@@ -574,8 +574,11 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                 drawSelector(canvas, false);
             }
         }
+        if (onTop && canvas.isHardwareAccelerated() && useReferenceDrag() && drawReferenceDrag(canvas)) {
+            return;
+        }
         super.dispatchDraw(canvas);
-        if (onTop && (!useReferenceDrag() || !drawReferenceDrag(canvas))) {
+        if (onTop) {
             drawSelector(canvas, true);
         }
     }
@@ -612,7 +615,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                 && app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled();
     }
 
-    private Bitmap dragBackdrop;
+    private final Path dragInterior = new Path();
     private boolean dragCaptureFailureLogged;
     private boolean dragCaptureSuccessLogged;
     private float dragGrabOffset;
@@ -629,17 +632,15 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         if (selectorRect.height() <= 0f) {
             return false;
         }
-        if (dragBackdrop == null || dragBackdrop.getWidth() != width || dragBackdrop.getHeight() != height) {
-            dragBackdrop = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        }
-        // The web demo replaces the scene inside the lens. Make the sampled backdrop opaque
-        // before including the tabs so their original silhouettes can't bleed through underneath.
-        dragBackdrop.eraseColor(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider)
-                | 0xFF000000);
-        final Canvas backdrop = new Canvas(dragBackdrop);
         try {
-            background.draw(backdrop);
-            super.dispatchDraw(backdrop);
+            final Canvas backdrop = capsuleLens.beginDragScene(width, height);
+            try {
+                // A bitmap canvas would draw only the glass source's solid-color fallback.
+                background.draw(backdrop);
+                super.dispatchDraw(backdrop);
+            } finally {
+                capsuleLens.endDragScene();
+            }
         } catch (IllegalArgumentException | IllegalStateException e) {
             if (!dragCaptureFailureLogged) {
                 dragCaptureFailureLogged = true;
@@ -651,8 +652,22 @@ public class MainTabsLayout extends AnimatedLinearLayout {
             dragCaptureSuccessLogged = true;
             android.util.Log.i("LinkiGlass", "reference drag capture ok, src=" + lensSourceName(background));
         }
-        capsuleLens.drawDrag(canvas, dragBackdrop, selectorDrawX, selectorRect.centerY(),
-                dragCapsuleWidth, selectorRect.height());
+        final float x = selectorDrawX;
+        final float y = selectorRect.centerY();
+        final float capsuleHeight = selectorRect.height();
+        final float inset = TabCapsuleLens.dragFeather(capsuleHeight);
+        final float halfWidth = Math.max(0f, dragCapsuleWidth / 2f - inset);
+        final float halfHeight = Math.max(0f, capsuleHeight / 2f - inset);
+        final float radius = Math.min(halfWidth, halfHeight);
+        dragInterior.rewind();
+        dragInterior.addRoundRect(x - halfWidth, y - halfHeight, x + halfWidth, y + halfHeight,
+                radius, radius, Path.Direction.CW);
+        // Inside the capsule the shader owns the icons, even where its backdrop is translucent.
+        final int save = canvas.save();
+        canvas.clipOutPath(dragInterior);
+        super.dispatchDraw(canvas);
+        canvas.restoreToCount(save);
+        capsuleLens.drawDrag(canvas, width, height, x, y, dragCapsuleWidth, capsuleHeight);
         return true;
     }
 
@@ -1101,7 +1116,9 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         }
         selectorPointerId = -1;
         dragOriginalTab = null;
-        dragBackdrop = null;
+        if (Build.VERSION.SDK_INT >= 33 && capsuleLens != null) {
+            capsuleLens.clearDragScene();
+        }
         selectedTabPositionX.cancel();
         selectedTabPositionOffsetX.cancel();
         selectorStretchXAnimation.cancel();

@@ -25,6 +25,7 @@
 uniform shader img;
 uniform float2 center;
 uniform float2 size;
+uniform float2 scene_size;
 uniform float unit;
 
 float sdRoundedRect(float2 p, float2 halfSize, float r) {
@@ -37,23 +38,27 @@ float surfaceHeight(float t) {
     return pow(max(1.0 - s * s * s * s, 0.0), 0.25);
 }
 
-float3 sampleBlur(float2 p, float blur) {
-    float3 sum = float3(img.eval(p + float2(-0.94201, -0.39906) * blur).rgb);
-    sum += float3(img.eval(p + float2( 0.94558, -0.76890) * blur).rgb);
-    sum += float3(img.eval(p + float2(-0.09418, -0.92938) * blur).rgb);
-    sum += float3(img.eval(p + float2( 0.34495,  0.29387) * blur).rgb);
-    sum += float3(img.eval(p + float2(-0.91588, -0.45771) * blur).rgb);
-    sum += float3(img.eval(p + float2(-0.81544,  0.48568) * blur).rgb);
-    sum += float3(img.eval(p + float2(-0.38277, -0.56071) * blur).rgb);
-    sum += float3(img.eval(p + float2(-0.12675,  0.84686) * blur).rgb);
-    sum += float3(img.eval(p + float2( 0.89642,  0.41254) * blur).rgb);
-    sum += float3(img.eval(p + float2( 0.18150, -0.30020) * blur).rgb);
-    sum += float3(img.eval(p + float2(-0.01445, -0.16001) * blur).rgb);
-    sum += float3(img.eval(p + float2( 0.59614,  0.71118) * blur).rgb);
-    sum += float3(img.eval(p + float2( 0.49742, -0.47280) * blur).rgb);
-    sum += float3(img.eval(p + float2( 0.80685,  0.04588) * blur).rgb);
-    sum += float3(img.eval(p + float2(-0.32490, -0.03965) * blur).rgb);
-    sum += float3(img.eval(p + float2(-0.60975,  0.06566) * blur).rgb);
+float4 sceneAt(float2 p) {
+    return float4(img.eval(clamp(p, float2(0.5), scene_size - float2(0.5))));
+}
+
+float4 sampleBlur(float2 p, float blur) {
+    float4 sum = sceneAt(p + float2(-0.94201, -0.39906) * blur);
+    sum += sceneAt(p + float2( 0.94558, -0.76890) * blur);
+    sum += sceneAt(p + float2(-0.09418, -0.92938) * blur);
+    sum += sceneAt(p + float2( 0.34495,  0.29387) * blur);
+    sum += sceneAt(p + float2(-0.91588, -0.45771) * blur);
+    sum += sceneAt(p + float2(-0.81544,  0.48568) * blur);
+    sum += sceneAt(p + float2(-0.38277, -0.56071) * blur);
+    sum += sceneAt(p + float2(-0.12675,  0.84686) * blur);
+    sum += sceneAt(p + float2( 0.89642,  0.41254) * blur);
+    sum += sceneAt(p + float2( 0.18150, -0.30020) * blur);
+    sum += sceneAt(p + float2(-0.01445, -0.16001) * blur);
+    sum += sceneAt(p + float2( 0.59614,  0.71118) * blur);
+    sum += sceneAt(p + float2( 0.49742, -0.47280) * blur);
+    sum += sceneAt(p + float2( 0.80685,  0.04588) * blur);
+    sum += sceneAt(p + float2(-0.32490, -0.03965) * blur);
+    sum += sceneAt(p + float2(-0.60975,  0.06566) * blur);
     return sum / 16.0;
 }
 
@@ -78,7 +83,10 @@ half4 main(float2 coord) {
     float2 grad = float2(sdRoundedRect(p + float2(0.5, 0.0), halfSize, r) - sd,
                          sdRoundedRect(p + float2(0.0, 0.5), halfSize, r) - sd);
     grad /= max(length(grad), 0.0001);
-    float3 color = sampleBlur(coord - grad * displacement * unit, 1.5 * unit);
+    float4 sample = sampleBlur(coord - grad * displacement * unit, 1.5 * unit);
+    // Unlike the demo's photo, Android's panel can be translucent. Preserve that
+    // coverage rather than treating its premultiplied RGB as an opaque dark fill.
+    float3 color = sample.rgb / max(sample.a, 0.0001);
 
     float rimDot = abs(dot(grad, normalize(float2(0.5, -0.7))));
     float rimFalloff = 1.0 - smoothstep(0.0, bezel * 0.4, depth);
@@ -89,6 +97,6 @@ half4 main(float2 coord) {
     color += innerRim * 0.15 * 0.55;
     color = mix(color, float3(1.0), 0.08);
 
-    float alpha = smoothstep(0.0, 1.5, depth);
+    float alpha = sample.a * smoothstep(0.0, 1.5, depth);
     return half4(clamp(color, 0.0, 1.0) * alpha, alpha);
 }

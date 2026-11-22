@@ -4,6 +4,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.RenderEffect;
+import android.graphics.RenderNode;
 import android.graphics.RuntimeShader;
 import android.graphics.Shader;
 
@@ -20,7 +22,7 @@ public final class TabCapsuleLens {
     private final RuntimeShader shader;
     private final RuntimeShader dragShader;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-    private final Paint dragPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private RenderNode dragScene;
     private BitmapShader content;
     private Bitmap bound;
 
@@ -28,7 +30,6 @@ public final class TabCapsuleLens {
         shader = compile(R.raw.tab_capsule_lens);
         dragShader = compile(R.raw.tab_capsule_drag_lens);
         if (shader != null) paint.setShader(shader);
-        if (dragShader != null) dragPaint.setShader(dragShader);
     }
 
     private static RuntimeShader compile(int resource) {
@@ -77,15 +78,38 @@ public final class TabCapsuleLens {
         return dragShader != null;
     }
 
-    public void drawDrag(Canvas canvas, Bitmap backdrop, float x, float y, float width, float height) {
-        final float unit = height / 52f; // The reference's Button preset, scaled to our tab height.
-        final float pad = unit * 64f;
-        dragShader.setInputShader("img", bind(backdrop));
+    public Canvas beginDragScene(int width, int height) {
+        if (dragScene == null) dragScene = new RenderNode("LinkiTabDragScene");
+        dragScene.setPosition(0, 0, width, height);
+        return dragScene.beginRecording(width, height);
+    }
+
+    public void endDragScene() {
+        dragScene.endRecording();
+    }
+
+    public void clearDragScene() {
+        if (dragScene != null) {
+            dragScene.discardDisplayList();
+            dragScene.setRenderEffect(null);
+        }
+    }
+
+    public void drawDrag(Canvas canvas, int sceneWidth, int sceneHeight,
+                         float x, float y, float width, float height) {
+        final float unit = height / DRAG_REFERENCE_HEIGHT;
         dragShader.setFloatUniform("center", x, y);
         dragShader.setFloatUniform("size", width / 2f, height / 2f);
+        dragShader.setFloatUniform("scene_size", sceneWidth, sceneHeight);
         dragShader.setFloatUniform("unit", unit);
-        canvas.drawRect(x - width / 2f - pad, y - height / 2f - pad,
-                x + width / 2f + pad, y + height / 2f + pad, dragPaint);
+        dragScene.setRenderEffect(RenderEffect.createRuntimeShaderEffect(dragShader, "img"));
+        canvas.drawRenderNode(dragScene);
+    }
+
+    private static final float DRAG_REFERENCE_HEIGHT = 52f;
+
+    public static float dragFeather(float height) {
+        return 1.5f * height / DRAG_REFERENCE_HEIGHT;
     }
 
     private BitmapShader bind(Bitmap bitmap) {
