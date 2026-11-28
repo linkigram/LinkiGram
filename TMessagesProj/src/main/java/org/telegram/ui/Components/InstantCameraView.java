@@ -3231,7 +3231,7 @@ public class InstantCameraView extends InstantCameraViewBase implements Notifica
             if (session instanceof CameraSession) {
                 rotationAngle = ((CameraSession) session).getWorldAngle();
             } else if (session instanceof Camera2Session) {
-                rotationAngle = ((Camera2Session) session).getWorldAngle();
+                rotationAngle = ((Camera2Session) session).getRoundVideoRotationAngle();
             } else if (session instanceof app.nimarkogram.messenger.camera.NimarkoCameraXSurfaceSession) {
                 rotationAngle = ((app.nimarkogram.messenger.camera.NimarkoCameraXSurfaceSession) session)
                         .getWorldAngle();
