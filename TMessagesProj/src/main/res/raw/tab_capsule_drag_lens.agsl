@@ -66,8 +66,8 @@ half4 main(float2 coord) {
     float2 samplePoint = center + point * (1.0 - 0.12 * lift) - outward * bend;
     float dispersion = min(bend * 0.055, 0.65 * density);
     float4 sceneColor = backdropAt(samplePoint);
-    float4 redSample = backdropAt(samplePoint - outward * dispersion);
-    float4 blueSample = backdropAt(samplePoint + outward * dispersion);
+    float4 redSample = backdropAt(samplePoint + outward * dispersion);
+    float4 blueSample = backdropAt(samplePoint - outward * dispersion);
     float3 color = float3(redSample.r / max(redSample.a, 0.001),
         sceneColor.g / max(sceneColor.a, 0.001), blueSample.b / max(blueSample.a, 0.001));
 

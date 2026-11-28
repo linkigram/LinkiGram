@@ -464,6 +464,12 @@ public class MainTabsLayout extends AnimatedLinearLayout {
                 || !app.nimarkogram.messenger.appearance.AppearanceConfig.newNavigationBarStyle();
     }
 
+    private void updateSelectorColor() {
+        final int background = Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider);
+        final boolean dark = androidx.core.graphics.ColorUtils.calculateLuminance(background) < 0.5;
+        selectorPaint.setColor(dark ? 0x1FFFFFFF : 0x10000000);
+    }
+
     @Override
     protected void dispatchDraw(@NonNull Canvas canvas) {
         if (selectorInitialized && usesMovingSelector()) {
