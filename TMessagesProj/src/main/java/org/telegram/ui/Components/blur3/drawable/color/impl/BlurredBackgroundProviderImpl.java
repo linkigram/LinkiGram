@@ -14,7 +14,6 @@ import org.telegram.messenger.SharedConfig;
 import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import app.nimarkogram.messenger.appearance.ClientTheme;
-import app.nimarkogram.messenger.appearance.LinkiGramYouTheme;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundProvider;
 import org.telegram.ui.Components.blur3.drawable.color.BlurredBackgroundProviderBuilder;
@@ -39,20 +38,8 @@ public class BlurredBackgroundProviderImpl {
                 if (!LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS)) {
                     return Theme.getColor(Theme.key_windowBackgroundWhite, r) | 0xFF000000;
                 }
-                if (ClientTheme.glassEnabled()) {
-                    // Linki Glass over the You layer: the bar is a lens over the page, so its fill
-                    // has to stay translucent. Solving it to the solid glass target at 0.85 alpha
-                    // produced a plain slab with the blurred page hidden behind it.
-                    // 0.30/0.24 still read as a solid pill on the device: the page behind was
-                    // washed out and the lens looked like a flat rectangle, so the fill is lighter
-                    // and the glass now shows through it.
-                    return Theme.multAlpha(Theme.getColor(Theme.key_glass_targetMainTabs, r),
-                            isDark ? 0.17f : 0.13f);
-                }
-                final float alpha = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS) ? 0.85f : 0.76f;
-                final int colorBg = Theme.getColor(Theme.key_windowBackgroundWhite, r);
-                final int colorTarget = Theme.getColor(Theme.key_glass_targetMainTabs, r);
-                return solveSrcColor(colorBg, colorTarget, alpha);
+                return Theme.multAlpha(Theme.getColor(Theme.key_glass_targetMainTabs, r),
+                        ClientTheme.glassRefractionEnabled() ? (isDark ? 0.17f : 0.13f) : 0.90f);
             })
             .setStrokeColorTop(0x11000000, 0x06FFFFFF)
             .setStrokeColorBottom(0x20000000, 0x11FFFFFF)
@@ -128,16 +115,8 @@ public class BlurredBackgroundProviderImpl {
                     if (!LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS)) {
                         return Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground, r) | 0xFF000000;
                     }
-                    if (ClientTheme.glassEnabled()) {
-                        // LinkiGram You + Linki Glass: the menu is a glass panel over the You surface.
-                        // Same as the tab bar: a lighter fill lets the page behind show through the lens.
-                        return Theme.multAlpha(ClientTheme.color(ClientTheme.SURFACE_HIGH), isDark ? 0.22f : 0.17f);
-                    }
-                    if (LinkiGramYouTheme.isEnabled()) {
-                        return Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground, r) | 0xFF000000;
-                    }
                     return Theme.multAlpha(Theme.getColor(Theme.key_actionBarDefaultSubmenuBackground, r),
-                            android.os.Build.VERSION.SDK_INT >= 33 ? (isDark ? 0.28f : 0.22f) : 0.85f);
+                            ClientTheme.glassRefractionEnabled() ? (isDark ? 0.22f : 0.17f) : 0.94f);
                 })
                 .setStrokeColorTop(0x44FFFFFF, 0)
                 .setStrokeColorBottom(0x22FFFFFF, 0)

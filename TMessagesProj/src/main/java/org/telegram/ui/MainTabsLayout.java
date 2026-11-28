@@ -551,9 +551,12 @@ public class MainTabsLayout extends AnimatedLinearLayout {
             canvas.save();
             canvas.clipPath(lensPath);
             lensFrostPaint.setColor(lightTheme ? 0x3CFFFFFF : 0x32FFFFFF);
-            lensFrostPaint.setStrokeWidth(dp(13f));
+            lensFrostPaint.setStrokeWidth(dp(4f));
             canvas.drawRoundRect(local, radius, radius, lensFrostPaint);
             canvas.restore();
+            lensEdgePaint.setStrokeWidth(dp(1.5f));
+            lensEdgePaint.setColor(lightTheme ? 0xB8FFFFFF : 0x91FFFFFF);
+            canvas.drawRoundRect(local, radius, radius, lensEdgePaint);
         }
 
         canvas.restore();
@@ -598,8 +601,8 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     }
 
     private boolean capsuleLensReady() {
-        if (Build.VERSION.SDK_INT < 33 || capsuleLensFailed
-                || !app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled()) {
+        if (capsuleLensFailed
+                || !app.nimarkogram.messenger.appearance.ClientTheme.glassRefractionEnabled()) {
             return false;
         }
         if (capsuleLens == null) {
@@ -610,9 +613,8 @@ public class MainTabsLayout extends AnimatedLinearLayout {
     }
 
     private boolean useReferenceDrag() {
-        capsuleLensReady();
-        return Build.VERSION.SDK_INT >= 33 && capsuleLens != null && capsuleLens.isDragReady()
-                && app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled();
+        return app.nimarkogram.messenger.appearance.ClientTheme.glassRefractionEnabled()
+                && capsuleLensReady() && capsuleLens.isDragReady();
     }
 
     private boolean dragCaptureFailureLogged;
@@ -795,7 +797,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         final float radius = sHeight / 2f;
         canvas.save();
         final float travel = selectorTravel(x, sWidth);
-        final boolean liquidGlass = you || LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
+        final boolean liquidGlass = LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
         if (liquidGlass) {
             final float lift = onTop ? 1.04f : 1f;
             canvas.scale((selectorStretchX + travel) * selectorPressScaleX() * lift,

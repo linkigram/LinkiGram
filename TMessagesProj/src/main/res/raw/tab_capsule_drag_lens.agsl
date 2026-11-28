@@ -110,5 +110,9 @@ half4 main(float2 coord) {
 
     float4 refracted = float4(clamp(color, 0.0, 1.0) * sample.a, sample.a);
     float4 rim = refracted + film * (1.0 - sample.a);
-    return half4(mix(film, rim, bevelCoverage) * silhouette);
+    float4 glass = mix(film, rim, bevelCoverage) * silhouette;
+    float edge = smoothstep(0.0, 0.8, depth) * (1.0 - smoothstep(1.1, 4.0, depth));
+    float side = pow(abs(grad.x), 2.0);
+    float glint = edge * (0.13 + 0.43 * side + 0.19 * rimDot);
+    return half4(float4(float3(glint), glint) + glass * (1.0 - glint));
 }

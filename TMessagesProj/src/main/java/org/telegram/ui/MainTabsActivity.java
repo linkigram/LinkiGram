@@ -140,15 +140,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
     private View tabsNavStrip;
     private boolean tabsDocked;
     private static boolean useGlassTabs() {
-        if (!LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS)) {
-            return false;
-        }
-        // LinkiGlass on the You layer: the docked You bar is glass as well.
-        if (app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled()) {
-            return true;
-        }
-        return !app.nimarkogram.messenger.appearance.AppearanceConfig.newNavigationBarStyle()
-                && MainTabsLayout.getBottomNavigationMode() == MainTabsLayout.BOTTOM_NAVIGATION_MODE_FLOATING;
+        return app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled();
     }
 
     private boolean tabsLiquidGlassEnabled;
@@ -578,7 +570,11 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         tabsViewBackground.setRadius(dp(dockedTabs ? 0 : DialogsActivity.MAIN_TABS_HEIGHT / 2f));
         tabsViewBackground.setPadding(dp(dockedTabs ? 0 : DialogsActivity.MAIN_TABS_MARGIN - 0.334f));
         if (colorOsNav) {
-            tabsView.setBackgroundColor(0x00000000);
+            if (tabsLiquidGlassEnabled) {
+                tabsView.setBackground(tabsViewBackground);
+            } else {
+                tabsView.setBackgroundColor(0x00000000);
+            }
             tabsView.setElevation(0);
         } else if (md3Nav && dockedTabs) {
             if (app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled()) {
@@ -1757,7 +1753,11 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
         tabsViewBackground.setRadius(dp(tabsDocked ? 0 : DialogsActivity.MAIN_TABS_HEIGHT / 2f));
         tabsViewBackground.setPadding(dp(tabsDocked ? 0 : DialogsActivity.MAIN_TABS_MARGIN - 0.334f));
         if (app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled()) {
-            tabsView.setBackgroundColor(0x00000000);
+            if (enabled) {
+                tabsView.setBackground(tabsViewBackground);
+            } else {
+                tabsView.setBackgroundColor(0x00000000);
+            }
             applyTabsWrapperBackground();
         } else if (tabsDocked && app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled()) {
             if (app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled() && tabsViewBackground != null) {

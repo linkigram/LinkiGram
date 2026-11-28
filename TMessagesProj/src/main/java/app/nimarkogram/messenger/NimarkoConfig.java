@@ -175,6 +175,14 @@ public final class NimarkoConfig {
 
     // Ported from exteraless: the MD3 music player (PlayerSheet) and the MD3 mini
     // player / context bar, replacing the stock AudioPlayerAlert. Both default on.
+    public static boolean useSoundBlowPlayer() {
+        return getPreferences().getBoolean("useSoundBlowPlayer", false);
+    }
+
+    public static void setUseSoundBlowPlayer(boolean enabled) {
+        getEditor().putBoolean("useSoundBlowPlayer", enabled).apply();
+    }
+
     public static boolean md3Player() {
         return app.nimarkogram.messenger.appearance.LinkiGramYouTheme.isEnabled()
                 || app.nimarkogram.messenger.appearance.ColorOs17Theme.isEnabled()

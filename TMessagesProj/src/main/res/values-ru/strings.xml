@@ -1831,4 +1831,6 @@
     <string name="SessionTransferAlreadyAdded">Этот аккаунт или авторизация уже добавлены.</string>
     <string name="SessionTransferExportError">Не удалось экспортировать сессию. Проверьте место сохранения и свободную память. По выбранному пути мог остаться неполный файл.</string>
     <string name="SessionTransferExported">Сессия экспортирована</string>
+    <string name="NM_SoundBlowPlayer">Плеер SoundBlow</string>
+    <string name="NM_SoundBlowPlayer_Desc">Воспроизводить скачанные треки через SoundBlow, пока открыт его плеер.</string>
 </resources>

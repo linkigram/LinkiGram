@@ -398,11 +398,7 @@ public class LiteMode {
     }
 
     private static int powerSaverValue() {
-        // Glass follows the user's saved switch even when automatic saving starts: keeping the
-        // glass flag without the blur it is built on leaves flat translucent rectangles behind
-        // the panels instead of glass, so the blur flag is kept with it.
-        final int glass = value & FLAG_LIQUID_GLASS;
-        return PRESET_POWER_SAVER | glass | (glass != 0 ? FLAG_CHAT_BLUR : 0);
+        return PRESET_POWER_SAVER | (value & FLAG_LIQUID_GLASS);
     }
 
     private static void onFlagsUpdate(int oldValue, int newValue) {
@@ -416,7 +412,7 @@ public class LiteMode {
         if ((changedFlags & FLAG_CHAT_BACKGROUND) > 0) {
             Theme.reloadWallpaper(true);
         }
-        if (BitwiseUtils.hasFlag(changedFlags, FLAG_CHAT_BLUR) || BitwiseUtils.hasFlag(changedFlags, FLAG_LIQUID_GLASS)) {
+        if (((oldValue ^ newValue) & (FLAG_CHAT_BLUR | FLAG_LIQUID_GLASS)) != 0) {
             GlassEngine.getCurrentGlassSettings();
         }
     }

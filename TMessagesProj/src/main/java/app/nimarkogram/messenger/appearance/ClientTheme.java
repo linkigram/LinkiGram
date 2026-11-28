@@ -17,6 +17,7 @@ import com.google.android.material.color.utilities.SchemeTonalSpot;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
 import org.telegram.messenger.LiteMode;
+import org.telegram.messenger.SharedConfig;
 import org.telegram.ui.ActionBar.Theme;
 
 /** Shared semantic roles and geometry for both complete client appearances. */
@@ -50,20 +51,29 @@ public final class ClientTheme {
         return role == 0 ? original : color(role);
     }
 
-    /**
-     * Linki Glass on top of the LinkiGram You layer: the You surfaces are painted as glass
-     * panels instead of solid surfaces, so every screen styled by the You theme follows
-     * the Linki Glass switch as well.
-     */
     public static boolean glassEnabled() {
-        return LinkiGramYouTheme.isEnabled()
-                && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                && LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
+        return LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
+    }
+
+    public static boolean glassRefractionEnabled() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && glassEnabled()
+                && LiteMode.isEnabled(LiteMode.FLAG_CHAT_BLUR)
+                && SharedConfig.getDevicePerformanceClass() != SharedConfig.PERFORMANCE_CLASS_LOW;
     }
 
     /** A You role as a glass fill: the blurred background behind the panel shows through. */
     public static int glassColor(int role, boolean dark) {
-        return Theme.multAlpha(color(role), dark ? 0.66f : 0.78f);
+        final int tint;
+        if (isEnabled()) {
+            tint = color(role);
+        } else {
+            final int key = role == CONTAINER ? Theme.key_featuredStickers_addButton
+                    : role == SURFACE_HIGH ? Theme.key_actionBarDefaultSubmenuBackground
+                    : Theme.key_windowBackgroundWhite;
+            tint = Theme.getColor(key);
+        }
+        return Theme.multAlpha(tint, dark ? 0.82f : 0.90f);
     }
 
     public static int glassColor(int role) {
@@ -172,16 +182,19 @@ public final class ClientTheme {
     }
 
     private static Drawable roundedSurface(Drawable original, int color, boolean topOnly, int radius) {
-        if (!isEnabled() || original == null) return original;
-        // Linki Glass on the You layer: the same panels become glass panes, so the
-        // dimmed content behind a dialog or sheet stays visible through the surface.
-        if (glassEnabled()) {
-            color = Theme.multAlpha(color, Theme.isCurrentThemeDark() ? 0.72f : 0.82f);
-        }
+        final boolean glass = glassEnabled();
+        if ((!isEnabled() && !glass) || original == null) return original;
         Rect padding = new Rect();
         original.getPadding(padding);
         GradientDrawable panel = new GradientDrawable();
-        panel.setColor(0xFFFFFFFF);
+        if (glass) {
+            // Keep the sheen in the drawable so theme bindings can replace its color filter.
+            panel.setOrientation(GradientDrawable.Orientation.TOP_BOTTOM);
+            panel.setColors(new int[]{0xFAFFFFFF, 0xE8FFFFFF, 0xE0FFFFFF});
+            panel.setStroke(AndroidUtilities.dp(1), 0xF8FFFFFF);
+        } else {
+            panel.setColor(0xFFFFFFFF);
+        }
         float r = AndroidUtilities.dp(topOnly ? 28 : radius);
         if (topOnly) panel.setCornerRadii(new float[]{r, r, r, r, 0, 0, 0, 0});
         else panel.setCornerRadius(r);

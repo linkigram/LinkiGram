@@ -770,7 +770,8 @@ public class BlurredBackgroundDrawable extends GlassDrawable implements Theme.Co
     }
 
     private boolean isLiquidGlassEffectEnabled() {
-        return liquidGlassEffectAllowed && getGlassSettings().isLiquidGlassEnabled && Build.VERSION.SDK_INT >= 33;
+        return liquidGlassEffectAllowed && getGlassSettings().isLiquidGlassEnabled
+                && app.nimarkogram.messenger.appearance.ClientTheme.glassRefractionEnabled();
     }
 
     private GlassSource pickSource() {

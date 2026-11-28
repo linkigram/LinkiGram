@@ -13330,4 +13330,6 @@
     <string name="SessionTransferAlreadyAdded">This account or authorization is already added.</string>
     <string name="SessionTransferExportError">Could not export the session. Check the destination and available space. The destination may contain an incomplete file.</string>
     <string name="SessionTransferExported">Session exported</string>
+    <string name="NM_SoundBlowPlayer">SoundBlow player</string>
+    <string name="NM_SoundBlowPlayer_Desc">Use SoundBlow for downloaded songs while its player is open.</string>
 </resources>

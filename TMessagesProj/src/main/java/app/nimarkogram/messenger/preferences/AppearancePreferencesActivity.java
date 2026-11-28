@@ -70,6 +70,7 @@ public class AppearancePreferencesActivity extends NimarkoUniversalPreferencesAc
     private final int navigationDrawerRow = 26;
     private final int immersiveDrawerRow = 27;
     private final int liquidGlassRow = 28;
+    private final int soundBlowPlayerRow = 35;
     private final int linkiYouRow = 29;
     private final int colorOs17Row = 30;
     private final int margyAvatarsRow = 31;
@@ -173,12 +174,13 @@ public class AppearancePreferencesActivity extends NimarkoUniversalPreferencesAc
         items.add(UItem.asButton(sectionRadiusRow, getString(R.string.AP_SectionRadius), getSectionRadiusValueText()));
         items.add(SettingsHelper.asSwitchCG(forceBlurRow, getString(R.string.NM_ForceBlur))
                 .setChecked(NimarkoConfig.forceBlur));
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            items.add(SettingsHelper.asSwitchCG(liquidGlassRow,
-                            getString(R.string.NM_LiquidGlass),
-                            getString(R.string.NM_LiquidGlass_Desc))
-                    .setChecked(LiteMode.isEnabledSetting(LiteMode.FLAG_LIQUID_GLASS)));
-        }
+        items.add(SettingsHelper.asSwitchCG(soundBlowPlayerRow,
+                        getString(R.string.NM_SoundBlowPlayer), getString(R.string.NM_SoundBlowPlayer_Desc))
+                .setChecked(NimarkoConfig.useSoundBlowPlayer()));
+        items.add(SettingsHelper.asSwitchCG(liquidGlassRow,
+                        getString(R.string.NM_LiquidGlass),
+                        getString(R.string.NM_LiquidGlass_Desc))
+                .setChecked(LiteMode.isEnabledSetting(LiteMode.FLAG_LIQUID_GLASS)));
         items.add(UItem.asShadow(null));
 
         items.add(UItem.asHeader(getString(R.string.AP_Header)));
@@ -466,6 +468,9 @@ public class AppearancePreferencesActivity extends NimarkoUniversalPreferencesAc
             app.nimarkogram.messenger.margy.MargyConfig.toggleMonet();
             updateCheckState(view, app.nimarkogram.messenger.margy.MargyConfig.monet());
             if (getParentLayout() != null) getParentLayout().rebuildAllFragmentViews(false, false);
+        } else if (item.id == soundBlowPlayerRow) {
+            NimarkoConfig.setUseSoundBlowPlayer(!NimarkoConfig.useSoundBlowPlayer());
+            updateCheckState(view, NimarkoConfig.useSoundBlowPlayer());
         } else if (item.id == liquidGlassRow) {
             LiteMode.toggleFlag(LiteMode.FLAG_LIQUID_GLASS);
             updateCheckState(view, LiteMode.isEnabledSetting(LiteMode.FLAG_LIQUID_GLASS));

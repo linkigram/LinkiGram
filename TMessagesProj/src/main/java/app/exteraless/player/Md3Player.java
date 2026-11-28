@@ -30,7 +30,12 @@ public final class Md3Player {
     }
 
     public static BottomSheet create(Context context, Theme.ResourcesProvider resourcesProvider) {
-        if (handles(MediaController.getInstance().getPlayingMessageObject())) {
+        MessageObject current = MediaController.getInstance().getPlayingMessageObject();
+        if (NimarkoConfig.useSoundBlowPlayer() && current != null && current.isMusic()) {
+            BottomSheet alternate = SoundBlowSheet.create(context, resourcesProvider, current);
+            if (alternate != null) return alternate;
+        }
+        if (handles(current)) {
             if (PlayerSheet.instance != null) {
                 PlayerSheet.instance.dismissImmediately();
             }
