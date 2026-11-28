@@ -109,7 +109,7 @@ public final class TabCapsuleLens {
         canvas.drawRenderNode(dragScene);
     }
 
-    private static final float DRAG_REFERENCE_HEIGHT = 52f;
+    private static final float DRAG_REFERENCE_HEIGHT = 200f;
 
     private BitmapShader bind(Bitmap bitmap) {
         if (bound != bitmap) {

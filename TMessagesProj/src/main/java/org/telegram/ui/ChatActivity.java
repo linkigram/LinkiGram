@@ -13021,14 +13021,14 @@ public class ChatActivity extends BaseFragment implements
     }
 
     private void updateScrimSourceBitmap() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                && LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS)) {
+        if (app.nimarkogram.messenger.appearance.ClientTheme.glassRefractionEnabled()
+                && contentView != null && contentView.getWidth() >= 2 && contentView.getHeight() >= 2) {
             // Keep enough scene detail for the menu's refracting edges.
             AndroidUtilities.makeGlobalBlurBitmap(bitmap -> {
                 scrimBlur3SourceBitmap.setBitmap(bitmap);
                 Blur3Utils.checkBitmapSourceMatrixScale(scrimBlur3SourceBitmap, contentView);
                 scrimBlur3Factory.invalidateAllLinkedViews();
-            }, 3f, 2, null, null);
+            }, 2f, 1, contentView, null);
             return;
         }
         ScrimOptions.makeGlobalBlurBitmaps((bitmapBg, bitmapOptions) -> {
@@ -32965,12 +32965,10 @@ public class ChatActivity extends BaseFragment implements
 
             updateScrimSourceBitmap();
 
-            final boolean youGlass = app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled();
             final boolean liquidMessageMenu =
-                    (!app.nimarkogram.messenger.appearance.ClientTheme.isEnabled() || youGlass)
-                    && LiteMode.isEnabled(LiteMode.FLAG_LIQUID_GLASS);
+                    app.nimarkogram.messenger.appearance.ClientTheme.glassEnabled();
             scrimBlur3Factory.setLiquidGlassEffectAllowed(liquidMessageMenu);
-            if (app.nimarkogram.messenger.appearance.ClientTheme.isEnabled() && !youGlass) {
+            if (app.nimarkogram.messenger.appearance.ClientTheme.isEnabled() && !liquidMessageMenu) {
                 Drawable materialMenuBackground = popupLayout.getContext().getResources()
                         .getDrawable(R.drawable.popup_fixed_alert4).mutate();
                 popupLayout.setBackground(app.nimarkogram.messenger.appearance.ClientTheme.popupDrawable(
@@ -32985,7 +32983,7 @@ public class ChatActivity extends BaseFragment implements
                     .setPadding(dp(8));
                 if (liquidMessageMenu && Build.VERSION.SDK_INT >= 33) {
                     menuGlass.setLiquidGlassMaterial(R.raw.main_tabs_glass_shader);
-                    menuGlass.setIntensity(1f);
+                    menuGlass.setIntensity(1.75f);
                 }
                 popupLayout.setBackground(menuGlass);
             }

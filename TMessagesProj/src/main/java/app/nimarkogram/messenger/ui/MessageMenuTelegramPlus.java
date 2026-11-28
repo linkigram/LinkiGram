@@ -116,8 +116,10 @@ public final class MessageMenuTelegramPlus {
             insertSemanticDividers(attached, resourcesProvider);
             updateRoundedSelectors(attached);
             styleSwipeBackPages(popupLayout, minWidth, accent, selectorAlpha);
-            popupLayout.setPopupOverlayDrawable(app.nimarkogram.messenger.appearance.ClientTheme.isEnabled()
-                    ? null : new LiquidGlassForeground(resourcesProvider));
+            popupLayout.setPopupOverlayDrawable(
+                    app.nimarkogram.messenger.appearance.ClientTheme.isEnabled()
+                            || app.nimarkogram.messenger.appearance.ClientTheme.glassRefractionEnabled()
+                            ? null : new LiquidGlassForeground(resourcesProvider));
             popupLayout.requestLayout();
         } catch (Throwable ignored) {
             

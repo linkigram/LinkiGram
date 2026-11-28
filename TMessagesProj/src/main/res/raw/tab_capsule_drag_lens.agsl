@@ -75,7 +75,7 @@ half4 main(float2 coord) {
     }
 
     float depth = -sd;
-    float bezel = max(1.0, min(13.0, r * 0.55));
+    float bezel = max(1.0, min(60.0, r - 1.0));
     float t = clamp(depth / bezel, 0.0, 1.0);
     float silhouette = smoothstep(0.0, 1.5, depth);
     float h = surfaceHeight(t);
@@ -83,7 +83,7 @@ half4 main(float2 coord) {
     float opticalThickness = bezel * 0.83;
     float slope = dh * (opticalThickness / bezel);
     float thetaR = asin(sin(atan(slope)) / 3.0);
-    float displacement = min(h * opticalThickness * (slope - tan(thetaR)), 12.0 / unit);
+    float displacement = min(h * opticalThickness * (slope - tan(thetaR)), bezel * 0.85);
     float2 grad = float2(sdRoundedRect(p + float2(0.5, 0.0), halfSize, r) - sd,
                          sdRoundedRect(p + float2(0.0, 0.5), halfSize, r) - sd);
     grad /= max(length(grad), 0.0001);
@@ -102,6 +102,9 @@ half4 main(float2 coord) {
     color = mix(color, float3(1.0), 0.08);
 
     // Allow other layers to show through when the source does not cover the full capsule.
-    float alpha = (sample.a + (1.0 - sample.a) * 0.08) * silhouette;
+    float edge = smoothstep(0.0, 1.5, depth) * (1.0 - smoothstep(2.0, 6.0, depth));
+    float specular = edge * (0.16 + 0.38 * rimDot);
+    color = mix(color, float3(1.0), specular);
+    float alpha = (sample.a + (1.0 - sample.a) * (0.08 + specular)) * silhouette;
     return half4(clamp(color, 0.0, 1.0) * alpha, alpha);
 }
