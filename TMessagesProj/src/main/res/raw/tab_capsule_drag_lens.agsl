@@ -24,87 +24,77 @@
  */
 uniform shader img;
 uniform float2 center;
-uniform float2 size;
+uniform float2 half_size;
 uniform float2 scene_size;
-uniform float unit;
+uniform float density;
+uniform float lift;
+uniform float dark_theme;
 
-float sdRoundedRect(float2 p, float2 halfSize, float r) {
-    float2 q = abs(p) - halfSize + r;
-    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+float capsuleDistance(float2 point, float radius) {
+    float2 axis = max(half_size - radius, 0.0);
+    return length(point - clamp(point, -axis, axis)) - radius;
 }
 
-float surfaceHeight(float t) {
-    float s = 1.0 - t;
-    return pow(max(1.0 - s * s * s * s, 0.0), 0.25);
-}
-
-float4 sceneAt(float2 p) {
-    // Padding is for the output silhouette and shadow, not a source of pixels.
-    float edge = 0.5;
-    return float4(img.eval(clamp(p, float2(edge), scene_size - float2(edge))));
-}
-
-float4 sampleBlur(float2 p, float blur) {
-    float4 sum = sceneAt(p + float2(-0.94201, -0.39906) * blur);
-    sum += sceneAt(p + float2( 0.94558, -0.76890) * blur);
-    sum += sceneAt(p + float2(-0.09418, -0.92938) * blur);
-    sum += sceneAt(p + float2( 0.34495,  0.29387) * blur);
-    sum += sceneAt(p + float2(-0.91588, -0.45771) * blur);
-    sum += sceneAt(p + float2(-0.81544,  0.48568) * blur);
-    sum += sceneAt(p + float2(-0.38277, -0.56071) * blur);
-    sum += sceneAt(p + float2(-0.12675,  0.84686) * blur);
-    sum += sceneAt(p + float2( 0.89642,  0.41254) * blur);
-    sum += sceneAt(p + float2( 0.18150, -0.30020) * blur);
-    sum += sceneAt(p + float2(-0.01445, -0.16001) * blur);
-    sum += sceneAt(p + float2( 0.59614,  0.71118) * blur);
-    sum += sceneAt(p + float2( 0.49742, -0.47280) * blur);
-    sum += sceneAt(p + float2( 0.80685,  0.04588) * blur);
-    sum += sceneAt(p + float2(-0.32490, -0.03965) * blur);
-    sum += sceneAt(p + float2(-0.60975,  0.06566) * blur);
-    return sum / 16.0;
+float4 backdropAt(float2 point) {
+    return float4(img.eval(clamp(point, float2(0.5), scene_size - 0.5)));
 }
 
 half4 main(float2 coord) {
-    // Work in the demo's CSS-pixel units so thickness, bevel, blur and shadow scale together.
-    float2 p = (coord - center) / unit;
-    float2 halfSize = size / unit;
-    float r = min(halfSize.x, halfSize.y);
-    float sd = sdRoundedRect(p, halfSize, r);
-    if (sd > 0.0) {
-        return half4(0.0, 0.0, 0.0, exp(-sd * sd / 800.0) * 0.30);
+    float2 point = coord - center;
+    float radius = min(half_size.x, half_size.y);
+    float2 axis = max(half_size - radius, 0.0);
+    float2 radial = point - clamp(point, -axis, axis);
+    float radialLength = length(radial);
+    float distance = capsuleDistance(point, radius);
+    if (distance > 0.75) {
+        // Short contact shadow. Its falloff and offset grow with the lens lift.
+        float shadowDistance = max(0.0, capsuleDistance(point - float2(0.0, 2.0 * density * lift), radius));
+        float reach = max(density * (1.0 + 3.5 * lift), 1.0);
+        float shadow = exp(-shadowDistance * shadowDistance / (reach * reach));
+        return half4(0.0, 0.0, 0.0, shadow * 0.18 * lift);
     }
 
-    float depth = -sd;
-    float bezel = max(1.0, min(60.0, r - 1.0));
-    float t = clamp(depth / bezel, 0.0, 1.0);
-    float silhouette = smoothstep(0.0, 1.5, depth);
-    float h = surfaceHeight(t);
-    float dh = (surfaceHeight(min(t + 0.001, 1.0)) - h) / 0.001;
-    float opticalThickness = bezel * 0.83;
-    float slope = dh * (opticalThickness / bezel);
-    float thetaR = asin(sin(atan(slope)) / 3.0);
-    float displacement = min(h * opticalThickness * (slope - tan(thetaR)), bezel * 0.85);
-    float2 grad = float2(sdRoundedRect(p + float2(0.5, 0.0), halfSize, r) - sd,
-                         sdRoundedRect(p + float2(0.0, 0.5), halfSize, r) - sd);
-    grad /= max(length(grad), 0.0001);
-    float4 sample = sampleBlur(coord - grad * displacement * unit, 1.5 * unit);
-    // Unlike the demo's photo, Android's panel can be translucent. Preserve that
-    // coverage rather than treating its premultiplied RGB as an opaque dark fill.
-    float3 color = sample.rgb / max(sample.a, 0.0001);
+    float coverage = 1.0 - smoothstep(-0.75, 0.75, distance);
+    float depth = max(-distance, 0.0);
+    float bezel = max(1.0, min(radius * 0.68, 14.0 * density));
+    float edge = 1.0 - clamp(depth / bezel, 0.0, 1.0);
+    float2 outward = radial / max(radialLength, 0.001);
 
-    float rimDot = abs(dot(grad, normalize(float2(0.5, -0.7))));
-    float rimFalloff = 1.0 - smoothstep(0.0, bezel * 0.4, depth);
-    color += 0.55 * pow(rimDot * rimFalloff, 1.5);
-    float innerShadow = 1.0 - smoothstep(0.0, bezel * 0.6, depth);
-    color *= mix(1.0, 0.7, innerShadow * 0.3);
-    float innerRim = smoothstep(0.0, 2.0, depth) * (1.0 - smoothstep(2.0, 5.0, depth));
-    color += innerRim * 0.15 * 0.55;
-    color = mix(color, float3(1.0), 0.08);
+    // The rounded slab samples further inside the shape at its rim. A convex
+    // centre magnifies continuously into that bevel, without clamping to the pill.
+    float bend = bezel * (0.18 + 0.22 * lift) * edge * edge;
+    float2 samplePoint = center + point * (1.0 - 0.12 * lift) - outward * bend;
+    float dispersion = min(bend * 0.055, 0.65 * density);
+    float4 sceneColor = backdropAt(samplePoint);
+    float4 redSample = backdropAt(samplePoint - outward * dispersion);
+    float4 blueSample = backdropAt(samplePoint + outward * dispersion);
+    float3 color = float3(redSample.r / max(redSample.a, 0.001),
+        sceneColor.g / max(sceneColor.a, 0.001), blueSample.b / max(blueSample.a, 0.001));
 
-    // Allow other layers to show through when the source does not cover the full capsule.
-    float edge = smoothstep(0.0, 1.5, depth) * (1.0 - smoothstep(2.0, 6.0, depth));
-    float specular = edge * (0.16 + 0.38 * rimDot);
-    color = mix(color, float3(1.0), specular);
-    float alpha = (sample.a + (1.0 - sample.a) * (0.08 + specular)) * silhouette;
+    // Very small, symmetric sampling footprint. Refraction above operates on
+    // coordinates; this only softens the lifted centre enough to separate it.
+    float soft = density * (0.55 + 0.65 * lift) * (1.0 - 0.55 * edge);
+    float4 surroundings = (backdropAt(samplePoint + float2(soft, 0.0))
+        + backdropAt(samplePoint - float2(soft, 0.0))
+        + backdropAt(samplePoint + float2(0.0, soft))
+        + backdropAt(samplePoint - float2(0.0, soft))) * 0.25;
+    color = mix(color, surroundings.rgb / max(surroundings.a, 0.001), 0.23);
+
+    // Round-slab normal and Schlick Fresnel reflectance. The bevel responds
+    // to the light direction and to the captured scene's luminance.
+    float normalZ = sqrt(max(1.0 - edge * edge, 0.0));
+    float3 surfaceNormal = float3(outward * edge, normalZ);
+    float fresnel = 0.04 + 0.96 * pow(1.0 - normalZ, 5.0);
+    float3 light = normalize(float3(-0.57, -0.74, 0.37));
+    float3 halfVector = normalize(light + float3(0.0, 0.0, 1.0));
+    float specular = pow(max(dot(surfaceNormal, halfVector), 0.0), 18.0);
+    float luminance = dot(color, float3(0.2126, 0.7152, 0.0722));
+    float3 tint = mix(float3(1.0), float3(0.12, 0.13, 0.15), dark_theme);
+    float tintWeight = mix(0.06 + 0.08 * (1.0 - luminance), 0.08 + 0.12 * luminance, dark_theme);
+    color = mix(color, tint, tintWeight);
+    color *= 1.0 - fresnel * (0.07 + 0.13 * luminance);
+    color += (1.0 - color) * specular * (0.20 + 0.13 * lift) * edge;
+
+    float alpha = sceneColor.a * coverage * lift;
     return half4(clamp(color, 0.0, 1.0) * alpha, alpha);
 }
