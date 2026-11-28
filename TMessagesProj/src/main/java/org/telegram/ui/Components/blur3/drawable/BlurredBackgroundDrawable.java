@@ -240,6 +240,19 @@ public class BlurredBackgroundDrawable extends GlassDrawable implements Theme.Co
         return source;
     }
 
+    /** Draws the captured scene in the owner's coordinates before the lens and tint. */
+    public void drawBackdrop(@NonNull Canvas canvas, float left, float top, float right, float bottom) {
+        final float x = getSourceOffsetX();
+        final float y = getSourceOffsetY();
+        canvas.save();
+        try {
+            canvas.translate(-x, -y);
+            source.draw(canvas, left + x, top + y, right + x, bottom + y);
+        } finally {
+            canvas.restore();
+        }
+    }
+
     public GlassSource getUnwrappedSource() {
         return unwrap(source);
     }
@@ -1358,6 +1371,13 @@ public class BlurredBackgroundDrawable extends GlassDrawable implements Theme.Co
                 } else {
                     liquidGlassEffect.clearArrow();
                 }
+                // The captured image carries the material. Keep enough theme tint for
+                // foreground contrast, while leaving the backdrop visible through the lens.
+                final int tintAlpha = Color.alpha(backgroundColor);
+                final int tintLimit = Theme.isCurrentThemeDark() ? 140 : 115;
+                final int lensTint = tintAlpha > tintLimit && tintAlpha < 255
+                        ? (backgroundColor & 0x00FFFFFF) | (tintLimit << 24)
+                        : backgroundColor;
                 liquidGlassEffect.update(
                     body.width(), body.height(),
                     body.left - b.left, body.top - b.top,
@@ -1365,7 +1385,7 @@ public class BlurredBackgroundDrawable extends GlassDrawable implements Theme.Co
                     thickness,
                     boundProps.liquidIntensity,
                     boundProps.liquidIndex,
-                    backgroundColor,
+                    lensTint,
                     originX - sL, originY - sT,
                     downsample
                 );

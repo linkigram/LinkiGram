@@ -104,7 +104,6 @@ public final class TabCapsuleLens {
         dragShader.setFloatUniform("center", x + dragScenePad, y + dragScenePad);
         dragShader.setFloatUniform("size", width / 2f, height / 2f);
         dragShader.setFloatUniform("scene_size", dragScene.getWidth(), dragScene.getHeight());
-        dragShader.setFloatUniform("scene_pad", dragScenePad);
         dragShader.setFloatUniform("unit", unit);
         dragScene.setRenderEffect(RenderEffect.createRuntimeShaderEffect(dragShader, "img"));
         canvas.drawRenderNode(dragScene);

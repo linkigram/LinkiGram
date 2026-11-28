@@ -1700,7 +1700,7 @@ public class MainTabsActivity extends ViewPagerActivity implements NotificationC
             if (top >= view.getHeight()) {
                 fragment.setParentGlass(null, null);
             } else {
-                tabsCapturePosition.set(0, top - dp(1), view.getWidth(), bottom + dp(1));
+                tabsCapturePosition.set(0, top - dp(12), view.getWidth(), bottom + dp(12));
                 fragment.setParentGlass(tabsCapturePosition, onFragmentGlassCaptured);
             }
         }

@@ -629,7 +629,7 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         final Drawable background = getBackground();
         final int width = getWidth();
         final int height = getHeight();
-        if (background == null || width <= 0 || height <= 0 || dragCapsuleWidth <= 0f) {
+        if (!(background instanceof BlurredBackgroundDrawable) || width <= 0 || height <= 0 || dragCapsuleWidth <= 0f) {
             return false;
         }
         final float capsuleHeight = dragCapsuleHeight * selectorPressScaleY(dragCapsuleStacked);
@@ -639,9 +639,9 @@ public class MainTabsLayout extends AnimatedLinearLayout {
         try {
             final Canvas backdrop = capsuleLens.beginDragScene(width, height);
             try {
-                // Capture the glass on the hardware canvas, but never capture the tabs:
-                // their actual content is drawn once below the bevel overlay.
-                background.draw(backdrop);
+                final int padding = dp(12);
+                ((BlurredBackgroundDrawable) background).drawBackdrop(
+                        backdrop, -padding, -padding, width + padding, height + padding);
             } finally {
                 capsuleLens.endDragScene();
             }
@@ -656,10 +656,10 @@ public class MainTabsLayout extends AnimatedLinearLayout {
             dragCaptureSuccessLogged = true;
             android.util.Log.i("LinkiGlass", "reference drag capture ok, src=" + lensSourceName(background));
         }
-        super.dispatchDraw(canvas);
         final float capsuleCenterY = dragCapsulePivotY + (dragCapsuleStacked ? capsuleHeight / 2f : 0f);
         capsuleLens.drawDrag(canvas, animatedLongSelectedViewCenterX, capsuleCenterY,
                 dragCapsuleWidth * selectorPressScaleX(), capsuleHeight);
+        super.dispatchDraw(canvas);
         return true;
     }
 
