@@ -3,11 +3,15 @@ package app.exteraless.player
 import android.content.Context
 import android.net.Uri
 import android.widget.Button
+import android.widget.ImageButton
+import android.widget.SeekBar
+import android.widget.TextView
+import android.view.Gravity
+import android.text.TextUtils
 import android.widget.LinearLayout
 import android.view.View
 import androidx.media3.common.Player
 import com.xvare.soundblow.player.SoundBlowEngine
-import com.xvare.soundblow.player.SoundBlowPlayerView
 import com.xvare.soundblow.player.Track
 import org.telegram.messenger.AndroidUtilities.dp
 import org.telegram.messenger.FileLoader
@@ -40,7 +44,49 @@ object SoundBlowSheet {
         val engine = SoundBlowEngine(context)
         val player = engine.player
         val wasPlaying = !media.isMessagePaused
-        val view = SoundBlowPlayerView(context)
+        val foreground = Theme.getColor(Theme.key_player_actionBarTitle, resources)
+        val accent = Theme.getColor(Theme.key_player_buttonActive, resources)
+        val title = TextView(context).apply {
+            textSize = 22f
+            setTextColor(foreground)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+        }
+        val artist = TextView(context).apply {
+            textSize = 15f
+            setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteGrayText, resources))
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+        }
+        val seek = SeekBar(context).apply {
+            max = 1000
+            progressTintList = android.content.res.ColorStateList.valueOf(accent)
+            thumbTintList = progressTintList
+        }
+        var seeking = false
+        seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onStartTrackingTouch(bar: SeekBar) { seeking = true }
+            override fun onProgressChanged(bar: SeekBar, value: Int, fromUser: Boolean) = Unit
+            override fun onStopTrackingTouch(bar: SeekBar) {
+                if (player.duration > 0L) engine.seek(player.duration * bar.progress / bar.max)
+                seeking = false
+            }
+        })
+        val controls = LinearLayout(context).apply { gravity = Gravity.CENTER }
+        fun control(path: String, label: Int, size: Int, action: () -> Unit): ImageButton {
+            return ImageButton(context).apply {
+                setImageDrawable(PlayerIcon.stroke(path, 24))
+                setColorFilter(foreground)
+                contentDescription = org.telegram.messenger.LocaleController.getString(label)
+                setBackground(Theme.createSelectorDrawable(Theme.multAlpha(accent, 0.2f)))
+                setOnClickListener { action() }
+                controls.addView(this, LinearLayout.LayoutParams(dp(size.toFloat()), dp(size.toFloat())))
+            }
+        }
+        val previous = control(PlayerIcon.PREV, org.telegram.messenger.R.string.AccDescrPrevious, 56) { engine.previous() }
+        val play = control(PlayerIcon.PLAY, org.telegram.messenger.R.string.AccActionPlay, 64) { engine.toggle() }
+        val next = control(PlayerIcon.NEXT, org.telegram.messenger.R.string.Next, 56) { engine.next() }
         val lyrics = LyricsView(context)
         lyrics.setColors(PlayerColors.fromSeed(Theme.getColor(Theme.key_windowBackgroundWhiteBlueText), Theme.isCurrentThemeDark()))
         var closed = false
@@ -93,10 +139,25 @@ object SoundBlowSheet {
             override fun run() {
                 if (closed) return
                 lyrics.setPosition(player.currentPosition)
+                val duration = player.duration
+                seek.isEnabled = duration > 0L
+                if (!seeking) seek.progress = if (duration > 0L) {
+                    (player.currentPosition * seek.max / duration).toInt().coerceIn(0, seek.max)
+                } else 0
                 lyrics.postDelayed(this, 100)
             }
         }
         player.addListener(object : Player.Listener {
+            override fun onEvents(player: Player, events: Player.Events) {
+                title.text = player.mediaMetadata.title
+                artist.text = player.mediaMetadata.artist
+                previous.isEnabled = player.hasPreviousMediaItem()
+                next.isEnabled = player.hasNextMediaItem()
+                play.setImageDrawable(PlayerIcon.stroke(if (player.isPlaying) PlayerIcon.PAUSE else PlayerIcon.PLAY, 28))
+                play.contentDescription = org.telegram.messenger.LocaleController.getString(
+                    if (player.isPlaying) org.telegram.messenger.R.string.AccActionPause else org.telegram.messenger.R.string.AccActionPlay
+                )
+            }
             override fun onMediaItemTransition(item: androidx.media3.common.MediaItem?, reason: Int) {
                 ++request
                 sourceOptions = emptyList()
@@ -106,7 +167,12 @@ object SoundBlowSheet {
         })
         val body = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            addView(view)
+            setPadding(dp(24f), dp(20f), dp(24f), dp(12f))
+            setBackgroundColor(Theme.getColor(Theme.key_player_background, resources))
+            addView(title)
+            addView(artist)
+            addView(seek)
+            addView(controls)
             addView(sourceButton)
             addView(lyrics, LinearLayout.LayoutParams(-1, dp(230f)))
         }
@@ -136,7 +202,6 @@ object SoundBlowSheet {
         }
         engine.setQueue(playable.map { it.second }, index)
         engine.seek(current.audioProgressMs.toLong())
-        view.bind(engine)
         lyrics.showState(LyricsView.STATE_OFFER)
         lyrics.post(tick)
         if (wasPlaying) engine.play()

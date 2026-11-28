@@ -76,7 +76,7 @@ half4 main(float2 coord) {
     }
 
     float depth = -sd;
-    float bezel = max(1.0, min(60.0, r - 1.0));
+    float bezel = max(1.0, min(13.0, r * 0.55));
     float t = clamp(depth / bezel, 0.0, 1.0);
     // Keep the full silhouette visible with a light-only film. The center does
     // not sample the backdrop, so a dark capture cannot darken the moving pill.
@@ -90,11 +90,11 @@ half4 main(float2 coord) {
     float dh = (surfaceHeight(min(t + 0.001, 1.0)) - h) / 0.001;
     float slope = dh * (50.0 / bezel);
     float thetaR = asin(sin(atan(slope)) / 3.0);
-    float displacement = h * 50.0 * (slope - tan(thetaR));
+    float displacement = clamp(h * 3.2 * (slope - tan(thetaR)), -12.0, 12.0);
     float2 grad = float2(sdRoundedRect(p + float2(0.5, 0.0), halfSize, r) - sd,
                          sdRoundedRect(p + float2(0.0, 0.5), halfSize, r) - sd);
     grad /= max(length(grad), 0.0001);
-    float4 sample = sampleBlur(coord - grad * displacement * unit, 1.5 * unit);
+    float4 sample = sampleBlur(coord - grad * displacement * unit, 0.65 * unit);
     // Unlike the demo's photo, Android's panel can be translucent. Preserve that
     // coverage rather than treating its premultiplied RGB as an opaque dark fill.
     float3 color = sample.rgb / max(sample.a, 0.0001);

@@ -58,7 +58,7 @@ public final class ClientTheme {
     public static boolean glassRefractionEnabled() {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 && glassEnabled()
-                && LiteMode.isEnabled(LiteMode.FLAG_CHAT_BLUR)
+                && !LiteMode.isPowerSaverApplied()
                 && SharedConfig.getDevicePerformanceClass() != SharedConfig.PERFORMANCE_CLASS_LOW;
     }
 
